@@ -1,16 +1,21 @@
 {
-  "name": "signup-form",
+  "name": "bondhealth",
   "version": "1.0.0",
-  "description": "Signup form with Node.js backend",
-  "main": "signup-handler.js",
+  "type": "module",
   "scripts": {
-    "start": "node signup-handler.js",
-    "dev": "nodemon signup-handler.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^5.0.0"
   }
 }
