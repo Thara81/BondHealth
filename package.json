@@ -1,0 +1,16 @@
+{
+  "name": "signup-form",
+  "version": "1.0.0",
+  "description": "Signup form with Node.js backend",
+  "main": "signup-handler.js",
+  "scripts": {
+    "start": "node signup-handler.js",
+    "dev": "nodemon signup-handler.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
