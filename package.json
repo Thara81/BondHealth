@@ -1,0 +1,13 @@
+{
+  "name": "bondhealth_signin",
+  "version": "1.0.0",
+  "description": "Single-file Healthcare Sign In Application",
+  "main": "signin.js",
+  "scripts": {
+    "start": "node signin.js",
+    "dev": "node signin.js"
+  },
+  "keywords": ["healthcare", "signin", "nodejs"],
+  "author": "Your Name",
+  "license": "MIT"
+}
