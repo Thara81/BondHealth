@@ -1,0 +1,17 @@
+{
+  "name": "bondhealth-website",
+  "version": "1.0.0",
+  "description": "BondHealth - Unifying Care, Strengthening Lives",
+  "main": "home.js",
+  "scripts": {
+    "start": "node home.js",
+    "dev": "nodemon home.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
