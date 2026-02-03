@@ -119,7 +119,7 @@ app.get('/', (req, res) => {
         }
         
         .cyan-light {
-          background: rgba(0, 255, 255, 0.1);
+          background: rgba(0, 229, 255, 0.06);
         }
         
         .cyan-dark {
@@ -127,7 +127,7 @@ app.get('/', (req, res) => {
         }
         
         .cyan-text {
-          color: #00ffff;
+          color: #00bcd4;
         }
         
         .cyan-border {
@@ -279,29 +279,29 @@ app.get('/', (req, res) => {
         }
         
         .btn-cyan {
-          background: #00ffff;
-          color: #00ffff;
+          background: #00e5ff;
+          color: #00363a;
           font-weight: 600;
           transition: all 0.3s ease;
         }
         
         .btn-cyan:hover {
-          background: #00ffff;
+          background: #00c8e0;
           transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgb(0, 221, 255);
+          box-shadow: 0 10px 20px rgba(0, 229, 255, 0.4);
         }
         
         .btn-white {
           background: white;
-          color: #00ffff;
-          border: 2px solid #00ffff;
+          color: #00bcd4;
+          border: 2px solid #00e5ff;
           font-weight: 600;
           transition: all 0.3s ease;
         }
         
         .btn-white:hover {
-          background: #00ffff;
-          color: #00ffff;
+          background: #00e5ff;
+          color: #00363a;
         }
         
         .glass-effect {
@@ -500,13 +500,13 @@ app.get('/', (req, res) => {
                             </div>
                             <div>
                               <h3 class="text-xl font-bold cyan-text">${apt.doctor}</h3>
-                              <p class="text-gray-600">${apt.specialization}</p>
+                              <h3 class="text-xl font-bold text-gray-800">${apt.doctor}</h3>
                             </div>
                           </div>
                           <p class="text-gray-700 mt-2"><i class="fas fa-stethoscope mr-2 cyan-text"></i>${apt.reason}</p>
                         </div>
                         <div class="flex items-center space-x-3 mt-4 md:mt-0">
-                          <span class="px-3 py-1 cyan-bg text-white rounded-full text-sm font-semibold">
+                          <span class="px-3 py-1 bg-cyan-500 text-white rounded-full text-sm font-semibold">
                             ${apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
                           </span>
                           <button class="px-4 py-2 btn-cyan rounded-lg reschedule-btn" data-id="${apt.id}">
@@ -578,7 +578,7 @@ app.get('/', (req, res) => {
             <h3 class="text-lg font-semibold cyan-text mb-4">Medical Information</h3>
             <div class="space-y-4">
               <div>
-                <p class="text-sm cyan-text">Medical Conditions</p>
+                <p class="text-sm text-gray-500">Medical Conditions</p>
                 <div class="flex flex-wrap gap-2 mt-2">
                   ${patientData.conditions.map(cond => `
                     <span class="px-3 py-1 cyan-bg text-white rounded-full text-sm">${cond}</span>
