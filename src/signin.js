@@ -96,11 +96,11 @@ const HTML_TEMPLATE = `<!doctype html>
           <form class="form-section" id="patientForm">
             <div class="form-group">
               <label class="form-label">Username</label>
-              <input type="text" class="form-input" placeholder="Enter your username" required>
+              <input type="text" class="form-input" id="patientUsername" placeholder="Enter your username" required>
             </div>
             <div class="form-group">
               <label class="form-label">Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" required>
+              <input type="password" class="form-input" id="patientPassword" placeholder="••••••••" required>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
@@ -139,11 +139,11 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <div class="form-group">
               <label class="form-label">Username</label>
-              <input type="text" class="form-input" placeholder="Enter your username" required>
+              <input type="text" class="form-input" id="hospitalUsername" placeholder="Enter your username" required>
             </div>
             <div class="form-group">
               <label class="form-label">Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" required>
+              <input type="password" class="form-input" id="hospitalPassword" placeholder="••••••••" required>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLinkHospital">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
@@ -324,26 +324,53 @@ const HTML_TEMPLATE = `<!doctype html>
       document.getElementById('successMessage').classList.remove('show');
     }
 
-    function handleSignIn(type) {
+    async function handleSignIn(type) {
       let message = '';
+      let username, password;
+      
       if (type === 'patient') {
+        username = document.getElementById('patientUsername').value;
+        password = document.getElementById('patientPassword').value;
         message = 'Patient signed in successfully!';
+        
+        // Show message and reset
         showMessage(message);
         document.getElementById('patientForm').reset();
+        
       } else if (type === 'hospital') {
         if (!selectedRole) {
           showMessage('Please select a role first!');
           return;
         }
         
+        username = document.getElementById('hospitalUsername').value;
+        password = document.getElementById('hospitalPassword').value;
+        
+        // Simple validation (in real app, this would be proper authentication)
+        if (!username || !password) {
+          showMessage('Please enter username and password');
+          return;
+        }
+        
+        // Store credentials in sessionStorage for the next page
+        sessionStorage.setItem('hospitalRole', selectedRole);
+        sessionStorage.setItem('hospitalUsername', username);
+        
+        // Handle redirects based on role
         if (selectedRole === 'admin') {
-          // ADMIN: Redirect to Hospital.js
-          window.location.href = 'Hospital.js';
-          return; // Don't show message since we're redirecting
+          // Redirect to Hospital.js
+          window.location.href = '/Hospital.js';
+          return;
         } else if (selectedRole === 'doctor') {
           message = 'Doctor signed in successfully!';
+          // Redirect to doctor dashboard
+          window.location.href = '/doctor-dashboard';
+          return;
         } else if (selectedRole === 'lab') {
-          message = 'Lab technician signed in successfully!';
+          // Redirect to labs.js (port 3002)
+          // Using full URL for cross-port navigation
+          window.location.href = 'http://localhost:3002/';
+          return;
         }
         
         showMessage(message);
@@ -378,13 +405,17 @@ const server = http.createServer((req, res) => {
             try {
                 const data = JSON.parse(body);
                 console.log('Sign in attempt:', data);
+                
+                // Simple authentication logic (for demo purposes)
+                const isValid = data.username && data.password;
+                
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
-                    success: true,
-                    message: 'Sign in successful!',
+                    success: isValid,
+                    message: isValid ? 'Sign in successful!' : 'Invalid credentials',
                     userType: data.userType || 'patient',
                     role: data.role || null,
-                    redirectTo: data.role === 'admin' ? 'Hospital.js' : null
+                    redirectTo: getRedirectUrl(data.role)
                 }));
             } catch (error) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -416,11 +447,44 @@ const server = http.createServer((req, res) => {
             </body>
             </html>
         `);
+    } else if (req.url === '/doctor-dashboard') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Doctor Dashboard</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+                    h1 { color: #0066cc; }
+                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>👨‍⚕️ Doctor Dashboard</h1>
+                    <p>Welcome, Doctor!</p>
+                    <p>This is the doctor's dashboard for viewing patient information and lab reports.</p>
+                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
+                </div>
+            </body>
+            </html>
+        `);
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
     }
 });
+
+function getRedirectUrl(role) {
+    switch(role) {
+        case 'admin': return '/Hospital.js';
+        case 'doctor': return '/doctor-dashboard';
+        case 'lab': return 'http://localhost:3002/';
+        default: return null;
+    }
+}
 
 server.listen(PORT, () => {
     console.log(`✅ Healthcare Sign In App running at:`);
@@ -428,4 +492,5 @@ server.listen(PORT, () => {
     console.log(`   📁 Single file: signin.js`);
     console.log(`   🚀 No dependencies required!`);
     console.log(`   🔗 Hospital Admin: http://localhost:${PORT}/Hospital.js`);
+    console.log(`   🔬 Lab Technician: http://localhost:3002/ (Make sure labs.js is running on port 3002)`);
 });

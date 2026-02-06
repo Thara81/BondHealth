@@ -469,6 +469,30 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             display: none;
         }
 
+        /* Add back button style */
+        .logout-btn {
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin-left: 20px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .user-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .container {
@@ -532,8 +556,13 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             </div>
         </div>
         <div class="user-info">
-            <div class="user-id">Technician ID: LAB-2024-8473</div>
-            <div class="user-role">Lab Technician</div>
+            <div class="user-controls">
+                <div class="user-details">
+                    <div class="user-id" id="loggedInUser">Technician ID: Loading...</div>
+                    <div class="user-role">Lab Technician</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">← Sign Out</button>
+            </div>
         </div>
     </div>
 
@@ -891,6 +920,13 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             }
         });
 
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = 'http://localhost:3001/';
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             // Populate initial patient suggestions
@@ -900,6 +936,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             const now = new Date();
             document.getElementById('testResults').placeholder = 
                 'Test conducted on ' + now.toLocaleDateString() + '\\nEnter detailed test results and observations...';
+            
+            // Show logged in user
+            const loggedInUser = document.getElementById('loggedInUser');
+            loggedInUser.textContent = 'Technician ID: LAB-2024-8473';
         });
     </script>
 </body>
@@ -966,4 +1006,5 @@ server.listen(PORT, function() {
     console.log('   📊 Stats: Real-time updates');
     console.log('   📤 Send reports & view patient history');
     console.log('   🚀 Ready for lab operations!');
+    console.log('   🔗 Sign Out returns to: http://localhost:3001/');
 });
