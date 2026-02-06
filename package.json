@@ -1,5 +1,5 @@
 {
-  "name": "bondhealth_signin",
+  "name": "bondhealth-signin",
   "version": "1.0.0",
   "description": "Single-file Healthcare Sign In Application",
   "main": "signin.js",
