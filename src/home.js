@@ -14,8 +14,10 @@ app.get('/', (req, res) => {
 });
 
 // Serve signin page
-app.get('/signin.js', (req, res) => {
-    res.sendFile(path.join(__dirname, 'signin.js'));
+// Add this route to your main Express app
+app.get('/signin', (req, res) => {
+    // Redirect to the signin.js server on port 3001
+    res.redirect('http://localhost:3001');
 });
 
 // API endpoint for feedback submission
@@ -239,7 +241,7 @@ function generateHTML() {
         <a href="#reviews" class="text-gray-600 hover:text-[#00c8ff] transition-all font-medium hover:scale-110">Reviews</a>
       </nav>
       <!-- Sign In button now links to signin.html -->
-      <button onclick="showSignInForm()" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-6 py-2.5 rounded-full font-medium transition-all hover:shadow-lg hover:shadow-cyan-300 hover:scale-105"> Sign In </button>
+      <button onclick="window.location.href='/signin'" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-6 py-2.5 rounded-full font-medium transition-all hover:shadow-lg hover:shadow-cyan-300 hover:scale-105"> Sign In </button>
      </div>
     </div>
    </header><!-- Hero Section -->
@@ -256,7 +258,7 @@ function generateHTML() {
        <p id="about-text" class="text-lg text-gray-600 mb-8 leading-relaxed max-w-xl">BondHealth is a state-wide digital ecosystem that bridges the gap between you and your medical providers. We securely centralize your health records, ensuring that your medical history, appointments, and lab results are accessible at every hospital you visit.</p>
        <div class="flex flex-wrap gap-4">
          <!-- Get Started button now links to signin.html -->
-         <button onclick="showSignInForm()" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:shadow-xl hover:shadow-cyan-300 animate-pulse-glow hover:scale-105"> Get Started Free </button>
+         <button onclick="window.location.href='/signin'" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:shadow-xl hover:shadow-cyan-300 animate-pulse-glow hover:scale-105"> Get Started Free </button>
          <button class="border-2 border-[#00c8ff] text-[#00c8ff] hover:bg-[#00c8ff] hover:text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:scale-105 hover:shadow-lg"> Learn More </button>
        </div>
       </div>
@@ -533,7 +535,6 @@ function generateHTML() {
     </div>
    </div>
   </div>
-  <script src="/signin.js"></script>
   <script>
     const defaultConfig = {
       tagline: "Unifying Care, Strengthening Lives.",
