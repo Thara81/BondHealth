@@ -237,8 +237,36 @@ function generateAppointmentsHTML() {
       <h2 class="text-xl font-bold text-gray-800">Available Doctors</h2>
       <span class="text-sm text-gray-500" id="doctor-count">9 doctors available</span>
      </div>
-     <div id="doctors-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Doctor cards will be rendered here -->
+     <div class="relative">
+      <!-- Navigation Arrows -->
+      <button id="prev-btn" class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white/90 hover:bg-white text-cyan-600 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border border-cyan-200">
+       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+       </svg>
+      </button>
+      
+      <button id="next-btn" class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white/90 hover:bg-white text-cyan-600 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl border border-cyan-200">
+       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+       </svg>
+      </button>
+      
+      <!-- Carousel Container -->
+      <div id="doctors-carousel" class="overflow-hidden">
+       <div id="doctors-carousel-track" class="flex gap-6 transition-transform duration-500 ease-in-out">
+        <!-- Doctor cards will be rendered here -->
+       </div>
+      </div>
+      
+      <!-- Carousel Indicators -->
+      <div id="carousel-indicators" class="flex justify-center gap-2 mt-6">
+       <!-- Indicators will be dynamically added -->
+      </div>
+      
+      <!-- Auto-slide progress bar -->
+      <div class="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
+       <div id="auto-slide-progress" class="h-full bg-cyan-500 transition-all duration-1000 ease-linear" style="width: 0%"></div>
+      </div>
      </div>
     </div>
     
@@ -341,7 +369,7 @@ function generateAppointmentsHTML() {
       { id: 'h3', name: 'Apollo Hospital', image: '🏥', color: '#0e7490' },
       { id: 'h4', name: 'City General Hospital', image: '🏨', color: '#22d3ee' }
     ];
-
+    
     // State
     let currentFilter = 'all';
     let searchQuery = '';
@@ -350,6 +378,12 @@ function generateAppointmentsHTML() {
     let selectedTime = '';
     let appointments = [];
     let recordCount = 0;
+    
+    // Carousel State (ADD THIS)
+    let currentSlide = 0;
+    let slideInterval;
+    let isHovering = false;
+    const slidesPerView = 3; // Number of cards visible at once
 
     // Default config
     const defaultConfig = {
@@ -427,11 +461,15 @@ function generateAppointmentsHTML() {
       renderVisitedHospitals();
       setupEventListeners();
       updateDoctorCount();
+      setupCarouselHover();
+      startAutoSlide();
     }
 
     // Render doctors
+        // Render doctors for carousel
     function renderDoctors() {
-      const grid = document.getElementById('doctors-grid');
+      const track = document.getElementById('doctors-carousel-track');
+      const indicators = document.getElementById('carousel-indicators');
       const filtered = doctors.filter(doc => {
         const matchesFilter = currentFilter === 'all' || doc.department === currentFilter;
         const matchesSearch = searchQuery === '' || 
@@ -442,9 +480,10 @@ function generateAppointmentsHTML() {
       });
 
       updateDoctorCount(filtered.length);
-
-      grid.innerHTML = filtered.map((doc, index) => \`
-        <div class="doctor-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-cyan-200 fade-in" style="animation-delay: \${index * 0.1}s">
+      
+      // Clear and render track
+      track.innerHTML = filtered.map((doc, index) => \`
+        <div class="doctor-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-cyan-200 flex-shrink-0 fade-in" style="width: calc((100% - \${(slidesPerView - 1) * 24}px) / \${slidesPerView}); animation-delay: \${index * 0.1}s">
           <div class="flex gap-5 mb-5">
             <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-100 to-cyan-50 border-2 border-cyan-200 flex items-center justify-center overflow-hidden flex-shrink-0">
               <svg class="w-12 h-12 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
@@ -479,6 +518,24 @@ function generateAppointmentsHTML() {
           </div>
         </div>
       \`).join('');
+      
+      // Clear and render indicators
+      indicators.innerHTML = '';
+      const slideCount = Math.max(1, Math.ceil(filtered.length / slidesPerView));
+      
+      for (let i = 0; i < slideCount; i++) {
+        const indicator = document.createElement('button');
+        indicator.className = \`w-2 h-2 rounded-full transition-all duration-300 \${i === 0 ? 'bg-cyan-500 w-8' : 'bg-gray-300'}\`;
+        indicator.addEventListener('click', () => goToSlide(i));
+        indicators.appendChild(indicator);
+      }
+      
+      // Reset carousel position
+      currentSlide = 0;
+      updateCarouselPosition();
+      
+      // Restart auto-slide
+      startAutoSlide();
     }
 
     // Update doctor count
@@ -496,6 +553,7 @@ function generateAppointmentsHTML() {
     }
 
     // Render visited hospitals
+        // Render visited hospitals
     function renderVisitedHospitals() {
       const container = document.getElementById('visited-hospitals');
       
@@ -535,6 +593,136 @@ function generateAppointmentsHTML() {
       \`).join('');
     }
 
+    // Update carousel position
+    function updateCarouselPosition() {
+      const track = document.getElementById('doctors-carousel-track');
+      if (!track) return;
+      
+      const slideWidth = 100 / slidesPerView;
+      const translateX = -currentSlide * slideWidth;
+      track.style.transform = \`translateX(\${translateX}%)\`;
+      
+      // Update indicators
+      const indicators = document.querySelectorAll('#carousel-indicators button');
+      indicators.forEach((indicator, index) => {
+        indicator.className = \`w-2 h-2 rounded-full transition-all duration-300 \${index === currentSlide ? 'bg-cyan-500 w-8' : 'bg-gray-300'}\`;
+      });
+      
+      // Reset progress bar
+      const progressBar = document.getElementById('auto-slide-progress');
+      if (progressBar) {
+        progressBar.style.width = '0%';
+        void progressBar.offsetWidth; // Trigger reflow
+        if (!isHovering) {
+          progressBar.style.width = '100%';
+        }
+      }
+    }
+
+    // Go to specific slide
+    function goToSlide(slideIndex) {
+      const filtered = doctors.filter(doc => {
+        const matchesFilter = currentFilter === 'all' || doc.department === currentFilter;
+        const matchesSearch = searchQuery === '' || 
+          doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.hospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+      });
+      
+      const maxSlide = Math.max(0, Math.ceil(filtered.length / slidesPerView) - 1);
+      currentSlide = Math.max(0, Math.min(slideIndex, maxSlide));
+      updateCarouselPosition();
+      resetAutoSlide();
+    }
+
+    // Next slide
+        // Previous slide
+    function prevSlide() {
+      const filtered = doctors.filter(doc => {
+        const matchesFilter = currentFilter === 'all' || doc.department === currentFilter;
+        const matchesSearch = searchQuery === '' || 
+          doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.hospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+      });
+      
+      const maxSlide = Math.max(0, Math.ceil(filtered.length / slidesPerView) - 1);
+      currentSlide = (currentSlide - 1 + maxSlide + 1) % (maxSlide + 1);
+      updateCarouselPosition();
+      resetAutoSlide();
+    }
+
+    // Next slide
+    function nextSlide() {
+      const filtered = doctors.filter(doc => {
+        const matchesFilter = currentFilter === 'all' || doc.department === currentFilter;
+        const matchesSearch = searchQuery === '' || 
+          doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.hospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+      });
+      
+      const maxSlide = Math.max(0, Math.ceil(filtered.length / slidesPerView) - 1);
+      currentSlide = (currentSlide + 1) % (maxSlide + 1);
+      updateCarouselPosition();
+      resetAutoSlide();
+    }
+
+    // Start auto-slide
+    function startAutoSlide() {
+      stopAutoSlide();
+      
+      // Reset progress bar
+      const progressBar = document.getElementById('auto-slide-progress');
+      if (progressBar && !isHovering) {
+        progressBar.style.width = '100%';
+      }
+      
+      // Auto-slide every 5 seconds
+      slideInterval = setInterval(() => {
+        if (!isHovering) {
+          nextSlide();
+        }
+      }, 5000);
+    }
+
+    // Stop auto-slide
+    function stopAutoSlide() {
+      if (slideInterval) {
+        clearInterval(slideInterval);
+        slideInterval = null;
+      }
+    }
+
+    // Reset auto-slide timer
+    function resetAutoSlide() {
+      stopAutoSlide();
+      startAutoSlide();
+    }
+
+    // Add hover detection for carousel
+    function setupCarouselHover() {
+      const carousel = document.getElementById('doctors-carousel');
+      if (!carousel) return;
+      
+      carousel.addEventListener('mouseenter', () => {
+        isHovering = true;
+        stopAutoSlide();
+        const progressBar = document.getElementById('auto-slide-progress');
+        if (progressBar) {
+          progressBar.style.width = '0%';
+        }
+      });
+      
+      carousel.addEventListener('mouseleave', () => {
+        isHovering = false;
+        startAutoSlide();
+      });
+    }
+
     // Filter by hospital
     function filterByHospital(hospitalName) {
       searchQuery = hospitalName;
@@ -544,6 +732,7 @@ function generateAppointmentsHTML() {
 
     // Open booking modal
     function openBookingModal(doctorId) {
+      stopAutoSlide();
       selectedDoctor = doctors.find(d => d.id === doctorId);
       if (!selectedDoctor) return;
 
@@ -593,6 +782,15 @@ function generateAppointmentsHTML() {
         renderDoctors();
       });
 
+      document.getElementById('prev-btn').addEventListener('click', () => {
+        prevSlide();
+      });
+
+      // Next button
+      document.getElementById('next-btn').addEventListener('click', () => {
+        nextSlide();
+      });
+
       // Filter chips
       document.querySelectorAll('.filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
@@ -604,13 +802,16 @@ function generateAppointmentsHTML() {
       });
 
       // Close modal
+            // Close modal
       document.getElementById('close-modal').addEventListener('click', () => {
         document.getElementById('booking-modal').classList.add('hidden');
+        resetAutoSlide(); // ADD THIS LINE
       });
 
       document.getElementById('booking-modal').addEventListener('click', (e) => {
         if (e.target.id === 'booking-modal') {
           document.getElementById('booking-modal').classList.add('hidden');
+          resetAutoSlide(); // ADD THIS LINE
         }
       });
 
