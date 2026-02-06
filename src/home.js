@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -16,8 +17,30 @@ app.get('/', (req, res) => {
 // Serve signin page
 // Add this route to your main Express app
 app.get('/signin', (req, res) => {
-    // Redirect to the signin.js server on port 3001
-    res.redirect('http://localhost:3001');
+    try {
+        // Read the signin.js file
+        const content = fs.readFileSync('signin.js', 'utf8');
+        
+        // Extract the HTML template
+        const match = content.match(/HTML_TEMPLATE\s*=\s*`([\s\S]*?)`/);
+        
+        if (match && match[1]) {
+            res.send(match[1]);
+        } else {
+            res.send(`
+                <h1>Sign In Page</h1>
+                <p>Could not load sign-in form.</p>
+                <a href="/">← Back to Home</a>
+            `);
+        }
+    } catch (error) {
+        console.error('Error loading signin page:', error);
+        res.send(`
+            <h1>Error Loading Sign In</h1>
+            <p>Make sure signin.js file exists in the same folder.</p>
+            <a href="/">← Back to Home</a>
+        `);
+    }
 });
 
 // API endpoint for feedback submission
