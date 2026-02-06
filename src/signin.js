@@ -74,6 +74,36 @@ const HTML_TEMPLATE = `<!doctype html>
     .dropdown-item { width: 100%; padding: 12px 14px; border: none; background: white; color: #1a1a1a; text-align: left; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); font-family: inherit; }
     .dropdown-item:hover { background: rgba(0, 212, 255, 0.1); color: #00d4ff; transform: translateX(4px); }
     .dropdown-item.selected { background: rgba(0, 212, 255, 0.15); color: #00d4ff; font-weight: 600; }
+    
+    /* Admin Sign Up Button */
+    .admin-signup-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 10px;
+      position: relative;
+      overflow: hidden;
+      display: none;
+    }
+    
+    .admin-signup-btn.show {
+      display: block;
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    .admin-signup-btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(76, 175, 80, 0.5);
+    }
   </style>
 </head>
 <body>
@@ -104,11 +134,7 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
-            <div class="signup-section">
-              <div class="signup-text">
-                Don't have an account? <a href="#" class="signup-link" id="signUpLink">Sign up</a>
-              </div>
-            </div>
+            <!-- REMOVED Patient Sign Up Section -->
           </form>
           
           <!-- Hospital Dropdown Section -->
@@ -134,10 +160,6 @@ const HTML_TEMPLATE = `<!doctype html>
           <!-- Hospital Form (hidden until role selected) -->
           <form class="form-section" id="hospitalForm" style="display: none;">
             <div class="form-group">
-              <label class="form-label" id="hospitalRoleLabel">Role</label>
-              <input type="text" class="form-input" id="selectedRoleDisplay" readonly>
-            </div>
-            <div class="form-group">
               <label class="form-label">Username</label>
               <input type="text" class="form-input" id="hospitalUsername" placeholder="Enter your username" required>
             </div>
@@ -147,11 +169,9 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLinkHospital">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
-            <div class="signup-section">
-              <div class="signup-text">
-                
-              </div>
-            </div>
+            
+            <!-- Admin Sign Up Button (Only shows for Admin role) -->
+            <button type="button" class="admin-signup-btn" id="adminSignupBtn">Sign Up as Admin</button>
           </form>
         </div>
         <div class="right-section">
@@ -224,8 +244,13 @@ const HTML_TEMPLATE = `<!doctype html>
         // Show hospital form with username/password fields
         document.getElementById('hospitalForm').style.display = 'block';
         
-        // Display selected role in the form
-        document.getElementById('selectedRoleDisplay').value = roleText;
+        // Show Admin Sign Up button ONLY if Admin role is selected
+        const adminSignupBtn = document.getElementById('adminSignupBtn');
+        if (selectedRole === 'admin') {
+          adminSignupBtn.classList.add('show');
+        } else {
+          adminSignupBtn.classList.remove('show');
+        }
       });
     });
 
@@ -249,6 +274,14 @@ const HTML_TEMPLATE = `<!doctype html>
       handleSignIn('hospital');
     });
 
+    // Admin Sign Up button handler
+    document.getElementById('adminSignupBtn').addEventListener('click', function(e) {
+      e.preventDefault();
+      // Redirect to admin signup page or show signup form
+      showMessage('Redirecting to Admin Sign Up form...');
+      // In a real app, you would redirect to: window.location.href = '/admin-signup';
+    });
+
     // Link click handlers
     document.getElementById('forgotPwLink').addEventListener('click', function(e) {
       e.preventDefault();
@@ -258,11 +291,6 @@ const HTML_TEMPLATE = `<!doctype html>
     document.getElementById('forgotPwLinkHospital').addEventListener('click', function(e) {
       e.preventDefault();
       showMessage('Password reset link sent to your hospital email!');
-    });
-
-    document.getElementById('signUpLink').addEventListener('click', function(e) {
-      e.preventDefault();
-      showMessage('Redirecting to patient sign up page...');
     });
 
     // Toggle buttons
@@ -315,8 +343,10 @@ const HTML_TEMPLATE = `<!doctype html>
         document.getElementById('dropdownMenu').classList.remove('show');
         document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
         
+        // Hide Admin Sign Up button
+        document.getElementById('adminSignupBtn').classList.remove('show');
+        
         // Reset hospital form
-        document.getElementById('selectedRoleDisplay').value = '';
         document.getElementById('hospitalForm').reset();
       }
       
@@ -471,6 +501,52 @@ const server = http.createServer((req, res) => {
             </body>
             </html>
         `);
+    } else if (req.url === '/admin-signup') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Admin Sign Up</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
+                    .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+                    h1 { color: #4CAF50; text-align: center; }
+                    .form-group { margin-bottom: 20px; }
+                    .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+                    .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+                    .submit-btn { width: 100%; padding: 15px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🏥 Admin Sign Up</h1>
+                    <p>Fill in the form below to request admin access:</p>
+                    <form>
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-input" placeholder="Enter your full name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-input" placeholder="Enter your email" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hospital Name</label>
+                            <input type="text" class="form-input" placeholder="Enter hospital name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Position</label>
+                            <input type="text" class="form-input" placeholder="Enter your position" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Submit Request</button>
+                    </form>
+                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
+                </div>
+            </body>
+            </html>
+        `);
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
@@ -493,4 +569,5 @@ server.listen(PORT, () => {
     console.log(`   🚀 No dependencies required!`);
     console.log(`   🔗 Hospital Admin: http://localhost:${PORT}/Hospital.js`);
     console.log(`   🔬 Lab Technician: http://localhost:3002/ (Make sure labs.js is running on port 3002)`);
+    console.log(`   📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
 });
