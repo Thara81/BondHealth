@@ -1,22 +1,31 @@
 {
-  "name": "bondhealth-signin",
+  "name": "bondhealth-portal",
   "version": "1.0.0",
-  "description": "Single-file Healthcare Sign In Application",
+  "description": "Healthcare Portal System with Patient Sign In and Admin Dashboard",
   "main": "signin.js",
   "scripts": {
-    "start": "node signin.js",
-    "dev": "node signin.js"
+    "start:signin": "node signin.js",
+    "dev:signin": "nodemon signin.js",
+    "start:doctor": "node doctor-registration-server.js",
+    "dev:doctor": "nodemon doctor-registration-server.js",
+    "start:admin": "node hospital-admin.js",
+    "dev:admin": "nodemon hospital-admin.js",
+    "dev:all": "concurrently \"npm run dev:signin\" \"npm run dev:doctor\" \"npm run dev:admin\"",
+    "start:all": "concurrently \"npm run start:signin\" \"npm run start:doctor\" \"npm run start:admin\""
   },
-  "keywords": ["healthcare", "signin", "nodejs"],
+  "keywords": [
+    "healthcare",
+    "patient-portal",
+    "doctor-registration",
+    "admin-dashboard"
+  ],
   "author": "Your Name",
   "license": "MIT",
-  "description": "Patient Portal",
-  "main": "src/Patient.js",
-  "scripts": {
-    "start": "node src/Patient.js",
-    "dev": "nodemon src/Patient.js"
-  },
   "dependencies": {
     "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "concurrently": "^8.2.2"
   }
 }
