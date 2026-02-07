@@ -329,21 +329,22 @@ app.get('/', (req, res) => {
         }
         
         .scrollbar-thin::-webkit-scrollbar {
-          width: 6px;
+          width: 4px;
         }
         
         .scrollbar-thin::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 3px;
+          background: rgba(0, 229, 255, 0.1);
+          border-radius: 10px;
+          margin: 8px 0; 
         }
         
         .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #0da7d1;
-          border-radius: 3px;
+          background: #1ebce8; /* Use your cyan-dark color */
+          border-radius: 10px;
         }
         
         .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #0fa5ce;
+          background: #159eb0;;
         }
         
         .text-cyan-gradient {
@@ -714,7 +715,7 @@ app.get('/', (req, res) => {
       
       <!-- Booking Modal -->
       <div id="bookingModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-slide-up">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto animate-slide-up scrollbar-thin">
           <div class="p-8">
             <div class="flex justify-between items-center mb-8">
               <h3 class="text-2xl font-bold cyan-text">Book Appointment</h3>
@@ -1360,6 +1361,7 @@ app.get('/', (req, res) => {
           });
         }
       </script>
+    </div>
     </body>
     </html>
   `);
