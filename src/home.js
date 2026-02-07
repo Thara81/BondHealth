@@ -178,7 +178,7 @@ function generateHTML() {
     }
     
     .gradient-text {
-      background: linear-gradient(135deg, #00c8ff, #00ffff);
+      background: linear-gradient(135deg, #00c8ff, #10ebebdc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
