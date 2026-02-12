@@ -1,5 +1,7 @@
 // signup-handler.js
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const port = 3000;
 
@@ -26,9 +28,31 @@ const defaultConfig = {
 };
 
 let config = { ...defaultConfig };
+let users = [];
+
+// Read signin.js file and extract the HTML template
+function getSignInHTML() {
+  try {
+    const signinFilePath = path.join(__dirname, 'signin.js');
+    const signinFileContent = fs.readFileSync(signinFilePath, 'utf8');
+    
+    // Extract the HTML_TEMPLATE using regex
+    const templateMatch = signinFileContent.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
+    
+    if (templateMatch && templateMatch[1]) {
+      return templateMatch[1];
+    } else {
+      console.error('Could not extract HTML template from signin.js');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error reading signin.js:', error.message);
+    return null;
+  }
+}
 
 // Password toggle functionality
-function togglePassword(inputId, eyeId) {
+function togglePassword() {
   return `
     <script>
       function togglePassword(inputId, eyeId) {
@@ -57,18 +81,34 @@ function handleFormSubmission(formData) {
     };
   }
   
-  // Here you would typically save to database
-  console.log('User data:', userData);
+  // Check if user already exists
+  const existingUser = users.find(u => u.email === userData.email);
+  if (existingUser) {
+    return {
+      success: false,
+      error: 'Email already registered'
+    };
+  }
+  
+  // Save user
+  const newUser = {
+    id: users.length + 1,
+    ...userData,
+    createdAt: new Date().toISOString()
+  };
+  users.push(newUser);
+  
+  console.log('New user registered:', userData.email);
   
   return {
     success: true,
     message: 'Account created successfully!',
-    data: userData
+    redirectTo: '/signin'
   };
 }
 
-// Generate HTML page
-function generateHTML() {
+// Generate Sign Up HTML page
+function generateSignUpHTML() {
   return `
 <!doctype html>
 <html lang="en" class="h-full">
@@ -130,7 +170,7 @@ function generateHTML() {
      
      <!-- Form Card -->
      <div class="bg-white rounded-3xl shadow-xl p-8 border border-sky-100" style="background: ${config.surface_color};">
-      <form id="signup-form" class="space-y-5" action="/signup" method="POST">
+      <form id="signup-form" class="space-y-5">
        <!-- Name -->
        <div>
         <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
@@ -206,7 +246,7 @@ function generateHTML() {
           </svg>
          </button>
         </div>
-        <p id="password-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match</p>
+        <p id="password-error" class="text-red-500 text-sm mt-1 hidden"></p>
        </div>
        
        <!-- Terms and Conditions -->
@@ -223,7 +263,10 @@ function generateHTML() {
        </button>
       </form>
       
-      <!-- Success Message -->
+      <!-- Login Link - KEPT ON FORM PAGE (THIS IS THE ONLY SIGN IN LINK ON THE FORM PAGE) -->
+     
+      
+      <!-- Success Message - NO TEXT LINK, ONLY BUTTON -->
       <div id="success-message" class="hidden text-center py-8">
        <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
         <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
@@ -231,11 +274,11 @@ function generateHTML() {
         </svg>
        </div>
        <h3 class="text-xl font-semibold text-gray-800 mb-2">Account Created!</h3>
-       <p class="text-gray-500">Welcome aboard! Your account has been successfully created.</p>
+       <p class="text-gray-500 mb-6">Welcome aboard! Your account has been successfully created.</p>
+       <a href="/signin" id="signin-success-btn" class="inline-block px-8 py-3 bg-gradient-to-r from-sky-400 to-sky-500 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+        Proceed to Sign In
+       </a>
       </div>
-      
-      <!-- Login Link -->
-      <p class="text-center text-gray-500 mt-6">Already have an account? <a href="#" class="text-sky-500 hover:text-sky-600 font-medium">Sign In</a></p>
      </div>
     </div>
    </div>
@@ -252,31 +295,63 @@ function generateHTML() {
       const errorEl = document.getElementById('password-error');
       
       if (password !== confirmPassword) {
+        errorEl.textContent = 'Passwords do not match';
         errorEl.classList.remove('hidden');
         return;
       }
+      
+      if (password.length < 8) {
+        errorEl.textContent = 'Password must be at least 8 characters';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      
       errorEl.classList.add('hidden');
       
-      // Submit form via AJAX
-      const formData = new FormData(this);
+      // Disable submit button
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating Account...';
+      
+      // Prepare form data
+      const formData = {
+        name: document.getElementById('name').value,
+        dob: document.getElementById('dob').value,
+        email: document.getElementById('email').value,
+        gender: document.querySelector('input[name="gender"]:checked')?.value || '',
+        phone: document.getElementById('phone').value,
+        address: document.getElementById('address').value,
+        password: document.getElementById('password').value,
+        confirmPassword: document.getElementById('confirm-password').value
+      };
+      
+      // Submit via AJAX
       fetch('/signup', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
       })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
+          // Hide form, show success message
           document.getElementById('signup-form').classList.add('hidden');
           document.getElementById('success-message').classList.remove('hidden');
         } else {
           errorEl.textContent = data.error || 'An error occurred';
           errorEl.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.textContent = '${config.button_text}';
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        errorEl.textContent = 'An error occurred. Please try again.';
+        errorEl.textContent = 'Network error. Please try again.';
         errorEl.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '${config.button_text}';
       });
     });
   </script>
@@ -287,7 +362,28 @@ function generateHTML() {
 
 // Routes
 app.get('/', (req, res) => {
-  res.send(generateHTML());
+  res.send(generateSignUpHTML());
+});
+
+// Serve Sign In page
+app.get('/signin', (req, res) => {
+  const signInHTML = getSignInHTML();
+  if (signInHTML) {
+    res.send(signInHTML);
+  } else {
+    // Fallback error page
+    res.status(404).send(`
+      <html>
+        <head><title>Sign In Not Found</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
+          <h1 style="color: #ef4444;">❌ Sign In Page Not Found</h1>
+          <p>Could not load signin.js template.</p>
+          <p style="color: #6b7280; margin-top: 20px;">Make sure signin.js is in the same directory as this file.</p>
+          <a href="/" style="display: inline-block; margin-top: 30px; padding: 10px 20px; background: #38bdf8; color: white; text-decoration: none; border-radius: 8px;">← Back to Sign Up</a>
+        </body>
+      </html>
+    `);
+  }
 });
 
 app.get('/config', (req, res) => {
@@ -305,9 +401,33 @@ app.post('/signup', (req, res) => {
   res.json(result);
 });
 
+app.get('/users', (req, res) => {
+  const safeUsers = users.map(({ password, ...user }) => user);
+  res.json({ success: true, count: users.length, users: safeUsers });
+});
+
 // Start server
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log('\n🚀 ========================================');
+  console.log(`   Server running at http://localhost:${port}`);
+  console.log('========================================\n');
+  console.log('📝 Sign Up page: http://localhost:3000/');
+  console.log('🔐 Sign In page: http://localhost:3000/signin');
+  console.log('\n✅ Sign In options:');
+  console.log('   • Form page: "Already have an account? Sign In" link ✓');
+  console.log('   • Success page: "Proceed to Sign In" button ONLY ✓');
+  console.log('   • NO text link on success page ✓\n');
+  
+  // Check if signin.js exists
+  try {
+    const signinPath = path.join(__dirname, 'signin.js');
+    fs.accessSync(signinPath, fs.constants.F_OK);
+    console.log('✅ signin.js found - Sign In page will be served at /signin');
+  } catch (error) {
+    console.log('⚠️  WARNING: signin.js NOT FOUND in current directory');
+    console.log('   → Place signin.js in:', __dirname);
+  }
+  console.log('========================================\n');
 });
 
 module.exports = {
@@ -315,5 +435,6 @@ module.exports = {
   config,
   togglePassword,
   handleFormSubmission,
-  generateHTML
+  generateSignUpHTML,
+  users
 };
