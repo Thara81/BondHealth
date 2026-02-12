@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
 
 // ============================================
 // SIGNIN PAGE TEMPLATE
@@ -352,8 +352,18 @@ const SIGNIN_TEMPLATE = `<!doctype html>
       if (type === 'patient') {
         const username = document.getElementById('patientUsername').value;
         const password = document.getElementById('patientPassword').value;
-        showMessage('Patient signed in successfully!');
-        document.getElementById('patientForm').reset();
+        
+        if (!username || !password) {
+          showMessage('Please enter username and password');
+          return;
+        }
+        
+        // Store patient info
+        sessionStorage.setItem('patientUsername', username);
+        
+        // Redirect to patient dashboard
+        window.location.href = '/patient-dashboard';
+        return;
         
       } else if (type === 'hospital') {
         if (!selectedRole) {
@@ -413,20 +423,47 @@ const server = http.createServer((req, res) => {
         res.end(SIGNIN_TEMPLATE);
     }
     
-    // Serve Lab Dashboard from labs.js file
-    
-    // SERVE LAB DASHBOARD FROM labs.js FILE
+    // SERVE LAB DASHBOARD - EXTRACTS HTML FROM labs.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
     else if (req.url === '/lab-dashboard') {
-      try {
-        const LAB_TEMPLATE = require('./labs.js');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(LAB_TEMPLATE);
-    } catch (err) {
-        console.error('Error loading labs.js:', err);
-        res.writeHead(500, { 'Content-Type': 'text/html' });
-        res.end('<h1>500 - Lab Dashboard not found</h1><p>Make sure labs.js is in the same directory</p><a href="/">Back to Sign In</a>');
+        fs.readFile(path.join(__dirname, 'labs.js'), 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error reading labs.js:', err);
+                res.writeHead(500, { 'Content-Type': 'text/html' });
+                res.end('<h1>500 - Lab Dashboard not found</h1><p>Make sure labs.js is in the same directory</p><a href="/">Back to Sign In</a>');
+            } else {
+                // Extract ONLY the HTML_TEMPLATE between the backticks
+                const match = data.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
+                if (match && match[1]) {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(match[1]);
+                } else {
+                    res.writeHead(500, { 'Content-Type': 'text/html' });
+                    res.end('<h1>500 - Could not extract template from labs.js</h1><a href="/">Back to Sign In</a>');
+                }
+            }
+        });
     }
-}
+    
+    // SERVE PATIENT DASHBOARD - EXTRACTS HTML FROM Patient.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
+    else if (req.url === '/patient-dashboard') {
+        fs.readFile(path.join(__dirname, 'Patient.js'), 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error reading Patient.js:', err);
+                res.writeHead(500, { 'Content-Type': 'text/html' });
+                res.end('<h1>500 - Patient Dashboard not found</h1><p>Make sure Patient.js is in the same directory</p><a href="/">Back to Sign In</a>');
+            } else {
+                // Extract the HTML from res.send(`...`)
+                const match = data.match(/res\.send\(`([\s\S]*?)`\)/);
+                if (match && match[1]) {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(match[1]);
+                } else {
+                    res.writeHead(500, { 'Content-Type': 'text/html' });
+                    res.end('<h1>500 - Could not extract HTML from Patient.js</h1><a href="/">Back to Sign In</a>');
+                }
+            }
+        });
+    }
     
     // Serve Hospital Admin Dashboard
     else if (req.url === '/hospital-dashboard') {
@@ -600,12 +637,13 @@ server.listen(PORT, () => {
     console.log('✅ BOND HEALTH - SINGLE SERVER SOLUTION');
     console.log('=======================================');
     console.log(`🌐 Sign In Page: http://localhost:${PORT}/`);
-    console.log(`🔬 Lab Dashboard: http://localhost:${PORT}/lab-dashboard (served from labs.js)`);
+    console.log(`🔬 Lab Dashboard: http://localhost:${PORT}/lab-dashboard`);
+    console.log(`👤 Patient Dashboard: http://localhost:${PORT}/patient-dashboard`);
     console.log(`🏥 Hospital Admin: http://localhost:${PORT}/hospital-dashboard`);
     console.log(`👨‍⚕️ Doctor Dashboard: http://localhost:${PORT}/doctor-dashboard`);
     console.log(`📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
     console.log('=======================================');
-    console.log('🚀 Run ONLY this file! Do NOT run labs.js separately');
-    console.log('📁 Make sure labs.js is in the same directory');
+    console.log('🚀 Run ONLY this file!');
+    console.log('📁 labs.js and Patient.js remain COMPLETELY UNCHANGED');
     console.log('=======================================\n');
 });
