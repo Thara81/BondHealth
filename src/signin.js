@@ -1,7 +1,12 @@
 const http = require('http');
-const PORT = process.env.PORT || 3001;
+const fs = require('fs');
+const path = require('path');
+const PORT = process.env.PORT || 3005;
 
-const HTML_TEMPLATE = `<!doctype html>
+// ============================================
+// SIGNIN PAGE TEMPLATE
+// ============================================
+const SIGNIN_TEMPLATE = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -134,7 +139,6 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
-            <!-- REMOVED Patient Sign Up Section -->
           </form>
           
           <!-- Hospital Dropdown Section -->
@@ -157,7 +161,7 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
           </div>
           
-          <!-- Hospital Form (hidden until role selected) -->
+          <!-- Hospital Form -->
           <form class="form-section" id="hospitalForm" style="display: none;">
             <div class="form-group">
               <label class="form-label">Username</label>
@@ -169,8 +173,6 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLinkHospital">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
-            
-            <!-- Admin Sign Up Button (Only shows for Admin role) -->
             <button type="button" class="admin-signup-btn" id="adminSignupBtn">Sign Up as Admin</button>
           </form>
         </div>
@@ -241,10 +243,10 @@ const HTML_TEMPLATE = `<!doctype html>
         btn.classList.remove('active');
         document.getElementById('dropdownMenu').classList.remove('show');
         
-        // Show hospital form with username/password fields
+        // Show hospital form
         document.getElementById('hospitalForm').style.display = 'block';
         
-        // Show Admin Sign Up button ONLY if Admin role is selected
+        // Show Admin Sign Up button ONLY for Admin role
         const adminSignupBtn = document.getElementById('adminSignupBtn');
         if (selectedRole === 'admin') {
           adminSignupBtn.classList.add('show');
@@ -277,12 +279,10 @@ const HTML_TEMPLATE = `<!doctype html>
     // Admin Sign Up button handler
     document.getElementById('adminSignupBtn').addEventListener('click', function(e) {
       e.preventDefault();
-      // Redirect to admin signup page or show signup form
-      showMessage('Redirecting to Admin Sign Up form...');
-      // In a real app, you would redirect to: window.location.href = '/admin-signup';
+      window.location.href = '/admin-signup';
     });
 
-    // Link click handlers
+    // Forgot password handlers
     document.getElementById('forgotPwLink').addEventListener('click', function(e) {
       e.preventDefault();
       showMessage('Password reset link sent to your registered email!');
@@ -305,7 +305,6 @@ const HTML_TEMPLATE = `<!doctype html>
     function switchForm(type) {
       currentType = type;
       
-      // Update button styles
       document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.classList.remove('active');
       });
@@ -342,30 +341,29 @@ const HTML_TEMPLATE = `<!doctype html>
         btn.classList.remove('active');
         document.getElementById('dropdownMenu').classList.remove('show');
         document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
-        
-        // Hide Admin Sign Up button
         document.getElementById('adminSignupBtn').classList.remove('show');
-        
-        // Reset hospital form
         document.getElementById('hospitalForm').reset();
       }
       
-      // Clear success message
       document.getElementById('successMessage').classList.remove('show');
     }
 
     async function handleSignIn(type) {
-      let message = '';
-      let username, password;
-      
       if (type === 'patient') {
-        username = document.getElementById('patientUsername').value;
-        password = document.getElementById('patientPassword').value;
-        message = 'Patient signed in successfully!';
+        const username = document.getElementById('patientUsername').value;
+        const password = document.getElementById('patientPassword').value;
         
-        // Show message and reset
-        showMessage(message);
-        document.getElementById('patientForm').reset();
+        if (!username || !password) {
+          showMessage('Please enter username and password');
+          return;
+        }
+        
+        // Store patient info
+        sessionStorage.setItem('patientUsername', username);
+        
+        // Redirect to patient dashboard
+        window.location.href = '/patient-dashboard';
+        return;
         
       } else if (type === 'hospital') {
         if (!selectedRole) {
@@ -373,38 +371,27 @@ const HTML_TEMPLATE = `<!doctype html>
           return;
         }
         
-        username = document.getElementById('hospitalUsername').value;
-        password = document.getElementById('hospitalPassword').value;
+        const username = document.getElementById('hospitalUsername').value;
+        const password = document.getElementById('hospitalPassword').value;
         
-        // Simple validation (in real app, this would be proper authentication)
         if (!username || !password) {
           showMessage('Please enter username and password');
           return;
         }
         
-        // Store credentials in sessionStorage for the next page
         sessionStorage.setItem('hospitalRole', selectedRole);
         sessionStorage.setItem('hospitalUsername', username);
         
-        // Handle redirects based on role
         if (selectedRole === 'admin') {
-          // Redirect to Hospital.js
-          window.location.href = '/Hospital.js';
+          window.location.href = '/hospital-dashboard';
           return;
         } else if (selectedRole === 'doctor') {
-          message = 'Doctor signed in successfully!';
-          // Redirect to doctor dashboard
           window.location.href = '/doctor-dashboard';
           return;
         } else if (selectedRole === 'lab') {
-          // Redirect to labs.js (port 3002)
-          // Using full URL for cross-port navigation
-          window.location.href = 'http://localhost:3002/';
+          window.location.href = '/lab-dashboard';
           return;
         }
-        
-        showMessage(message);
-        document.getElementById('hospitalForm').reset();
       }
     }
 
@@ -421,39 +408,65 @@ const HTML_TEMPLATE = `<!doctype html>
 </body>
 </html>`;
 
+// ============================================
+// HTTP SERVER
+// ============================================
 const server = http.createServer((req, res) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    
+    // Serve Sign In page
     if (req.url === '/' || req.url === '/index.html') {
         res.writeHead(200, { 
             'Content-Type': 'text/html',
             'Cache-Control': 'no-cache'
         });
-        res.end(HTML_TEMPLATE);
-    } else if (req.url === '/api/signin' && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
-            try {
-                const data = JSON.parse(body);
-                console.log('Sign in attempt:', data);
-                
-                // Simple authentication logic (for demo purposes)
-                const isValid = data.username && data.password;
-                
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                    success: isValid,
-                    message: isValid ? 'Sign in successful!' : 'Invalid credentials',
-                    userType: data.userType || 'patient',
-                    role: data.role || null,
-                    redirectTo: getRedirectUrl(data.role)
-                }));
-            } catch (error) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'Invalid request' }));
+        res.end(SIGNIN_TEMPLATE);
+    }
+    
+    // SERVE LAB DASHBOARD - EXTRACTS HTML FROM labs.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
+    else if (req.url === '/lab-dashboard') {
+        fs.readFile(path.join(__dirname, 'labs.js'), 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error reading labs.js:', err);
+                res.writeHead(500, { 'Content-Type': 'text/html' });
+                res.end('<h1>500 - Lab Dashboard not found</h1><p>Make sure labs.js is in the same directory</p><a href="/">Back to Sign In</a>');
+            } else {
+                // Extract ONLY the HTML_TEMPLATE between the backticks
+                const match = data.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
+                if (match && match[1]) {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(match[1]);
+                } else {
+                    res.writeHead(500, { 'Content-Type': 'text/html' });
+                    res.end('<h1>500 - Could not extract template from labs.js</h1><a href="/">Back to Sign In</a>');
+                }
             }
         });
-    } else if (req.url === '/Hospital.js') {
-        // Serve Hospital.js page
+    }
+    
+    // SERVE PATIENT DASHBOARD - EXTRACTS HTML FROM Patient.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
+    else if (req.url === '/patient-dashboard') {
+        fs.readFile(path.join(__dirname, 'Patient.js'), 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error reading Patient.js:', err);
+                res.writeHead(500, { 'Content-Type': 'text/html' });
+                res.end('<h1>500 - Patient Dashboard not found</h1><p>Make sure Patient.js is in the same directory</p><a href="/">Back to Sign In</a>');
+            } else {
+                // Extract the HTML from res.send(`...`)
+                const match = data.match(/res\.send\(`([\s\S]*?)`\)/);
+                if (match && match[1]) {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(match[1]);
+                } else {
+                    res.writeHead(500, { 'Content-Type': 'text/html' });
+                    res.end('<h1>500 - Could not extract HTML from Patient.js</h1><a href="/">Back to Sign In</a>');
+                }
+            }
+        });
+    }
+    
+    // Serve Hospital Admin Dashboard
+    else if (req.url === '/hospital-dashboard') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
             <!DOCTYPE html>
@@ -461,23 +474,35 @@ const server = http.createServer((req, res) => {
             <head>
                 <title>Hospital Admin Dashboard</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
-                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-                    h1 { color: #0099cc; }
-                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                    body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                    h1 { color: #0099cc; margin-bottom: 20px; }
+                    .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
+                    .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
+                    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4); }
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>🏥 Hospital Admin Dashboard</h1>
+                    <div class="welcome-badge" id="welcomeMessage">Welcome, Admin!</div>
                     <p>Welcome to the Hospital Admin Panel!</p>
-                    <p>This is where admin users can manage hospital operations.</p>
                     <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
                 </div>
+                <script>
+                    const username = sessionStorage.getItem('hospitalUsername');
+                    if (username) {
+                        document.getElementById('welcomeMessage').innerHTML = 'Welcome, Admin ' + username + '!';
+                    }
+                </script>
             </body>
             </html>
         `);
-    } else if (req.url === '/doctor-dashboard') {
+    }
+    
+    // Serve Doctor Dashboard
+    else if (req.url === '/doctor-dashboard') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
             <!DOCTYPE html>
@@ -485,23 +510,35 @@ const server = http.createServer((req, res) => {
             <head>
                 <title>Doctor Dashboard</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
-                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-                    h1 { color: #0066cc; }
-                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                    body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.8s ease; }
+                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                    h1 { color: #667eea; margin-bottom: 20px; }
+                    .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
+                    .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
+                    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>👨‍⚕️ Doctor Dashboard</h1>
-                    <p>Welcome, Doctor!</p>
+                    <div class="welcome-badge" id="welcomeMessage">Welcome, Doctor!</div>
                     <p>This is the doctor's dashboard for viewing patient information and lab reports.</p>
                     <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
                 </div>
+                <script>
+                    const username = sessionStorage.getItem('hospitalUsername');
+                    if (username) {
+                        document.getElementById('welcomeMessage').innerHTML = 'Welcome, Dr. ' + username + '!';
+                    }
+                </script>
             </body>
             </html>
         `);
-    } else if (req.url === '/admin-signup') {
+    }
+    
+    // Serve Admin Signup
+    else if (req.url === '/admin-signup') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`
             <!DOCTYPE html>
@@ -509,21 +546,24 @@ const server = http.createServer((req, res) => {
             <head>
                 <title>Admin Sign Up</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
-                    .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-                    h1 { color: #4CAF50; text-align: center; }
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                    .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                    h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
                     .form-group { margin-bottom: 20px; }
                     .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
-                    .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
-                    .submit-btn { width: 100%; padding: 15px; background: #4CAF50; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                    .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
+                    .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
+                    .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+                    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
+                    .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
                 </style>
             </head>
             <body>
                 <div class="container">
                     <h1>🏥 Admin Sign Up</h1>
-                    <p>Fill in the form below to request admin access:</p>
-                    <form>
+                    <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
+                    <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/';">
                         <div class="form-group">
                             <label class="form-label">Full Name</label>
                             <input type="text" class="form-input" placeholder="Enter your full name" required>
@@ -547,27 +587,63 @@ const server = http.createServer((req, res) => {
             </body>
             </html>
         `);
-    } else {
+    }
+    
+    // API endpoint for signin
+    else if (req.url === '/api/signin' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                console.log('Sign in attempt:', data);
+                
+                const isValid = data.username && data.password;
+                
+                let redirectUrl = null;
+                if (data.role === 'admin') {
+                    redirectUrl = '/hospital-dashboard';
+                } else if (data.role === 'doctor') {
+                    redirectUrl = '/doctor-dashboard';
+                } else if (data.role === 'lab') {
+                    redirectUrl = '/lab-dashboard';
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: isValid,
+                    message: isValid ? 'Sign in successful!' : 'Invalid credentials',
+                    userType: data.userType || 'patient',
+                    role: data.role || null,
+                    redirectTo: redirectUrl
+                }));
+            } catch (error) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Invalid request' }));
+            }
+        });
+    }
+    
+    // 404 Not Found
+    else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
     }
 });
 
-function getRedirectUrl(role) {
-    switch(role) {
-        case 'admin': return '/Hospital.js';
-        case 'doctor': return '/doctor-dashboard';
-        case 'lab': return 'http://localhost:3002/';
-        default: return null;
-    }
-}
-
+// Start server
 server.listen(PORT, () => {
-    console.log(`✅ Healthcare Sign In App running at:`);
-    console.log(`   🌐 http://localhost:${PORT}`);
-    console.log(`   📁 Single file: signin.js`);
-    console.log(`   🚀 No dependencies required!`);
-    console.log(`   🔗 Hospital Admin: http://localhost:${PORT}/Hospital.js`);
-    console.log(`   🔬 Lab Technician: http://localhost:3002/ (Make sure labs.js is running on port 3002)`);
-    console.log(`   📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
+    console.log('\n=======================================');
+    console.log('✅ BOND HEALTH - SINGLE SERVER SOLUTION');
+    console.log('=======================================');
+    console.log(`🌐 Sign In Page: http://localhost:${PORT}/`);
+    console.log(`🔬 Lab Dashboard: http://localhost:${PORT}/lab-dashboard`);
+    console.log(`👤 Patient Dashboard: http://localhost:${PORT}/patient-dashboard`);
+    console.log(`🏥 Hospital Admin: http://localhost:${PORT}/hospital-dashboard`);
+    console.log(`👨‍⚕️ Doctor Dashboard: http://localhost:${PORT}/doctor-dashboard`);
+    console.log(`📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
+    console.log('=======================================');
+    console.log('🚀 Run ONLY this file!');
+    console.log('📁 labs.js and Patient.js remain COMPLETELY UNCHANGED');
+    console.log('=======================================\n');
 });
