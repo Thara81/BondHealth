@@ -1,6 +1,3 @@
-const http = require('http');
-const PORT = process.env.PORT || 3002;
-
 const HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -920,10 +917,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             }
         });
 
-        // Logout function
+        // UPDATED LOGOUT FUNCTION
         function logout() {
             if (confirm('Are you sure you want to sign out?')) {
-                window.location.href = 'http://localhost:3001/';
+                window.location.href = '/';
             }
         }
 
@@ -939,72 +936,18 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             
             // Show logged in user
             const loggedInUser = document.getElementById('loggedInUser');
-            loggedInUser.textContent = 'Technician ID: LAB-2024-8473';
+            
+            // Try to get username from sessionStorage (set by signin.js)
+            const username = sessionStorage.getItem('hospitalUsername');
+            if (username) {
+                loggedInUser.textContent = 'Technician: ' + username;
+            } else {
+                loggedInUser.textContent = 'Technician ID: LAB-2024-8473';
+            }
         });
     </script>
 </body>
 </html>`;
 
-// Create HTTP server
-const server = http.createServer((req, res) => {
-    if (req.url === '/' || req.url === '/lab-dashboard') {
-        res.writeHead(200, { 
-            'Content-Type': 'text/html',
-            'Cache-Control': 'no-cache'
-        });
-        res.end(HTML_TEMPLATE);
-    } else if (req.url === '/api/send-report' && req.method === 'POST') {
-        let body = '';
-        req.on('data', function(chunk) {
-            body += chunk.toString();
-        });
-        req.on('end', function() {
-            try {
-                const data = JSON.parse(body);
-                console.log('Lab Report Submission:', {
-                    timestamp: new Date().toISOString(),
-                    patientId: data.pid,
-                    doctorId: data.docId,
-                    testType: data.testType,
-                    priority: data.priority,
-                    sentTo: data.sendTo
-                });
-                
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                    success: true,
-                    message: 'Lab report submitted successfully',
-                    reportId: 'REP-' + Date.now(),
-                    timestamp: new Date().toISOString()
-                }));
-            } catch (error) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ 
-                    success: false, 
-                    message: 'Invalid request format' 
-                }));
-            }
-        });
-    } else if (req.url === '/api/patient-history') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify([
-            { id: 'P-1001', name: 'John Smith', testType: 'Blood Test', date: '2024-12-15', status: 'completed' },
-            { id: 'P-1002', name: 'Emma Johnson', testType: 'X-Ray', date: '2024-12-15', status: 'pending' },
-            { id: 'P-1003', name: 'Michael Brown', testType: 'MRI Scan', date: '2024-12-14', status: 'completed' },
-            { id: 'P-1004', name: 'Sarah Davis', testType: 'Urine Analysis', date: '2024-12-14', status: 'urgent' }
-        ]));
-    } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404 - Page Not Found');
-    }
-});
-
-// Start server
-server.listen(PORT, function() {
-    console.log('🔬 Lab Technician Dashboard running at:');
-    console.log('   🌐 http://localhost:' + PORT + '/lab-dashboard');
-    console.log('   📊 Stats: Real-time updates');
-    console.log('   📤 Send reports & view patient history');
-    console.log('   🚀 Ready for lab operations!');
-    console.log('   🔗 Sign Out returns to: http://localhost:3001/');
-});
+// EXPORT the template so signin.js can use it
+module.exports = HTML_TEMPLATE;
