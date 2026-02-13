@@ -4,7 +4,7 @@ const path = require('path');
 const PORT = process.env.PORT || 3005;
 
 // ============================================
-// SIGNIN PAGE TEMPLATE
+// SIGNIN PAGE TEMPLATE - COMPLETE HTML
 // ============================================
 const SIGNIN_TEMPLATE = `<!doctype html>
 <html lang="en">
@@ -383,7 +383,7 @@ const SIGNIN_TEMPLATE = `<!doctype html>
         sessionStorage.setItem('hospitalUsername', username);
         
         if (selectedRole === 'admin') {
-          window.location.href = '/hospital-dashboard';
+          window.location.href = '/admin-dashboard';
           return;
         } else if (selectedRole === 'doctor') {
           window.location.href = '/doctor-dashboard';
@@ -423,82 +423,46 @@ const server = http.createServer((req, res) => {
         res.end(SIGNIN_TEMPLATE);
     }
     
-    // SERVE LAB DASHBOARD - EXTRACTS HTML FROM labs.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
+    // SERVE LAB DASHBOARD - USING EXPORTED FUNCTION FROM labs.js
     else if (req.url === '/lab-dashboard') {
-        fs.readFile(path.join(__dirname, 'labs.js'), 'utf8', (err, data) => {
-            if (err) {
-                console.error('Error reading labs.js:', err);
-                res.writeHead(500, { 'Content-Type': 'text/html' });
-                res.end('<h1>500 - Lab Dashboard not found</h1><p>Make sure labs.js is in the same directory</p><a href="/">Back to Sign In</a>');
-            } else {
-                // Extract ONLY the HTML_TEMPLATE between the backticks
-                const match = data.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
-                if (match && match[1]) {
-                    res.writeHead(200, { 'Content-Type': 'text/html' });
-                    res.end(match[1]);
-                } else {
-                    res.writeHead(500, { 'Content-Type': 'text/html' });
-                    res.end('<h1>500 - Could not extract template from labs.js</h1><a href="/">Back to Sign In</a>');
-                }
-            }
-        });
+        try {
+            const renderLabDashboard = require('./labs.js');
+            const html = renderLabDashboard();
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(html);
+        } catch (err) {
+            console.error('Error loading labs.js:', err);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end('<h1>500 - Lab Dashboard not found</h1><p>Make sure labs.js is in the same directory and exports the render function</p><a href="/">Back to Sign In</a>');
+        }
     }
     
-    // SERVE PATIENT DASHBOARD - EXTRACTS HTML FROM Patient.js (YOUR ORIGINAL FILE STAYS UNCHANGED)
+    // SERVE PATIENT DASHBOARD - USING EXPORTED FUNCTION FROM Patient.js
     else if (req.url === '/patient-dashboard') {
-        fs.readFile(path.join(__dirname, 'Patient.js'), 'utf8', (err, data) => {
-            if (err) {
-                console.error('Error reading Patient.js:', err);
-                res.writeHead(500, { 'Content-Type': 'text/html' });
-                res.end('<h1>500 - Patient Dashboard not found</h1><p>Make sure Patient.js is in the same directory</p><a href="/">Back to Sign In</a>');
-            } else {
-                // Extract the HTML from res.send(`...`)
-                const match = data.match(/res\.send\(`([\s\S]*?)`\)/);
-                if (match && match[1]) {
-                    res.writeHead(200, { 'Content-Type': 'text/html' });
-                    res.end(match[1]);
-                } else {
-                    res.writeHead(500, { 'Content-Type': 'text/html' });
-                    res.end('<h1>500 - Could not extract HTML from Patient.js</h1><a href="/">Back to Sign In</a>');
-                }
-            }
-        });
+        try {
+            const renderPatientDashboard = require('./Patient.js');
+            const html = renderPatientDashboard();
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(html);
+        } catch (err) {
+            console.error('Error loading Patient.js:', err);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end('<h1>500 - Patient Dashboard not found</h1><p>Make sure Patient.js is in the same directory and exports the render function</p><a href="/">Back to Sign In</a>');
+        }
     }
     
-    // Serve Hospital Admin Dashboard
-    else if (req.url === '/hospital-dashboard') {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Hospital Admin Dashboard</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
-                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                    h1 { color: #0099cc; margin-bottom: 20px; }
-                    .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
-                    .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
-                    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4); }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>🏥 Hospital Admin Dashboard</h1>
-                    <div class="welcome-badge" id="welcomeMessage">Welcome, Admin!</div>
-                    <p>Welcome to the Hospital Admin Panel!</p>
-                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
-                </div>
-                <script>
-                    const username = sessionStorage.getItem('hospitalUsername');
-                    if (username) {
-                        document.getElementById('welcomeMessage').innerHTML = 'Welcome, Admin ' + username + '!';
-                    }
-                </script>
-            </body>
-            </html>
-        `);
+    // SERVE ADMIN DASHBOARD - USING EXPORTED FUNCTION FROM admin.js
+    else if (req.url === '/admin-dashboard') {
+        try {
+            const renderAdminDashboard = require('./admin.js');
+            const html = renderAdminDashboard();
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(html);
+        } catch (err) {
+            console.error('Error loading admin.js:', err);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end('<h1>500 - Admin Dashboard not found</h1><p>Make sure admin.js is in the same directory and exports the render function</p><a href="/">Back to Sign In</a>');
+        }
     }
     
     // Serve Doctor Dashboard
@@ -602,7 +566,7 @@ const server = http.createServer((req, res) => {
                 
                 let redirectUrl = null;
                 if (data.role === 'admin') {
-                    redirectUrl = '/hospital-dashboard';
+                    redirectUrl = '/admin-dashboard';
                 } else if (data.role === 'doctor') {
                     redirectUrl = '/doctor-dashboard';
                 } else if (data.role === 'lab') {
@@ -639,11 +603,11 @@ server.listen(PORT, () => {
     console.log(`🌐 Sign In Page: http://localhost:${PORT}/`);
     console.log(`🔬 Lab Dashboard: http://localhost:${PORT}/lab-dashboard`);
     console.log(`👤 Patient Dashboard: http://localhost:${PORT}/patient-dashboard`);
-    console.log(`🏥 Hospital Admin: http://localhost:${PORT}/hospital-dashboard`);
+    console.log(`🏥 Admin Dashboard: http://localhost:${PORT}/admin-dashboard`);
     console.log(`👨‍⚕️ Doctor Dashboard: http://localhost:${PORT}/doctor-dashboard`);
     console.log(`📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
     console.log('=======================================');
     console.log('🚀 Run ONLY this file!');
-    console.log('📁 labs.js and Patient.js remain COMPLETELY UNCHANGED');
+    console.log('📁 labs.js, Patient.js, and admin.js now EXPORT render functions');
     console.log('=======================================\n');
 });

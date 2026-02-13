@@ -923,7 +923,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to sign out?')) {
-                window.location.href = 'http://localhost:3001/';
+                window.location.href = '/';
             }
         }
 
@@ -999,12 +999,23 @@ const server = http.createServer((req, res) => {
     }
 });
 
-// Start server
-server.listen(PORT, function() {
-    console.log('🔬 Lab Technician Dashboard running at:');
-    console.log('   🌐 http://localhost:' + PORT + '/lab-dashboard');
-    console.log('   📊 Stats: Real-time updates');
-    console.log('   📤 Send reports & view patient history');
-    console.log('   🚀 Ready for lab operations!');
-    console.log('   🔗 Sign Out returns to: http://localhost:3001/');
-});
+// ============================================
+// START SERVER - ONLY when run directly
+// ============================================
+if (require.main === module) {
+    server.listen(PORT, function() {
+        console.log('🔬 Lab Technician Dashboard running at:');
+        console.log('   🌐 http://localhost:' + PORT + '/lab-dashboard');
+        console.log('   📊 Stats: Real-time updates');
+        console.log('   📤 Send reports & view patient history');
+        console.log('   🚀 Ready for lab operations!');
+        console.log('   🔗 Sign Out returns to: http://localhost:3001/');
+    });
+}
+
+// ============================================
+// EXPORT for signin.js
+// ============================================
+module.exports = function renderLabDashboard() {
+    return HTML_TEMPLATE;
+};

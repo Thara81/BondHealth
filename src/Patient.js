@@ -105,8 +105,11 @@ app.put('/api/patient', (req, res) => {
   res.json(patientData);
 });
 
-app.get('/', (req, res) => {
-  res.send(`
+// ============================================
+// FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
+// ============================================
+function generatePatientHTML() {
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -339,7 +342,7 @@ app.get('/', (req, res) => {
         }
         
         .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #1ebce8; /* Use your cyan-dark color */
+          background: #1ebce8;
           border-radius: 10px;
         }
         
@@ -359,7 +362,6 @@ app.get('/', (req, res) => {
           backdrop-filter: blur(5px);
         }
         
-        /* New styles for appointment booking */
         .filter-chip {
           transition: all 0.3s ease;
         }
@@ -1361,13 +1363,31 @@ app.get('/', (req, res) => {
           });
         }
       </script>
-    </div>
     </body>
     </html>
-  `);
+  `;
+}
+
+// ============================================
+// ROUTES - Use the generatePatientHTML function
+// ============================================
+app.get('/', (req, res) => {
+  res.send(generatePatientHTML());
 });
 
-app.listen(PORT, () => {
-  console.log(`BondHealth Patient Portal running on port ${PORT}`);
-  console.log(`http://localhost:${PORT}`);
-});
+// ============================================
+// START SERVER - ONLY when run directly
+// ============================================
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`BondHealth Patient Portal running on port ${PORT}`);
+    console.log(`http://localhost:${PORT}`);
+  });
+}
+
+// ============================================
+// EXPORT for signin.js
+// ============================================
+module.exports = function renderPatientDashboard() {
+  return generatePatientHTML();
+};

@@ -1028,13 +1028,20 @@ app.post('/api/doctors/:id/leave', (req, res) => {
   }
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Hospital Admin Dashboard running at http://localhost:${port}`);
-  console.log(`Total doctors: ${doctors.length}`);
-  console.log(`Available today: ${doctors.filter(d => d.status === 'Available').length}`);
-});
+// ============================================
+// THIS IS THE ONLY app.listen() - KEEP THIS ONE
+// ============================================
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Hospital Admin Dashboard running at http://localhost:${port}`);
+        console.log(`Total doctors: ${doctors.length}`);
+        console.log(`Available today: ${doctors.filter(d => d.status === 'Available').length}`);
+    });
+}
 
-module.exports = {
-  doctors
+// ============================================
+// EXPORT for signin.js - THIS REPLACES the old module.exports
+// ============================================
+module.exports = function renderAdminDashboard() {
+    return generateHTML();
 };
