@@ -465,40 +465,18 @@ const server = http.createServer((req, res) => {
         }
     }
     
-    // Serve Doctor Dashboard
+    // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
     else if (req.url === '/doctor-dashboard') {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Doctor Dashboard</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.8s ease; }
-                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                    h1 { color: #667eea; margin-bottom: 20px; }
-                    .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
-                    .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
-                    .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>👨‍⚕️ Doctor Dashboard</h1>
-                    <div class="welcome-badge" id="welcomeMessage">Welcome, Doctor!</div>
-                    <p>This is the doctor's dashboard for viewing patient information and lab reports.</p>
-                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
-                </div>
-                <script>
-                    const username = sessionStorage.getItem('hospitalUsername');
-                    if (username) {
-                        document.getElementById('welcomeMessage').innerHTML = 'Welcome, Dr. ' + username + '!';
-                    }
-                </script>
-            </body>
-            </html>
-        `);
+        try {
+            const renderDoctorDashboard = require('./Doctor.js');
+            const html = renderDoctorDashboard();
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(html);
+        } catch (err) {
+            console.error('Error loading Doctor.js:', err);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end('<h1>500 - Doctor Dashboard not found</h1><p>Make sure Doctor.js is in the same directory and exports the render function</p><a href="/">Back to Sign In</a>');
+        }
     }
     
     // Serve Admin Signup
@@ -608,6 +586,6 @@ server.listen(PORT, () => {
     console.log(`📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
     console.log('=======================================');
     console.log('🚀 Run ONLY this file!');
-    console.log('📁 labs.js, Patient.js, and admin.js now EXPORT render functions');
+    console.log('📁 All dashboard files (labs.js, Patient.js, admin.js, Doctor.js) now EXPORT render functions');
     console.log('=======================================\n');
 });

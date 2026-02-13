@@ -173,8 +173,11 @@ app.put('/api/appointments/:id', (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send(`
+// ============================================
+// FUNCTION TO GENERATE HTML
+// ============================================
+function generateDoctorHTML() {
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -1211,10 +1214,29 @@ app.get('/', (req, res) => {
       </script>
     </body>
     </html>
-  `);
+  `;
+}
+
+// ============================================
+// ROUTES - Use the generateDoctorHTML function
+// ============================================
+app.get('/', (req, res) => {
+  res.send(generateDoctorHTML());
 });
 
-app.listen(PORT, () => {
-  console.log(`BondHealth Doctor Portal running on port ${PORT}`);
-  console.log(`http://localhost:${PORT}`);
-});
+// ============================================
+// START SERVER - ONLY when run directly
+// ============================================
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`BondHealth Doctor Portal running on port ${PORT}`);
+    console.log(`http://localhost:${PORT}`);
+  });
+}
+
+// ============================================
+// EXPORT for signin.js
+// ============================================
+module.exports = function renderDoctorDashboard() {
+  return generateDoctorHTML();
+};
