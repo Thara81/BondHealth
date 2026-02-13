@@ -468,8 +468,6 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         .hidden {
             display: none;
         }
-
-<<<<<<< Updated upstream
         /* Add back button style */
         .logout-btn {
             padding: 8px 20px;
@@ -493,9 +491,6 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             align-items: center;
             gap: 15px;
         }
-
-=======
->>>>>>> Stashed changes
         /* Responsive */
         @media (max-width: 1024px) {
             .container {
@@ -559,7 +554,6 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             </div>
         </div>
         <div class="user-info">
-<<<<<<< Updated upstream
             <div class="user-controls">
                 <div class="user-details">
                     <div class="user-id" id="loggedInUser">Technician ID: Loading...</div>
@@ -567,10 +561,8 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 </div>
                 <button class="logout-btn" onclick="logout()">← Sign Out</button>
             </div>
-=======
             <div class="user-id">Technician ID: LAB-2024-8473</div>
             <div class="user-role">Lab Technician</div>
->>>>>>> Stashed changes
         </div>
     </div>
 
@@ -928,16 +920,12 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             }
         });
 
-<<<<<<< Updated upstream
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to sign out?')) {
                 window.location.href = '/';
             }
         }
-
-=======
->>>>>>> Stashed changes
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             // Populate initial patient suggestions
@@ -947,13 +935,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             const now = new Date();
             document.getElementById('testResults').placeholder = 
                 'Test conducted on ' + now.toLocaleDateString() + '\\nEnter detailed test results and observations...';
-<<<<<<< Updated upstream
             
             // Show logged in user
             const loggedInUser = document.getElementById('loggedInUser');
             loggedInUser.textContent = 'Technician ID: LAB-2024-8473';
-=======
->>>>>>> Stashed changes
         });
     </script>
 </body>
@@ -1013,7 +998,6 @@ const server = http.createServer((req, res) => {
     }
 });
 
-<<<<<<< Updated upstream
 // ============================================
 // START SERVER - ONLY when run directly
 // ============================================
@@ -1034,7 +1018,6 @@ if (require.main === module) {
 module.exports = function renderLabDashboard() {
     return HTML_TEMPLATE;
 };
-=======
 // Start server
 server.listen(PORT, function() {
     console.log('🔬 Lab Technician Dashboard running at:');
@@ -1043,4 +1026,3 @@ server.listen(PORT, function() {
     console.log('   📤 Send reports & view patient history');
     console.log('   🚀 Ready for lab operations!');
 });
->>>>>>> Stashed changes
