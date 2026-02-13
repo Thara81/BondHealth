@@ -1,6 +1,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const hospitalRegistrationPage = require('./HospitalRegistration');
+const hospitalPage = require('./Hospital');
 const PORT = process.env.PORT || 3005;
 
 // ============================================
@@ -481,54 +483,57 @@ const server = http.createServer((req, res) => {
     
     // Serve Admin Signup
     else if (req.url === '/admin-signup') {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Admin Sign Up</title>
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                    .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
-                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                    h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
-                    .form-group { margin-bottom: 20px; }
-                    .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
-                    .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
-                    .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
-                    .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
-                    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
-                    .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>🏥 Admin Sign Up</h1>
-                    <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
-                    <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/';">
-                        <div class="form-group">
-                            <label class="form-label">Full Name</label>
-                            <input type="text" class="form-input" placeholder="Enter your full name" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Email Address</label>
-                            <input type="email" class="form-input" placeholder="Enter your email" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Hospital Name</label>
-                            <input type="text" class="form-input" placeholder="Enter hospital name" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Position</label>
-                            <input type="text" class="form-input" placeholder="Enter your position" required>
-                        </div>
-                        <button type="submit" class="submit-btn">Submit Request</button>
-                    </form>
-                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
-                </div>
-            </body>
-            </html>
-        `);
+       res.writeHead(200, { 'Content-Type': 'text/html' });
+       res.end(hospitalRegistrationPage);
+
+        // res.writeHead(200, { 'Content-Type': 'text/html' });
+        // res.end(`
+        //     <!DOCTYPE html>
+        //     <html>
+        //     <head>
+        //         <title>Admin Sign Up</title>
+        //         <style>
+        //             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        //             .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+        //             @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        //             h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
+        //             .form-group { margin-bottom: 20px; }
+        //             .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        //             .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
+        //             .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
+        //             .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+        //             .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
+        //             .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
+        //         </style>
+        //     </head>
+        //     <body>
+        //         <div class="container">
+        //             <h1>🏥 Admin Sign Up</h1>
+        //             <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
+        //             <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/';">
+        //                 <div class="form-group">
+        //                     <label class="form-label">Full Name</label>
+        //                     <input type="text" class="form-input" placeholder="Enter your full name" required>
+        //                 </div>
+        //                 <div class="form-group">
+        //                     <label class="form-label">Email Address</label>
+        //                     <input type="email" class="form-input" placeholder="Enter your email" required>
+        //                 </div>
+        //                 <div class="form-group">
+        //                     <label class="form-label">Hospital Name</label>
+        //                     <input type="text" class="form-input" placeholder="Enter hospital name" required>
+        //                 </div>
+        //                 <div class="form-group">
+        //                     <label class="form-label">Position</label>
+        //                     <input type="text" class="form-input" placeholder="Enter your position" required>
+        //                 </div>
+        //                 <button type="submit" class="submit-btn">Submit Request</button>
+        //             </form>
+        //             <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
+        //         </div>
+        //     </body>
+        //     </html>
+        // `);
     }
     
     // API endpoint for signin
