@@ -1,5 +1,4 @@
 const http = require('http');
-<<<<<<< Updated upstream
 const fs = require('fs');
 const path = require('path');
 const PORT = process.env.PORT || 3005;
@@ -8,11 +7,6 @@ const PORT = process.env.PORT || 3005;
 // SIGNIN PAGE TEMPLATE - COMPLETE HTML
 // ============================================
 const SIGNIN_TEMPLATE = `<!doctype html>
-=======
-const PORT = process.env.PORT || 3001;
-
-const HTML_TEMPLATE = `<!doctype html>
->>>>>>> Stashed changes
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -85,7 +79,6 @@ const HTML_TEMPLATE = `<!doctype html>
     .dropdown-item { width: 100%; padding: 12px 14px; border: none; background: white; color: #1a1a1a; text-align: left; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); font-family: inherit; }
     .dropdown-item:hover { background: rgba(0, 212, 255, 0.1); color: #00d4ff; transform: translateX(4px); }
     .dropdown-item.selected { background: rgba(0, 212, 255, 0.15); color: #00d4ff; font-weight: 600; }
-<<<<<<< Updated upstream
     
     /* Admin Sign Up Button */
     .admin-signup-btn {
@@ -116,8 +109,6 @@ const HTML_TEMPLATE = `<!doctype html>
       transform: translateY(-4px);
       box-shadow: 0 12px 28px rgba(76, 175, 80, 0.5);
     }
-=======
->>>>>>> Stashed changes
   </style>
 </head>
 <body>
@@ -140,7 +131,6 @@ const HTML_TEMPLATE = `<!doctype html>
           <form class="form-section" id="patientForm">
             <div class="form-group">
               <label class="form-label">Username</label>
-<<<<<<< Updated upstream
               <input type="text" class="form-input" id="patientUsername" placeholder="Enter your username" required>
             </div>
             <div class="form-group">
@@ -149,21 +139,6 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
-=======
-              <input type="text" class="form-input" placeholder="Enter your username" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" required>
-            </div>
-            <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
-            <button type="submit" class="signin-btn">Sign In</button>
-            <div class="signup-section">
-              <div class="signup-text">
-                Don't have an account? <a href="#" class="signup-link" id="signUpLink">Sign up</a>
-              </div>
-            </div>
->>>>>>> Stashed changes
           </form>
           
           <!-- Hospital Dropdown Section -->
@@ -186,7 +161,6 @@ const HTML_TEMPLATE = `<!doctype html>
             </div>
           </div>
           
-<<<<<<< Updated upstream
           <!-- Hospital Form -->
           <form class="form-section" id="hospitalForm" style="display: none;">
             <div class="form-group">
@@ -200,29 +174,6 @@ const HTML_TEMPLATE = `<!doctype html>
             <a href="#" class="forgot-pw-link" id="forgotPwLinkHospital">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
             <button type="button" class="admin-signup-btn" id="adminSignupBtn">Sign Up as Admin</button>
-=======
-          <!-- Hospital Form (hidden until role selected) -->
-          <form class="form-section" id="hospitalForm" style="display: none;">
-            <div class="form-group">
-              <label class="form-label" id="hospitalRoleLabel">Role</label>
-              <input type="text" class="form-input" id="selectedRoleDisplay" readonly>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Username</label>
-              <input type="text" class="form-input" placeholder="Enter your username" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" required>
-            </div>
-            <a href="#" class="forgot-pw-link" id="forgotPwLinkHospital">Forgot password?</a>
-            <button type="submit" class="signin-btn">Sign In</button>
-            <div class="signup-section">
-              <div class="signup-text">
-                
-              </div>
-            </div>
->>>>>>> Stashed changes
           </form>
         </div>
         <div class="right-section">
@@ -292,7 +243,6 @@ const HTML_TEMPLATE = `<!doctype html>
         btn.classList.remove('active');
         document.getElementById('dropdownMenu').classList.remove('show');
         
-<<<<<<< Updated upstream
         // Show hospital form
         document.getElementById('hospitalForm').style.display = 'block';
         
@@ -303,13 +253,6 @@ const HTML_TEMPLATE = `<!doctype html>
         } else {
           adminSignupBtn.classList.remove('show');
         }
-=======
-        // Show hospital form with username/password fields
-        document.getElementById('hospitalForm').style.display = 'block';
-        
-        // Display selected role in the form
-        document.getElementById('selectedRoleDisplay').value = roleText;
->>>>>>> Stashed changes
       });
     });
 
@@ -333,7 +276,6 @@ const HTML_TEMPLATE = `<!doctype html>
       handleSignIn('hospital');
     });
 
-<<<<<<< Updated upstream
     // Admin Sign Up button handler
     document.getElementById('adminSignupBtn').addEventListener('click', function(e) {
       e.preventDefault();
@@ -341,9 +283,6 @@ const HTML_TEMPLATE = `<!doctype html>
     });
 
     // Forgot password handlers
-=======
-    // Link click handlers
->>>>>>> Stashed changes
     document.getElementById('forgotPwLink').addEventListener('click', function(e) {
       e.preventDefault();
       showMessage('Password reset link sent to your registered email!');
@@ -354,14 +293,6 @@ const HTML_TEMPLATE = `<!doctype html>
       showMessage('Password reset link sent to your hospital email!');
     });
 
-<<<<<<< Updated upstream
-=======
-    document.getElementById('signUpLink').addEventListener('click', function(e) {
-      e.preventDefault();
-      showMessage('Redirecting to patient sign up page...');
-    });
-
->>>>>>> Stashed changes
     // Toggle buttons
     document.getElementById('patientBtn').addEventListener('click', function() {
       switchForm('patient');
@@ -374,10 +305,6 @@ const HTML_TEMPLATE = `<!doctype html>
     function switchForm(type) {
       currentType = type;
       
-<<<<<<< Updated upstream
-=======
-      // Update button styles
->>>>>>> Stashed changes
       document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.classList.remove('active');
       });
@@ -414,7 +341,6 @@ const HTML_TEMPLATE = `<!doctype html>
         btn.classList.remove('active');
         document.getElementById('dropdownMenu').classList.remove('show');
         document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
-<<<<<<< Updated upstream
         document.getElementById('adminSignupBtn').classList.remove('show');
         document.getElementById('hospitalForm').reset();
       }
@@ -439,31 +365,12 @@ const HTML_TEMPLATE = `<!doctype html>
         window.location.href = '/patient-dashboard';
         return;
         
-=======
-        
-        // Reset hospital form
-        document.getElementById('selectedRoleDisplay').value = '';
-        document.getElementById('hospitalForm').reset();
-      }
-      
-      // Clear success message
-      document.getElementById('successMessage').classList.remove('show');
-    }
-
-    function handleSignIn(type) {
-      let message = '';
-      if (type === 'patient') {
-        message = 'Patient signed in successfully!';
-        showMessage(message);
-        document.getElementById('patientForm').reset();
->>>>>>> Stashed changes
       } else if (type === 'hospital') {
         if (!selectedRole) {
           showMessage('Please select a role first!');
           return;
         }
         
-<<<<<<< Updated upstream
         const username = document.getElementById('hospitalUsername').value;
         const password = document.getElementById('hospitalPassword').value;
         
@@ -485,22 +392,6 @@ const HTML_TEMPLATE = `<!doctype html>
           window.location.href = '/lab-dashboard';
           return;
         }
-=======
-        if (selectedRole === 'admin') {
-          // ADMIN: Redirect to Hospital.js
-          window.location.href = 'Hospital.js';
-          return; // Don't show message since we're redirecting
-        } else if (selectedRole === 'doctor') {
-          message = 'Doctor signed in successfully!';
-        } else if (selectedRole === 'lab') {
-          // LAB: Redirect to labs.js (which runs on port 3002)
-          window.location.href = 'http://localhost:3002';
-          return; // Don't show message since we're redirecting
-        }
-        
-        showMessage(message);
-        document.getElementById('hospitalForm').reset();
->>>>>>> Stashed changes
       }
     }
 
@@ -517,7 +408,6 @@ const HTML_TEMPLATE = `<!doctype html>
 </body>
 </html>`;
 
-<<<<<<< Updated upstream
 // ============================================
 // HTTP SERVER
 // ============================================
@@ -525,15 +415,11 @@ const server = http.createServer((req, res) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     
     // Serve Sign In page
-=======
-const server = http.createServer((req, res) => {
->>>>>>> Stashed changes
     if (req.url === '/' || req.url === '/index.html') {
         res.writeHead(200, { 
             'Content-Type': 'text/html',
             'Cache-Control': 'no-cache'
         });
-<<<<<<< Updated upstream
         res.end(SIGNIN_TEMPLATE);
     }
     
@@ -647,17 +533,12 @@ const server = http.createServer((req, res) => {
     
     // API endpoint for signin
     else if (req.url === '/api/signin' && req.method === 'POST') {
-=======
-        res.end(HTML_TEMPLATE);
-    } else if (req.url === '/api/signin' && req.method === 'POST') {
->>>>>>> Stashed changes
         let body = '';
         req.on('data', chunk => body += chunk.toString());
         req.on('end', () => {
             try {
                 const data = JSON.parse(body);
                 console.log('Sign in attempt:', data);
-<<<<<<< Updated upstream
                 
                 const isValid = data.username && data.password;
                 
@@ -677,60 +558,21 @@ const server = http.createServer((req, res) => {
                     userType: data.userType || 'patient',
                     role: data.role || null,
                     redirectTo: redirectUrl
-=======
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                    success: true,
-                    message: 'Sign in successful!',
-                    userType: data.userType || 'patient',
-                    role: data.role || null,
-                    redirectTo: data.role === 'admin' ? 'Hospital.js' : null
->>>>>>> Stashed changes
                 }));
             } catch (error) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, message: 'Invalid request' }));
             }
         });
-<<<<<<< Updated upstream
     }
     
     // 404 Not Found
     else {
-=======
-    } else if (req.url === '/Hospital.js') {
-        // Serve Hospital.js page
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Hospital Admin Dashboard</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
-                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-                    h1 { color: #0099cc; }
-                    .back-btn { margin-top: 20px; padding: 10px 20px; background: #00d4ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h1>🏥 Hospital Admin Dashboard</h1>
-                    <p>Welcome to the Hospital Admin Panel!</p>
-                    <p>This is where admin users can manage hospital operations.</p>
-                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
-                </div>
-            </body>
-            </html>
-        `);
-    } else {
->>>>>>> Stashed changes
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
     }
 });
 
-<<<<<<< Updated upstream
 // Start server
 server.listen(PORT, () => {
     console.log('\n=======================================');
@@ -746,13 +588,4 @@ server.listen(PORT, () => {
     console.log('🚀 Run ONLY this file!');
     console.log('📁 All dashboard files (labs.js, Patient.js, admin.js, Doctor.js) now EXPORT render functions');
     console.log('=======================================\n');
-=======
-server.listen(PORT, () => {
-    console.log(`✅ Healthcare Sign In App running at:`);
-    console.log(`   🌐 http://localhost:${PORT}`);
-    console.log(`   📁 Single file: signin.js`);
-    console.log(`   🚀 No dependencies required!`);
-    console.log(`   🔗 Hospital Admin: http://localhost:${PORT}/Hospital.js`);
-    console.log(`   🔬 Lab Dashboard: http://localhost:3002 (needs to be started separately)`);
->>>>>>> Stashed changes
 });
