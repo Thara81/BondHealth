@@ -2,11 +2,117 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
+
+// ============================================
+// PATIENT API ROUTES - Copied from Patient.js
+// ============================================
+
+// Patient data
+const patientData = {
+  id: 'PT-2024-0847',
+  name: 'Alex Johnson',
+  age: 32,
+  gender: 'Male',
+  bloodType: 'O+',
+  email: 'alex.johnson@email.com',
+  contact: '+1 (555) 123-4567',
+  address: '123 Health Street, Medical City',
+  emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
+  conditions: ['Hypertension', 'Asthma'],
+  allergies: ['Penicillin'],
+  lastVisit: '2024-11-15',
+  nextAppointment: '2024-12-20'
+};
+
+const appointments = [
+  {
+    id: 'APT-001',
+    doctor: 'Dr. Sarah Chen',
+    specialization: 'Cardiology',
+    date: '2024-12-20',
+    time: '10:30 AM',
+    location: 'Room 304',
+    status: 'confirmed',
+    reason: 'Routine heart checkup',
+    notes: 'Bring previous test reports'
+  }
+];
+
+const doctors = [
+  { id: 'd1', name: 'Dr. Sarah Chen', specialization: 'Cardiology', department: 'cardiology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.9, experience: '15 years', available: true },
+  { id: 'd2', name: 'Dr. Michael Rodriguez', specialization: 'Neurology', department: 'neurology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👨‍⚕️', rating: 4.8, experience: '12 years', available: true },
+  { id: 'd3', name: 'Dr. Emily Brown', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.7, experience: '8 years', available: false },
+  { id: 'd4', name: 'Dr. James Wilson', specialization: 'Orthopedics', department: 'orthopedics', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.8, experience: '18 years', available: true },
+  { id: 'd5', name: 'Dr. Priya Sharma', specialization: 'Pediatrics', department: 'pediatrics', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.6, experience: '10 years', available: true },
+  { id: 'd6', name: 'Dr. Lisa Anderson', specialization: 'Gynecology', department: 'gynecology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👩‍⚕️', rating: 4.7, experience: '14 years', available: true },
+  { id: 'd7', name: 'Dr. David Kim', specialization: 'Neurology', department: 'neurology', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.9, experience: '22 years', available: true },
+  { id: 'd8', name: 'Dr. Rachel Green', specialization: 'Cardiology', department: 'cardiology', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.8, experience: '16 years', available: false },
+  { id: 'd9', name: 'Dr. Alex Martinez', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👨‍⚕️', rating: 4.7, experience: '11 years', available: true }
+];
+
+const hospitals = [
+  { id: 'h1', name: "St Mary's Hospital", color: '#1dbfec' },
+  { id: 'h2', name: 'Aster Medical Center', color: '#0099cc' },
+  { id: 'h3', name: 'Apollo Hospital', color: '#0fb7c9' },
+  { id: 'h4', name: 'City General Hospital', color: '#07a0b4' }
+];
+
+const reports = [
+  { id: 'RPT-001', name: 'Blood Test Results', date: '2024-11-10', type: 'lab' },
+  { id: 'RPT-002', name: 'ECG Report', date: '2024-11-05', type: 'ecg' },
+  { id: 'RPT-003', name: 'X-Ray Chest', date: '2024-10-28', type: 'xray' }
+];
+
+const prescriptions = [
+  { id: 'RX-001', medicine: 'Metoprolol', dosage: '50mg', frequency: 'Once daily', validUntil: '2025-03-15' },
+  { id: 'RX-002', medicine: 'Atorvastatin', dosage: '20mg', frequency: 'At bedtime', validUntil: '2025-03-15' }
+];
+
+// Patient API Routes
+app.get('/api/patient', (req, res) => {
+  res.json(patientData);
+});
+
+app.get('/api/appointments', (req, res) => {
+  res.json(appointments);
+});
+
+app.get('/api/doctors', (req, res) => {
+  res.json(doctors);
+});
+
+app.get('/api/hospitals', (req, res) => {
+  res.json(hospitals);
+});
+
+app.get('/api/reports', (req, res) => {
+  res.json(reports);
+});
+
+app.get('/api/prescriptions', (req, res) => {
+  res.json(prescriptions);
+});
+
+app.post('/api/appointments', (req, res) => {
+  const newAppointment = {
+    id: `APT-${Date.now()}`,
+    ...req.body,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+  appointments.push(newAppointment);
+  res.status(201).json(newAppointment);
+});
+
+app.put('/api/patient', (req, res) => {
+  Object.assign(patientData, req.body);
+  res.json(patientData);
+});
 
 // Serve the main HTML page
 app.get('/', (req, res) => {
@@ -22,7 +128,7 @@ app.get('/signin', (req, res) => {
         const content = fs.readFileSync('signin.js', 'utf8');
         
         // Extract the HTML template
-        const match = content.match(/HTML_TEMPLATE\s*=\s*`([\s\S]*?)`/);
+        const match = content.match(/const SIGNIN_TEMPLATE = `([\s\S]*?)`;/);
         
         if (match && match[1]) {
             res.send(match[1]);
@@ -42,6 +148,182 @@ app.get('/signin', (req, res) => {
         `);
     }
 });
+
+// ============================================
+// DOCTOR API ROUTES - Copied from Doctor.js
+// ============================================
+
+// Doctor data
+const doctorData = {
+  id: 'DR-2024-0567',
+  name: 'Dr. Sarah Chen',
+  designation: 'Senior Cardiologist',
+  specialization: 'Cardiology',
+  experience: '12 years',
+  qualification: 'MD, DM Cardiology',
+  email: 'sarah.chen@bondhealth.com',
+  contact: '+1 (555) 234-5678',
+  address: '456 Medical Center, Cardiology Wing',
+  consultationFee: '$150',
+  availableDays: ['Mon', 'Wed', 'Fri'],
+  availableTime: '9:00 AM - 5:00 PM'
+};
+
+const todaysAppointments = [
+  {
+    id: 'APT-001',
+    patientName: 'Alex Johnson',
+    patientId: 'PT-2024-0847',
+    time: '10:30 AM',
+    reason: 'Routine heart checkup',
+    status: 'confirmed',
+    type: 'in-person'
+  },
+  {
+    id: 'APT-002',
+    patientName: 'Michael Brown',
+    patientId: 'PT-2024-0923',
+    time: '11:45 AM',
+    reason: 'Chest pain evaluation',
+    status: 'confirmed',
+    type: 'in-person'
+  },
+  {
+    id: 'APT-003',
+    patientName: 'Emily Davis',
+    patientId: 'PT-2024-0789',
+    time: '2:30 PM',
+    reason: 'Follow-up consultation',
+    status: 'pending',
+    type: 'online'
+  },
+  {
+    id: 'APT-004',
+    patientName: 'Robert Wilson',
+    patientId: 'PT-2024-1012',
+    time: '3:45 PM',
+    reason: 'ECG review',
+    status: 'confirmed',
+    type: 'in-person'
+  }
+];
+
+const labReports = [
+  {
+    id: 'LAB-001',
+    patientName: 'Alex Johnson',
+    patientId: 'PT-2024-0847',
+    testName: 'Complete Blood Count',
+    date: '2024-12-10',
+    status: 'reviewed',
+    findings: 'Normal ranges, no abnormalities detected'
+  },
+  {
+    id: 'LAB-002',
+    patientName: 'Michael Brown',
+    patientId: 'PT-2024-0923',
+    testName: 'ECG Report',
+    date: '2024-12-09',
+    status: 'pending',
+    findings: 'Awaiting review'
+  },
+  {
+    id: 'LAB-003',
+    patientName: 'Sarah Miller',
+    patientId: 'PT-2024-0567',
+    testName: 'Lipid Profile',
+    date: '2024-12-08',
+    status: 'reviewed',
+    findings: 'Slightly elevated cholesterol levels'
+  }
+];
+
+const patients = [
+  {
+    id: 'PT-2024-0847',
+    name: 'Alex Johnson',
+    age: 32,
+    gender: 'Male',
+    lastVisit: '2024-11-15',
+    nextAppointment: '2024-12-20',
+    condition: 'Hypertension',
+    status: 'active'
+  },
+  {
+    id: 'PT-2024-0923',
+    name: 'Michael Brown',
+    age: 45,
+    gender: 'Male',
+    lastVisit: '2024-12-01',
+    nextAppointment: '2024-12-28',
+    condition: 'Cardiac Arrhythmia',
+    status: 'active'
+  },
+  {
+    id: 'PT-2024-0789',
+    name: 'Emily Davis',
+    age: 28,
+    gender: 'Female',
+    lastVisit: '2024-11-25',
+    nextAppointment: '2025-01-05',
+    condition: 'Heart Murmur',
+    status: 'active'
+  },
+  {
+    id: 'PT-2024-1012',
+    name: 'Robert Wilson',
+    age: 60,
+    gender: 'Male',
+    lastVisit: '2024-12-05',
+    nextAppointment: '2024-12-22',
+    condition: 'Coronary Artery Disease',
+    status: 'active'
+  },
+  {
+    id: 'PT-2024-0678',
+    name: 'Jennifer Lee',
+    age: 38,
+    gender: 'Female',
+    lastVisit: '2024-10-30',
+    nextAppointment: '2025-01-15',
+    condition: 'Hypertension',
+    status: 'follow-up'
+  }
+];
+
+// Doctor API Routes
+app.get('/api/doctor', (req, res) => {
+  res.json(doctorData);
+});
+
+app.get('/api/appointments/today', (req, res) => {
+  res.json(todaysAppointments);
+});
+
+app.get('/api/lab-reports', (req, res) => {
+  res.json(labReports);
+});
+
+app.get('/api/patients', (req, res) => {
+  res.json(patients);
+});
+
+app.put('/api/doctor', (req, res) => {
+  Object.assign(doctorData, req.body);
+  res.json(doctorData);
+});
+
+app.put('/api/appointments/:id', (req, res) => {
+  const appointmentId = req.params.id;
+  const appointment = todaysAppointments.find(apt => apt.id === appointmentId);
+  if (appointment) {
+    Object.assign(appointment, req.body);
+    res.json(appointment);
+  } else {
+    res.status(404).json({ error: 'Appointment not found' });
+  }
+});
+
 
 // API endpoint for feedback submission
 app.post('/api/feedback', (req, res) => {
@@ -768,6 +1050,163 @@ function generateHTML() {
  </body>
 </html>`;
 }
+// ============================================
+// DASHBOARD ROUTES (Copied from signin.js)
+// ============================================
+
+// SERVE LAB DASHBOARD - Simple extraction, no data needed
+app.get('/lab-dashboard', (req, res) => {
+    try {
+        const renderLabDashboard = require('./labs.js');
+        const html = renderLabDashboard();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading labs.js:', err);
+        res.status(500).send(`
+            <h1>500 - Lab Dashboard not found</h1>
+            <p>Make sure labs.js is in the same directory and exports the render function</p>
+            <a href="/signin">← Back to Sign In</a>
+        `);
+    }
+});
+
+
+// SERVE PATIENT DASHBOARD - Auto-extract everything from Patient.js
+app.get('/patient-dashboard', (req, res) => {
+    try {
+        const renderPatientDashboard = require('./Patient.js');
+        const html = renderPatientDashboard();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading Patient.js:', err);
+        res.status(500).send(`
+            <h1>500 - Patient Dashboard not found</h1>
+            <p>Make sure Patient.js is in the same directory and exports the render function</p>
+            <a href="/signin">← Back to Sign In</a>
+        `);
+    }
+});
+
+app.get('/admin-dashboard', (req, res) => {
+    try {
+        const renderAdminDashboard = require('./admin.js');
+        const html = renderAdminDashboard();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading admin.js:', err);
+        res.status(500).send(`
+            <h1>500 - Admin Dashboard not found</h1>
+            <p>Make sure admin.js is in the same directory and exports the render function</p>
+            <a href="/signin">← Back to Sign In</a>
+        `);
+    }
+});
+
+// SERVE HOSPITAL ADMIN DASHBOARD
+app.get('/hospital-dashboard', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Hospital Admin Dashboard</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                h1 { color: #0099cc; margin-bottom: 20px; }
+                .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
+                .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
+                .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4); }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🏥 Hospital Admin Dashboard</h1>
+                <div class="welcome-badge" id="welcomeMessage">Welcome, Admin!</div>
+                <p>Welcome to the Hospital Admin Panel!</p>
+                <button class="back-btn" onclick="window.location.href='/signin'">← Back to Sign In</button>
+            </div>
+            <script>
+                const username = sessionStorage.getItem('hospitalUsername');
+                if (username) {
+                    document.getElementById('welcomeMessage').innerHTML = 'Welcome, Admin ' + username + '!';
+                }
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+// SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
+app.get('/doctor-dashboard', (req, res) => {
+    try {
+        const renderDoctorDashboard = require('./Doctor.js');
+        const html = renderDoctorDashboard();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading Doctor.js:', err);
+        res.status(500).send(`
+            <h1>500 - Doctor Dashboard not found</h1>
+            <p>Make sure Doctor.js is in the same directory and exports the render function</p>
+            <a href="/signin">← Back to Sign In</a>
+        `);
+    }
+});
+
+// SERVE ADMIN SIGNUP
+app.get('/admin-signup', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Admin Sign Up</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
+                .form-group { margin-bottom: 20px; }
+                .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+                .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
+                .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
+                .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+                .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
+                .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🏥 Admin Sign Up</h1>
+                <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
+                <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/signin';">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-input" placeholder="Enter your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-input" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Hospital Name</label>
+                        <input type="text" class="form-input" placeholder="Enter hospital name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Position</label>
+                        <input type="text" class="form-input" placeholder="Enter your position" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Submit Request</button>
+                </form>
+                <button class="back-btn" onclick="window.location.href='/signin'">← Back to Sign In</button>
+            </div>
+        </body>
+        </html>
+    `);
+});
 
 // Start the server
 app.listen(PORT, () => {

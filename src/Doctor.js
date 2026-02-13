@@ -173,11 +173,15 @@ app.put('/api/appointments/:id', (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.send(generateDoctorHTML());
+});
+
 // ============================================
-// FUNCTION TO GENERATE HTML
+// FUNCTION TO GENERATE HTML - MOVE YOUR HTML HERE
 // ============================================
 function generateDoctorHTML() {
-  return `
+  return `<!DOCTYPE html>
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -1235,7 +1239,7 @@ if (require.main === module) {
 }
 
 // ============================================
-// EXPORT for signin.js
+// EXPORT for home.js and signin.js
 // ============================================
 module.exports = function renderDoctorDashboard() {
   return generateDoctorHTML();
