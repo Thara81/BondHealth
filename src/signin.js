@@ -111,6 +111,34 @@ const SIGNIN_TEMPLATE = `<!doctype html>
       transform: translateY(-4px);
       box-shadow: 0 12px 28px rgba(76, 175, 80, 0.5);
     }
+
+    /* Patient Sign Up Button */
+    .patient-signup-container {
+      text-align: center;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    .patient-signup-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .patient-signup-btn {
+      background: none;
+      border: none;
+      color: #00d4ff;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: underline;
+      padding: 0 5px;
+    }
+    
+    .patient-signup-btn:hover {
+      color: #0099cc;
+    }
   </style>
 </head>
 <body>
@@ -141,6 +169,12 @@ const SIGNIN_TEMPLATE = `<!doctype html>
             </div>
             <a href="#" class="forgot-pw-link" id="forgotPwLink">Forgot password?</a>
             <button type="submit" class="signin-btn">Sign In</button>
+            
+            <!-- Patient Sign Up Section -->
+            <div class="patient-signup-container">
+              <span class="patient-signup-text">Don't have an account? </span>
+              <button type="button" class="patient-signup-btn" id="patientSignupBtn" onclick="window.location.href='/patient-signup'">Sign Up</button>
+            </div>
           </form>
           
           <!-- Hospital Dropdown Section -->
@@ -485,55 +519,63 @@ const server = http.createServer((req, res) => {
     else if (req.url === '/admin-signup') {
        res.writeHead(200, { 'Content-Type': 'text/html' });
        res.end(hospitalRegistrationPage);
-
-        // res.writeHead(200, { 'Content-Type': 'text/html' });
-        // res.end(`
-        //     <!DOCTYPE html>
-        //     <html>
-        //     <head>
-        //         <title>Admin Sign Up</title>
-        //         <style>
-        //             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        //             .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
-        //             @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        //             h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
-        //             .form-group { margin-bottom: 20px; }
-        //             .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
-        //             .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
-        //             .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
-        //             .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
-        //             .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
-        //             .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
-        //         </style>
-        //     </head>
-        //     <body>
-        //         <div class="container">
-        //             <h1>🏥 Admin Sign Up</h1>
-        //             <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
-        //             <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/';">
-        //                 <div class="form-group">
-        //                     <label class="form-label">Full Name</label>
-        //                     <input type="text" class="form-input" placeholder="Enter your full name" required>
-        //                 </div>
-        //                 <div class="form-group">
-        //                     <label class="form-label">Email Address</label>
-        //                     <input type="email" class="form-input" placeholder="Enter your email" required>
-        //                 </div>
-        //                 <div class="form-group">
-        //                     <label class="form-label">Hospital Name</label>
-        //                     <input type="text" class="form-input" placeholder="Enter hospital name" required>
-        //                 </div>
-        //                 <div class="form-group">
-        //                     <label class="form-label">Position</label>
-        //                     <input type="text" class="form-input" placeholder="Enter your position" required>
-        //                 </div>
-        //                 <button type="submit" class="submit-btn">Submit Request</button>
-        //             </form>
-        //             <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
-        //         </div>
-        //     </body>
-        //     </html>
-        // `);
+    }
+    
+    // Serve Patient Signup
+    else if (req.url === '/patient-signup') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Patient Sign Up</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+                    .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
+                    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+                    h1 { color: #00d4ff; text-align: center; margin-bottom: 30px; }
+                    .form-group { margin-bottom: 20px; }
+                    .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+                    .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
+                    .form-input:focus { outline: none; border-color: #00d4ff; box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1); }
+                    .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+                    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4); }
+                    .back-btn { margin-top: 20px; padding: 12px 30px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
+                    .back-btn:hover { background: #555; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>👤 Patient Sign Up</h1>
+                    <p style="text-align: center; color: #666; margin-bottom: 30px;">Create your patient account:</p>
+                    <form id="patientSignupForm" onsubmit="event.preventDefault(); alert('Account created successfully! Please sign in.'); window.location.href='/';">
+                        <div class="form-group">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-input" placeholder="Enter your full name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-input" placeholder="Enter your email" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" placeholder="Choose a username" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" placeholder="Create a password" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password" class="form-input" placeholder="Confirm your password" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Create Account</button>
+                    </form>
+                    <button class="back-btn" onclick="window.location.href='/'">← Back to Sign In</button>
+                </div>
+            </body>
+            </html>
+        `);
     }
     
     // API endpoint for signin
@@ -589,6 +631,7 @@ server.listen(PORT, () => {
     console.log(`🏥 Admin Dashboard: http://localhost:${PORT}/admin-dashboard`);
     console.log(`👨‍⚕️ Doctor Dashboard: http://localhost:${PORT}/doctor-dashboard`);
     console.log(`📝 Admin Sign Up: http://localhost:${PORT}/admin-signup`);
+    console.log(`📝 Patient Sign Up: http://localhost:${PORT}/patient-signup`);
     console.log('=======================================');
     console.log('🚀 Run ONLY this file!');
     console.log('📁 All dashboard files (labs.js, Patient.js, admin.js, Doctor.js) now EXPORT render functions');
