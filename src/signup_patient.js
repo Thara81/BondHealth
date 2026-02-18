@@ -360,7 +360,7 @@ function generateSignUpHTML() {
   `;
 }
 
-// Routes
+/*Routes
 app.get('/', (req, res) => {
   res.send(generateSignUpHTML());
 });
@@ -428,7 +428,7 @@ app.listen(port, () => {
     console.log('   → Place signin.js in:', __dirname);
   }
   console.log('========================================\n');
-});
+});*/
 
 module.exports = {
   defaultConfig,
@@ -437,4 +437,9 @@ module.exports = {
   handleFormSubmission,
   generateSignUpHTML,
   users
+};
+
+// At the bottom of signup_patient.js, add:
+module.exports = function renderPatientSignup() {
+    return generateSignUpHTML();
 };

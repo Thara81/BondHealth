@@ -385,49 +385,42 @@ const SIGNIN_TEMPLATE = `<!doctype html>
     }
 
     async function handleSignIn(type) {
-      if (type === 'patient') {
-        const username = document.getElementById('patientUsername').value;
-        const password = document.getElementById('patientPassword').value;
-        
-        if (!username || !password) {
+      const username = document.getElementById(type === 'patient' ? 'patientUsername' : 'hospitalUsername').value;
+      const password = document.getElementById(type === 'patient' ? 'patientPassword' : 'hospitalPassword').value;
+      const role = type === 'hospital' ? selectedRole : 'patient';
+      
+      if (!username || !password) {
           showMessage('Please enter username and password');
           return;
-        }
-        
-        // Store patient info
-        sessionStorage.setItem('patientUsername', username);
-        
-        // Redirect to patient dashboard
-        window.location.href = '/patient-dashboard';
-        return;
-        
-      } else if (type === 'hospital') {
-        if (!selectedRole) {
-          showMessage('Please select a role first!');
-          return;
-        }
-        
-        const username = document.getElementById('hospitalUsername').value;
-        const password = document.getElementById('hospitalPassword').value;
-        
-        if (!username || !password) {
-          showMessage('Please enter username and password');
-          return;
-        }
-        
-        sessionStorage.setItem('hospitalRole', selectedRole);
-        sessionStorage.setItem('hospitalUsername', username);
-        
-        if (selectedRole === 'admin') {
-          window.location.href = '/admin-dashboard';
-          return;
-        } else if (selectedRole === 'doctor') {
-          window.location.href = '/doctor-dashboard';
-          return;
-        } else if (selectedRole === 'lab') {
-          window.location.href = '/lab-dashboard';
-          return;
-        }
+      }
+      
+      try {
+          const response = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password, role })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+              showMessage('Login successful! Redirecting...');
+              
+              setTimeout(() => {
+                  const redirectMap = {
+                      patient: '/patient-dashboard',
+                      doctor: '/doctor-dashboard',
+                      admin: '/admin-dashboard',
+                      lab: '/lab-dashboard'
+                  };
+                  window.location.href = redirectMap[data.user.role] || '/';
+              }, 1000);
+          } else {
+              showMessage(data.message || 'Login failed');
+          }
+      } catch (error) {
+          console.error('Login error:', error);
+          showMessage('Network error. Please try again.');
       }
     }
 
@@ -620,8 +613,13 @@ const server = http.createServer((req, res) => {
     }
 });
 
+// At the bottom of signin.js, add:
+module.exports = function renderSignInPage() {
+    return SIGNIN_TEMPLATE;
+};
+
 // Start server
-server.listen(PORT, () => {
+/*server.listen(PORT, () => {
     console.log('\n=======================================');
     console.log('✅ BOND HEALTH - SINGLE SERVER SOLUTION');
     console.log('=======================================');
@@ -636,4 +634,4 @@ server.listen(PORT, () => {
     console.log('🚀 Run ONLY this file!');
     console.log('📁 All dashboard files (labs.js, Patient.js, admin.js, Doctor.js) now EXPORT render functions');
     console.log('=======================================\n');
-});
+});*/

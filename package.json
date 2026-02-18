@@ -4,6 +4,8 @@
   "description": "Healthcare Portal System with Patient Sign In and Admin Dashboard",
   "main": "signin.js",
   "scripts": {
+    "start": "node home.js",
+    "dev": "nodemon home.js",
     "start:signin": "node signin.js",
     "dev:signin": "nodemon signin.js",
     "start:doctor": "node doctor-registration-server.js",
@@ -22,7 +24,11 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.22.1"
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.3.1",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

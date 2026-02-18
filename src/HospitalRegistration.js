@@ -1059,7 +1059,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         <!-- Footer -->
         <!-- In the footer section, replace the existing back to sign in link with: -->
 <div class="footer">
-    <p>© 2024 BondHealth. All rights reserved. | <a href="#">Contact Support</a> | <a href="#">About Us</a> | <a href="http://localhost:3000/" style="color: var(--primary-blue); font-weight: 600;">← Go to Hospital Dashboard</a></p>
+    <p>© 2024 BondHealth. All rights reserved. | <a href="/signin" style="color: var(--primary-blue); font-weight: 600;">← Back to Sign In</a>
 </div>
 
     <!-- Bootstrap JS Bundle with Popper -->
@@ -1750,7 +1750,11 @@ const server = http.createServer((req, res) => {
     }
 });
 
-module.exports = HTML_TEMPLATE;
+// At the bottom of HospitalRegistration.js, add:
+module.exports = function renderHospitalRegistration() {
+    return HTML_TEMPLATE;
+};
+
 
 // server.listen(PORT, () => {
 //     console.log(`✅ Hospital Registration Portal running at:`);

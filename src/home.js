@@ -1,13 +1,17 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
-
+app.use(cookieParser());
 // ============================================
 // PATIENT API ROUTES - Copied from Patient.js
 // ============================================
@@ -73,45 +77,293 @@ const prescriptions = [
   { id: 'RX-002', medicine: 'Atorvastatin', dosage: '20mg', frequency: 'At bedtime', validUntil: '2025-03-15' }
 ];
 
+// ============================================
+// IN-MEMORY USER DATABASE (Replace with PostgreSQL later)
+// ============================================
+let users = [
+    {
+        id: '1',
+        username: 'alexjohnson',
+        email: 'alex.johnson@email.com',
+        password: '$2a$10$dummyhashfordemo', // You'll create real users via registration
+        role: 'patient',
+        profile: { name: 'Alex Johnson', patientId: 'PT-2024-0847' },
+        createdAt: new Date().toISOString()
+    },
+    {
+        id: '2',
+        username: 'drsarahchen',
+        email: 'sarah.chen@bondhealth.com',
+        password: '$2a$10$dummyhashfordemo',
+        role: 'doctor',
+        profile: { name: 'Dr. Sarah Chen', doctorId: 'DR-2024-0567' },
+        createdAt: new Date().toISOString()
+    },
+    {
+        id: '3',
+        username: 'admin',
+        email: 'admin@bondhealth.com',
+        password: '$2a$10$dummyhashfordemo',
+        role: 'admin',
+        profile: { name: 'Admin User', adminId: 'ADM-2024-001' },
+        createdAt: new Date().toISOString()
+    },
+    {
+        id: '4',
+        username: 'labtech',
+        email: 'lab@bondhealth.com',
+        password: '$2a$10$dummyhashfordemo',
+        role: 'lab',
+        profile: { name: 'Lab Technician', technicianId: 'LAB-2024-8473' },
+        createdAt: new Date().toISOString()
+    }
+];
+
+// Track active sessions
+let activeSessions = new Map();
+
+// ============================================
+// JWT HELPER FUNCTIONS
+// ============================================
+const generateToken = (user) => {
+    return jwt.sign(
+        { 
+            id: user.id, 
+            username: user.username, 
+            role: user.role 
+        }, 
+        process.env.JWT_SECRET || 'fallback_secret', 
+        { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+};
+
+const verifyToken = (token) => {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    } catch (error) {
+        return null;
+    }
+};
+
+// ============================================
+// AUTH MIDDLEWARE
+// ============================================
+const authenticate = (req, res, next) => {
+    let token = req.cookies.token;
+    
+    if (!token && req.headers.authorization) {
+        const authHeader = req.headers.authorization;
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+        return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    if (!activeSessions.has(decoded.id)) {
+        return res.status(401).json({ success: false, message: 'Session expired' });
+    }
+
+    req.user = decoded;
+    next();
+};
+
+const authorize = (...roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: 'Authentication required' });
+        }
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+        next();
+    };
+};
+
+// ============================================
+// AUTHENTICATION ROUTES
+// ============================================
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { username, email, password, role, ...profile } = req.body;
+        
+        if (users.find(u => u.username === username || u.email === email)) {
+            return res.status(400).json({ success: false, message: 'User exists' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = {
+            id: (users.length + 1).toString(),
+            username,
+            email,
+            password: hashedPassword,
+            role: role || 'patient',
+            profile,
+            createdAt: new Date().toISOString()
+        };
+
+        users.push(newUser);
+        const token = generateToken(newUser);
+        activeSessions.set(newUser.id, { token, loginTime: new Date().toISOString() });
+
+        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        res.json({
+            success: true,
+            token,
+            user: { id: newUser.id, username, email, role: newUser.role }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        const user = users.find(u => 
+            (username && u.username === username) || 
+            (email && u.email === email)
+        );
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        if (role && user.role !== role) {
+            return res.status(403).json({ success: false, message: 'Wrong role' });
+        }
+
+        const token = generateToken(user);
+        activeSessions.set(user.id, { token, loginTime: new Date().toISOString() });
+
+        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        res.json({
+            success: true,
+            token,
+            user: { id: user.id, username: user.username, email: user.email, role: user.role }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+    const token = req.cookies.token;
+    if (token) {
+        const decoded = verifyToken(token);
+        if (decoded) activeSessions.delete(decoded.id);
+    }
+    res.clearCookie('token');
+    res.json({ success: true, message: 'Logged out' });
+});
+
+// Get current user
+app.get('/api/auth/me', authenticate, (req, res) => {
+    const user = users.find(u => u.id === req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    const { password, ...userWithoutPassword } = user;
+    res.json({ success: true, user: userWithoutPassword });
+});
+
 // Patient API Routes
-app.get('/api/patient', (req, res) => {
+app.get('/api/patient', authenticate, authorize('patient'), (req, res) => {
   res.json(patientData);
 });
 
-app.get('/api/appointments', (req, res) => {
-  res.json(appointments);
+app.get('/api/appointments', authenticate, (req, res) => {
+    if (req.user.role === 'patient') {
+        const patientAppointments = appointments.filter(a => a.patientId === patientData.id);
+        res.json(patientAppointments);
+    } else if (req.user.role === 'doctor') {
+        res.json(todaysAppointments);
+    } else {
+        res.json(appointments);
+    }
 });
 
-app.get('/api/doctors', (req, res) => {
+app.get('/api/doctors', authenticate, (req, res) => {
   res.json(doctors);
 });
 
-app.get('/api/hospitals', (req, res) => {
+app.get('/api/hospitals', authenticate, (req, res) => {
   res.json(hospitals);
 });
 
-app.get('/api/reports', (req, res) => {
-  res.json(reports);
+app.get('/api/reports', authenticate, (req, res) => {
+  if (req.user.role === 'patient') {
+    const patientReports = reports.filter(r => r.patientId === patientData.id);
+    res.json(patientReports);
+  } else {
+    res.json(reports);
+  }
 });
 
-app.get('/api/prescriptions', (req, res) => {
-  res.json(prescriptions);
+app.get('/api/prescriptions', authenticate, (req, res) => {
+  if (req.user.role === 'patient') {
+    const patientPrescriptions = prescriptions.filter(p => p.patientId === patientData.id);
+    res.json(patientPrescriptions);
+  } else {
+    res.json(prescriptions);
+  }
 });
 
-app.post('/api/appointments', (req, res) => {
-  const newAppointment = {
-    id: `APT-${Date.now()}`,
-    ...req.body,
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  };
-  appointments.push(newAppointment);
-  res.status(201).json(newAppointment);
+app.post('/api/appointments', authenticate, authorize('patient'), (req, res) => {
+    const newAppointment = {
+        id: `APT-${Date.now()}`,
+        ...req.body,
+        patientId: patientData.id,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+    };
+    appointments.push(newAppointment);
+    res.status(201).json(newAppointment);
 });
 
-app.put('/api/patient', (req, res) => {
+app.put('/api/patient', authenticate, authorize('patient'), (req, res) => {
   Object.assign(patientData, req.body);
   res.json(patientData);
+});
+
+// SERVE PATIENT SIGNUP
+// SERVE PATIENT SIGNUP - Add this near your other route definitions
+// SERVE PATIENT SIGNUP - EXACT copy from signup_patient.js
+// SERVE PATIENT SIGNUP - Using external file
+app.get('/patient-signup', (req, res) => {
+    try {
+        const renderPatientSignup = require('./signup_patient.js');
+        const html = renderPatientSignup();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading signup_patient.js:', err);
+        res.status(500).send(`
+            <h1>500 - Patient Signup not found</h1>
+            <p>Make sure signup_patient.js is in the same directory and exports the render function.</p>
+            <a href="/">← Back to Home</a>
+        `);
+    }
 });
 
 // Serve the main HTML page
@@ -122,33 +374,22 @@ app.get('/', (req, res) => {
 
 // Serve signin page
 // Add this route to your main Express app
+// Serve signin page - Using external file
 app.get('/signin', (req, res) => {
     try {
-        // Read the signin.js file
-        const content = fs.readFileSync('signin.js', 'utf8');
-        
-        // Extract the HTML template
-        const match = content.match(/const SIGNIN_TEMPLATE = `([\s\S]*?)`;/);
-        
-        if (match && match[1]) {
-            res.send(match[1]);
-        } else {
-            res.send(`
-                <h1>Sign In Page</h1>
-                <p>Could not load sign-in form.</p>
-                <a href="/">← Back to Home</a>
-            `);
-        }
-    } catch (error) {
-        console.error('Error loading signin page:', error);
-        res.send(`
-            <h1>Error Loading Sign In</h1>
-            <p>Make sure signin.js file exists in the same folder.</p>
+        const renderSignInPage = require('./signin.js');
+        const html = renderSignInPage();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading signin.js:', err);
+        res.status(500).send(`
+            <h1>500 - Sign In page not found</h1>
+            <p>Make sure signin.js is in the same directory and exports the render function.</p>
             <a href="/">← Back to Home</a>
         `);
     }
 });
-
 // ============================================
 // DOCTOR API ROUTES - Copied from Doctor.js
 // ============================================
@@ -292,28 +533,28 @@ const patients = [
 ];
 
 // Doctor API Routes
-app.get('/api/doctor', (req, res) => {
-  res.json(doctorData);
+app.get('/api/doctor', authenticate, authorize('doctor'), (req, res) => {
+    res.json(doctorData);
 });
 
-app.get('/api/appointments/today', (req, res) => {
-  res.json(todaysAppointments);
+app.get('/api/appointments/today', authenticate, authorize('doctor'), (req, res) => {
+    res.json(todaysAppointments);
 });
 
-app.get('/api/lab-reports', (req, res) => {
-  res.json(labReports);
+app.get('/api/lab-reports', authenticate, authorize('doctor'), (req, res) => {
+    res.json(labReports);
 });
 
-app.get('/api/patients', (req, res) => {
-  res.json(patients);
+app.get('/api/patients', authenticate, authorize('doctor'), (req, res) => {
+    res.json(patients);
 });
 
-app.put('/api/doctor', (req, res) => {
+app.put('/api/doctor', authenticate, authorize('doctor'), (req, res) => {
   Object.assign(doctorData, req.body);
   res.json(doctorData);
 });
 
-app.put('/api/appointments/:id', (req, res) => {
+app.put('/api/appointments/:id', authenticate, authorize('doctor', 'admin'), (req, res) => {
   const appointmentId = req.params.id;
   const appointment = todaysAppointments.find(apt => apt.id === appointmentId);
   if (appointment) {
@@ -335,15 +576,15 @@ app.post('/api/feedback', (req, res) => {
 });
 
 // API endpoint for signin
-app.post('/api/signin', (req, res) => {
-    console.log('Sign in attempt:', req.body);
+//app.post('/api/signin', (req, res) => {
+  //  console.log('Sign in attempt:', req.body);
     // In real app: validate credentials against database
-    res.json({
-        success: true,
-        message: 'Sign in successful!',
-        user: { name: req.body.email.split('@')[0] }
-    });
-});
+    //res.json({
+      //  success: true,
+        //message: 'Sign in successful!',
+        //user: { name: req.body.email.split('@')[0] }
+    //});
+//});
 
 // Serve static SDK files (simulated)
 app.get('/_sdk/element_sdk.js', (req, res) => {
@@ -1050,12 +1291,41 @@ function generateHTML() {
  </body>
 </html>`;
 }
+
+
+// ============================================
+// DASHBOARD PROTECTION MIDDLEWARE
+// ============================================
+const requireAuth = (role) => {
+    return (req, res, next) => {
+        const token = req.cookies.token;
+        if (!token) return res.redirect('/signin');
+
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id)) {
+            return res.redirect('/signin');
+        }
+
+        if (role && decoded.role !== role) {
+            return res.status(403).send(`
+                <h1>403 - Access Denied</h1>
+                <p>You don't have permission to access this page.</p>
+                <a href="/">Go to Home</a>
+            `);
+        }
+
+        req.user = decoded;
+        next();
+    };
+};
+
+
 // ============================================
 // DASHBOARD ROUTES (Copied from signin.js)
 // ============================================
 
 // SERVE LAB DASHBOARD - Simple extraction, no data needed
-app.get('/lab-dashboard', (req, res) => {
+app.get('/lab-dashboard', requireAuth('lab'), (req, res) => {
     try {
         const renderLabDashboard = require('./labs.js');
         const html = renderLabDashboard();
@@ -1073,7 +1343,7 @@ app.get('/lab-dashboard', (req, res) => {
 
 
 // SERVE PATIENT DASHBOARD - Auto-extract everything from Patient.js
-app.get('/patient-dashboard', (req, res) => {
+app.get('/patient-dashboard', requireAuth('patient'), (req, res) => {
     try {
         const renderPatientDashboard = require('./Patient.js');
         const html = renderPatientDashboard();
@@ -1089,7 +1359,7 @@ app.get('/patient-dashboard', (req, res) => {
     }
 });
 
-app.get('/admin-dashboard', (req, res) => {
+app.get('/admin-dashboard', requireAuth('admin'), (req, res) => {
     try {
         const renderAdminDashboard = require('./admin.js');
         const html = renderAdminDashboard();
@@ -1141,7 +1411,7 @@ app.get('/hospital-dashboard', (req, res) => {
 });
 
 // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
-app.get('/doctor-dashboard', (req, res) => {
+app.get('/doctor-dashboard', requireAuth('doctor'), (req, res) => {
     try {
         const renderDoctorDashboard = require('./Doctor.js');
         const html = renderDoctorDashboard();
@@ -1158,54 +1428,23 @@ app.get('/doctor-dashboard', (req, res) => {
 });
 
 // SERVE ADMIN SIGNUP
+// SERVE HOSPITAL/ADMIN REGISTRATION
+// SERVE ADMIN/HOSPITAL REGISTRATION - Complete version from HospitalRegistration.js
+// SERVE HOSPITAL/ADMIN REGISTRATION - Using external file
 app.get('/admin-signup', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Admin Sign Up</title>
-            <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                .container { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                h1 { color: #4CAF50; text-align: center; margin-bottom: 30px; }
-                .form-group { margin-bottom: 20px; }
-                .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
-                .form-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
-                .form-input:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
-                .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
-                .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(76, 175, 80, 0.4); }
-                .back-btn { margin-top: 20px; padding: 12px 30px; background: #00d4ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; width: 100%; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🏥 Admin Sign Up</h1>
-                <p style="text-align: center; color: #666; margin-bottom: 30px;">Fill in the form below to request admin access:</p>
-                <form id="adminSignupForm" onsubmit="event.preventDefault(); alert('Admin signup request submitted! We will contact you shortly.'); window.location.href='/signin';">
-                    <div class="form-group">
-                        <label class="form-label">Full Name</label>
-                        <input type="text" class="form-input" placeholder="Enter your full name" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" class="form-input" placeholder="Enter your email" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Hospital Name</label>
-                        <input type="text" class="form-input" placeholder="Enter hospital name" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Position</label>
-                        <input type="text" class="form-input" placeholder="Enter your position" required>
-                    </div>
-                    <button type="submit" class="submit-btn">Submit Request</button>
-                </form>
-                <button class="back-btn" onclick="window.location.href='/signin'">← Back to Sign In</button>
-            </div>
-        </body>
-        </html>
-    `);
+    try {
+        const renderHospitalRegistration = require('./HospitalRegistration.js');
+        const html = renderHospitalRegistration();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading HospitalRegistration.js:', err);
+        res.status(500).send(`
+            <h1>500 - Hospital Registration not found</h1>
+            <p>Make sure HospitalRegistration.js is in the same directory.</p>
+            <a href="/signin">← Back to Sign In</a>
+        `);
+    }
 });
 
 // Start the server
