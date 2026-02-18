@@ -4,69 +4,25 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-const patientData = {
-  id: 'PT-2024-0847',
-  name: 'Alex Johnson',
-  age: 32,
-  gender: 'Male',
-  bloodType: 'O+',
-  email: 'alex.johnson@email.com',
-  contact: '+1 (555) 123-4567',
-  address: '123 Health Street, Medical City',
-  emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
-  conditions: ['Hypertension', 'Asthma'],
-  allergies: ['Penicillin'],
-  lastVisit: '2024-11-15',
-  nextAppointment: '2024-12-20'
-};
+const { query } = require('./db/config');
 
-const appointments = [
-  {
-    id: 'APT-001',
-    doctor: 'Dr. Sarah Chen',
-    specialization: 'Cardiology',
-    date: '2024-12-20',
-    time: '10:30 AM',
-    location: 'Room 304',
-    status: 'confirmed',
-    reason: 'Routine heart checkup',
-    notes: 'Bring previous test reports'
-  }
-];
+const patient = {};
+
+const appointments = [];
 
 // Enhanced doctors data
-const doctors = [
-  { id: 'd1', name: 'Dr. Sarah Chen', specialization: 'Cardiology', department: 'cardiology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.9, experience: '15 years', available: true },
-  { id: 'd2', name: 'Dr. Michael Rodriguez', specialization: 'Neurology', department: 'neurology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👨‍⚕️', rating: 4.8, experience: '12 years', available: true },
-  { id: 'd3', name: 'Dr. Emily Brown', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.7, experience: '8 years', available: false },
-  { id: 'd4', name: 'Dr. James Wilson', specialization: 'Orthopedics', department: 'orthopedics', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.8, experience: '18 years', available: true },
-  { id: 'd5', name: 'Dr. Priya Sharma', specialization: 'Pediatrics', department: 'pediatrics', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.6, experience: '10 years', available: true },
-  { id: 'd6', name: 'Dr. Lisa Anderson', specialization: 'Gynecology', department: 'gynecology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👩‍⚕️', rating: 4.7, experience: '14 years', available: true },
-  { id: 'd7', name: 'Dr. David Kim', specialization: 'Neurology', department: 'neurology', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.9, experience: '22 years', available: true },
-  { id: 'd8', name: 'Dr. Rachel Green', specialization: 'Cardiology', department: 'cardiology', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.8, experience: '16 years', available: false },
-  { id: 'd9', name: 'Dr. Alex Martinez', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👨‍⚕️', rating: 4.7, experience: '11 years', available: true }
-];
+const doctors = [];
 
-const hospitals = [
-  { id: 'h1', name: "St Mary's Hospital", color: '#1dbfec' },
-  { id: 'h2', name: 'Aster Medical Center', color: '#0099cc' },
-  { id: 'h3', name: 'Apollo Hospital', color: '#0fb7c9' },
-  { id: 'h4', name: 'City General Hospital', color: '#07a0b4' }
-];
+const hospitals = [];
 
-const reports = [
-  { id: 'RPT-001', name: 'Blood Test Results', date: '2024-11-10', type: 'lab' },
-  { id: 'RPT-002', name: 'ECG Report', date: '2024-11-05', type: 'ecg' },
-  { id: 'RPT-003', name: 'X-Ray Chest', date: '2024-10-28', type: 'xray' }
-];
+const reports = [];
 
-const prescriptions = [
-  { id: 'RX-001', medicine: 'Metoprolol', dosage: '50mg', frequency: 'Once daily', validUntil: '2025-03-15' },
-  { id: 'RX-002', medicine: 'Atorvastatin', dosage: '20mg', frequency: 'At bedtime', validUntil: '2025-03-15' }
-];
+const prescriptions = [];
 
+
+/*
 app.get('/api/patient', (req, res) => {
-  res.json(patientData);
+  res.json(patient);
 });
 
 app.get('/api/appointments', (req, res) => {
@@ -99,16 +55,35 @@ app.post('/api/appointments', (req, res) => {
   appointments.push(newAppointment);
   res.status(201).json(newAppointment);
 });
-
+*/
 app.put('/api/patient', (req, res) => {
-  Object.assign(patientData, req.body);
-  res.json(patientData);
+  Object.assign(patient, req.body);
+  res.json(patient);
 });
 
 // ============================================
 // FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
 // ============================================
-function generatePatientHTML() {
+function generatePatientHTML(patient = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
+    const patient = patientData || {
+    id: 'PT-2024-0847',
+    name: 'Alex Johnson',
+    age: 32,
+    gender: 'Male',
+    bloodType: 'O+',
+    email: 'alex.johnson@email.com',
+    contact: '+1 (555) 123-4567',
+    address: '123 Health Street, Medical City',
+    emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
+    conditions: ['Hypertension', 'Asthma'],
+    allergies: ['Penicillin'],
+    lastVisit: '2024-11-15',
+    nextAppointment: '2024-12-20'
+  };
+
+  const appointments = appointmentsData.length ? appointmentsData : [];
+  const reports = reportsData.length ? reportsData : [];
+  const prescriptions = prescriptionsData.length ? prescriptionsData : [];
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -469,10 +444,10 @@ function generatePatientHTML() {
           <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="flex items-center space-x-4 mb-4 md:mb-0">
               <div class="w-16 h-16 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white">
-                ${patientData.name.charAt(0)}
+                ${patient.name.charAt(0)}
               </div>
               <div>
-                <h1 class="text-3xl font-bold cyan-text">Welcome back, <span class="text-gray-800">${patientData.name}</span></h1>
+                <h1 class="text-3xl font-bold cyan-text">Welcome back, <span class="text-gray-800">${patient.name}</span></h1>
                 <p class="text-gray-600">Your health, our priority</p>
               </div>
             </div>
@@ -480,16 +455,16 @@ function generatePatientHTML() {
             <div class="flex space-x-4">
               <div class="cyan-light rounded-xl p-4 min-w-[120px] text-center">
                 <p class="text-sm cyan-text font-medium">Patient ID</p>
-                <p class="text-xl font-bold cyan-text">${patientData.id}</p>
+                <p class="text-xl font-bold cyan-text">${patient.id}</p>
               </div>
               <div class="cyan-light rounded-xl p-4 min-w-[120px] text-center">
                 <p class="text-sm cyan-text font-medium">Age</p>
-                <p class="text-xl font-bold cyan-text">${patientData.age} years</p>
+                <p class="text-xl font-bold cyan-text">${patient.age} years</p>
               </div>
               <div class="cyan-light rounded-xl p-4 min-w-[120px] text-center relative">
                 <p class="text-sm cyan-text font-medium">Next Visit</p>
                 <p class="text-xl font-bold cyan-text">
-                  ${patientData.nextAppointment ? new Date(patientData.nextAppointment).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : 'N/A'}
+                  ${patient.nextAppointment ? new Date(patient.nextAppointment).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : 'N/A'}
                 </p>
                 <div class="absolute -top-2 -right-2 w-4 h-4 cyan-bg rounded-full pulse-dot"></div>
               </div>
@@ -658,14 +633,14 @@ function generatePatientHTML() {
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             ${Object.entries({
-              'Full Name': patientData.name,
-              'Patient ID': patientData.id,
-              'Age': `${patientData.age} years`,
-              'Gender': patientData.gender,
-              'Blood Type': patientData.bloodType,
-              'Contact': patientData.contact,
-              'Email': patientData.email,
-              'Last Visit': patientData.lastVisit ? new Date(patientData.lastVisit).toLocaleDateString() : 'N/A'
+              'Full Name': patient.name,
+              'Patient ID': patient.id,
+              'Age': `${patient.age} years`,
+              'Gender': patient.gender,
+              'Blood Type': patient.bloodType,
+              'Contact': patient.contact,
+              'Email': patient.email,
+              'Last Visit': patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'
             }).map(([key, value]) => `
               <div class="cyan-light p-4 rounded-xl">
                 <p class="text-sm cyan-text">${key}</p>
@@ -680,7 +655,7 @@ function generatePatientHTML() {
               <div>
                 <p class="text-sm text-gray-500">Medical Conditions</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patientData.conditions.map(cond => `
+                  ${patient.conditions.map(cond => `
                     <span class="px-3 py-1 cyan-bg text-white rounded-full text-sm">${cond}</span>
                   `).join('')}
                 </div>
@@ -688,18 +663,18 @@ function generatePatientHTML() {
               <div>
                 <p class="text-sm cyan-text">Allergies</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patientData.allergies.map(allergy => `
+                  ${patient.allergies.map(allergy => `
                     <span class="px-3 py-1 cyan-dark text-white rounded-full text-sm">${allergy}</span>
                   `).join('')}
                 </div>
               </div>
               <div>
                 <p class="text-sm cyan-text">Emergency Contact</p>
-                <p class="font-semibold">${patientData.emergencyContact}</p>
+                <p class="font-semibold">${patient.emergencyContact}</p>
               </div>
               <div>
                 <p class="text-sm cyan-text">Address</p>
-                <p class="font-semibold">${patientData.address}</p>
+                <p class="font-semibold">${patient.address}</p>
               </div>
             </div>
           </div>
@@ -1371,23 +1346,51 @@ function generatePatientHTML() {
 // ============================================
 // ROUTES - Use the generatePatientHTML function
 // ============================================
-app.get('/', (req, res) => {
-  res.send(generatePatientHTML());
-});
+
 
 // ============================================
 // START SERVER - ONLY when run directly
 // ============================================
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`BondHealth Patient Portal running on port ${PORT}`);
-    console.log(`http://localhost:${PORT}`);
-  });
-}
+
 
 // ============================================
 // EXPORT for signin.js
 // ============================================
-module.exports = function renderPatientDashboard() {
-  return generatePatientHTML();
+module.exports = async function renderPatientDashboard() {
+  try {
+    // Get the logged-in user's ID (this will be passed from home.js)
+    // For now, we'll use the seeded patient data
+    
+    const patientResult = await query(
+      `SELECT * FROM patients WHERE patient_uuid = 'PT-2024-0847'`
+    );
+    
+    const appointmentsResult = await query(
+      `SELECT a.*, d.full_name as doctor, d.specialization 
+       FROM appointments a
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE a.patient_id = $1`,
+      [patientResult.rows[0]?.patient_id]
+    );
+    
+    const reportsResult = await query(
+      `SELECT * FROM lab_reports WHERE patient_id = $1`,
+      [patientResult.rows[0]?.patient_id]
+    );
+    
+    const prescriptionsResult = await query(
+      `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active'`,
+      [patientResult.rows[0]?.patient_id]
+    );
+    
+    return generatePatientHTML(
+      patientResult.rows[0] || null,
+      appointmentsResult.rows || [],
+      reportsResult.rows || [],
+      prescriptionsResult.rows || []
+    );
+  } catch (error) {
+    console.error('Error loading patient dashboard:', error);
+    return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+  }
 };

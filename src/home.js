@@ -1431,10 +1431,10 @@ function generateHTML() {
 // ============================================
 
 // SERVE LAB DASHBOARD - Simple extraction, no data needed
-app.get('/lab-dashboard', requireAuth('lab'), (req, res) => {
+app.get('/lab-dashboard', requireAuth('lab'), async (req, res) => {
     try {
         const renderLabDashboard = require('./labs.js');
-        const html = renderLabDashboard();
+        const html = await renderLabDashboard();
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1449,10 +1449,10 @@ app.get('/lab-dashboard', requireAuth('lab'), (req, res) => {
 
 
 // SERVE PATIENT DASHBOARD - Auto-extract everything from Patient.js
-app.get('/patient-dashboard', requireAuth('patient'), (req, res) => {
+app.get('/patient-dashboard', requireAuth('patient'), async(req, res) => {
     try {
         const renderPatientDashboard = require('./Patient.js');
-        const html = renderPatientDashboard();
+        const html = await renderPatientDashboard();
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1465,10 +1465,10 @@ app.get('/patient-dashboard', requireAuth('patient'), (req, res) => {
     }
 });
 
-app.get('/admin-dashboard', requireAuth('admin'), (req, res) => {
+app.get('/admin-dashboard', requireAuth('admin'), async (req, res) => {  // ← Add async
     try {
         const renderAdminDashboard = require('./admin.js');
-        const html = renderAdminDashboard();
+        const html = await renderAdminDashboard();  // ← Add await
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1483,10 +1483,10 @@ app.get('/admin-dashboard', requireAuth('admin'), (req, res) => {
 
 
 // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
-app.get('/doctor-dashboard', requireAuth('doctor'), (req, res) => {
+app.get('/doctor-dashboard', requireAuth('doctor'), async(req, res) => {
     try {
         const renderDoctorDashboard = require('./Doctor.js');
-        const html = renderDoctorDashboard();
+        const html = await renderDoctorDashboard();
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
