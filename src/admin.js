@@ -6,62 +6,10 @@ const port = 3002;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Sample doctors data
-let doctors = [
-  {
-    id: 1,
-    name: "Dr. Sarah Johnson",
-    specialty: "Cardiology",
-    email: "sarah.j@hospital.com",
-    phone: "+1 (555) 123-4567",
-    photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop",
-    status: "Available",
-    appointments: [
-      { time: "09:00 AM", patient: "John Smith", token: "T001", condition: "Heart Checkup" },
-      { time: "10:00 AM", patient: "Emma Wilson", token: "T002", condition: "BP Monitoring" },
-      { time: "11:00 AM", patient: "Michael Brown", token: "T003", condition: "ECG Test" },
-      { time: "02:00 PM", patient: "Sophia Lee", token: "T004", condition: "Consultation" }
-    ]
-  },
-  {
-    id: 2,
-    name: "Dr. Robert Chen",
-    specialty: "Neurology",
-    email: "robert.c@hospital.com",
-    phone: "+1 (555) 234-5678",
-    photo: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop",
-    status: "Available",
-    appointments: [
-      { time: "10:00 AM", patient: "Lisa Taylor", token: "T005", condition: "Migraine" },
-      { time: "11:00 AM", patient: "James Wilson", token: "T006", condition: "CT Scan Review" }
-    ]
-  },
-  {
-    id: 3,
-    name: "Dr. Emily Davis",
-    specialty: "Pediatrics",
-    email: "emily.d@hospital.com",
-    phone: "+1 (555) 345-6789",
-    photo: "https://images.unsplash.com/photo-1594824434340-7e7dfc37cabb?w=200&h=200&fit=crop",
-    status: "On Leave",
-    appointments: [],
-    leaveFrom: "2024-01-15",
-    leaveTo: "2024-01-20",
-    leaveReason: "Annual Leave"
-  },
-  {
-    id: 4,
-    name: "Dr. Michael Rodriguez",
-    specialty: "Orthopedics",
-    email: "michael.r@hospital.com",
-    phone: "+1 (555) 456-7890",
-    photo: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=200&h=200&fit=crop",
-    status: "Available",
-    appointments: [
-      { time: "09:30 AM", patient: "Thomas Clark", token: "T007", condition: "Knee Pain" }
-    ]
-  }
-];
+const { query } = require('./db/config');
+
+let doctors = [];
+let todaysAppointments = [];
 
 function generateHTML() {
   return `
@@ -325,7 +273,7 @@ function generateHTML() {
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-gray-600">Total Appointments</span>
-                    <span class="font-bold text-purple-600">${doctors.reduce((sum, doc) => sum + doc.appointments.length, 0)}</span>
+                    <span class="font-bold text-purple-600">${todaysAppointments.length}</span>
                 </div>
             </div>
         </div>
@@ -386,7 +334,7 @@ function generateHTML() {
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-gray-500">Today's Appointments</p>
-                                <h3 class="text-2xl font-bold text-purple-600">${doctors.reduce((sum, doc) => sum + doc.appointments.length, 0)}</h3>
+                                <h3 class="text-2xl font-bold text-purple-600">${todaysAppointments.length}</h3>
                             </div>
                             <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-calendar-check text-purple-600 text-xl"></i>
@@ -446,7 +394,7 @@ function generateHTML() {
                                 <div class="flex justify-between items-center">
                                     <span class="text-gray-600 text-sm">
                                         <i class="fas fa-calendar-alt mr-1"></i>
-                                        ${doctor.appointments.length} appointments
+                                        ${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
                                     </span>
                                     <button class="text-cyan-600 hover:text-cyan-700 text-sm font-medium">
                                         View Schedule →
@@ -536,7 +484,7 @@ function generateHTML() {
                                 <div class="flex justify-between items-center mt-2">
                                     <span class="text-gray-600 text-sm">
                                         <i class="fas fa-calendar mr-1"></i>
-                                        ${doctor.appointments.length} appointments
+                                        ${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
                                     </span>
                                     <button class="text-cyan-600 hover:text-cyan-700 text-sm font-medium">
                                         View Schedule →
@@ -738,11 +686,11 @@ function generateHTML() {
                     <div class="flex justify-between items-center mb-4">
                         <h4 class="font-bold text-gray-800">Today's Appointments Schedule</h4>
                         <span class="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-sm">
-                            \${doctor.appointments.length} appointments
+                            \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
                         </span>
                     </div>
                     
-                    \${doctor.appointments.length > 0 ? \`
+                    \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length > 0 ? \`
                     <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
                         <table class="w-full">
                             <thead>
@@ -754,7 +702,7 @@ function generateHTML() {
                                 </tr>
                             </thead>
                             <tbody>
-                                \${doctor.appointments.map(appt => \`
+                                \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).map(appt => \`
                                 <tr class="border-t border-gray-100 hover:bg-gray-50">
                                     <td class="p-3 font-medium">\${appt.time}</td>
                                     <td class="p-3">\${appt.patient}</td>
@@ -910,70 +858,41 @@ function generateHTML() {
 
 // Helper functions
 function getUpcomingAppointments() {
-  let allAppointments = [];
-  doctors.forEach(doctor => {
-    doctor.appointments.forEach(appt => {
-      allAppointments.push({
-        ...appt,
-        doctorName: doctor.name,
-        doctorPhoto: doctor.photo
-      });
-    });
-  });
+  if (!todaysAppointments || todaysAppointments.length === 0) {
+    return '<div class="text-center py-8 text-gray-500">No appointments scheduled for today</div>';
+  }
   
-  // Sort by time and take first 3
-  allAppointments.sort((a, b) => {
-    const timeA = convertTimeToNumber(a.time);
-    const timeB = convertTimeToNumber(b.time);
-    return timeA - timeB;
-  });
-  
-  return allAppointments.slice(0, 3).map(appt => `
+  return todaysAppointments.slice(0, 3).map(appt => `
     <div class="appointment-item p-4">
       <div class="flex justify-between items-center">
         <div>
-          <p class="font-medium text-gray-800">${appt.patient}</p>
-          <p class="text-sm text-gray-500">${appt.doctorName}</p>
+          <p class="font-medium text-gray-800">${appt.patient_name}</p>
+          <p class="text-sm text-gray-500">${appt.doctor_name}</p>
         </div>
         <div class="text-right">
-          <span class="font-bold text-cyan-600">${appt.token}</span>
-          <p class="text-sm text-gray-500">${appt.time}</p>
+          <span class="font-bold text-cyan-600">${appt.token_number || 'N/A'}</span>
+          <p class="text-sm text-gray-500">${appt.appointment_time}</p>
         </div>
       </div>
     </div>
-  `).join('') || `
-    <div class="text-center py-8 text-gray-500">
-      <i class="fas fa-calendar-times text-3xl mb-3 text-gray-300"></i>
-      <p>No appointments scheduled for today</p>
-    </div>
-  `;
+  `).join('');
 }
 
 function getAllAppointments() {
-  let allAppointments = [];
-  doctors.forEach(doctor => {
-    doctor.appointments.forEach(appt => {
-      allAppointments.push({
-        ...appt,
-        doctorId: doctor.id,
-        doctorName: doctor.name,
-        doctorPhoto: doctor.photo,
-        specialty: doctor.specialty
-      });
-    });
-  });
-  
-  // Sort by time
-  allAppointments.sort((a, b) => {
-    const timeA = convertTimeToNumber(a.time);
-    const timeB = convertTimeToNumber(b.time);
-    return timeA - timeB;
-  });
-  
-  return allAppointments;
+  if (!todaysAppointments) return [];
+  return todaysAppointments.map(appt => ({
+    time: appt.appointment_time,
+    patient: appt.patient_name,
+    token: appt.token_number || 'N/A',
+    condition: appt.reason || 'General',
+    doctorId: appt.doctor_id,
+    doctorName: appt.doctor_name,
+    doctorPhoto: appt.doctor_photo
+  }));
 }
 
 function convertTimeToNumber(timeStr) {
+  if (!timeStr) return 0;
   const [time, period] = timeStr.split(' ');
   const [hours, minutes] = time.split(':').map(Number);
   let hour = hours;
@@ -987,7 +906,7 @@ app.get('/', (req, res) => {
   res.send(generateHTML());
 });
 
-app.get('/api/doctors', (req, res) => {
+/*app.get('/api/doctors', (req, res) => {
   res.json({
     success: true,
     count: doctors.length,
@@ -1026,7 +945,7 @@ app.post('/api/doctors/:id/leave', (req, res) => {
       message: 'Internal server error'
     });
   }
-});
+});*/
 
 // ============================================
 // THIS IS THE ONLY app.listen() - KEEP THIS ONE
@@ -1042,6 +961,33 @@ if (require.main === module) {
 // ============================================
 // EXPORT for signin.js - THIS REPLACES the old module.exports
 // ============================================
-module.exports = function renderAdminDashboard() {
+// REPLACE the export at the bottom with:
+module.exports = async function renderAdminDashboard() {
+  try {
+    // Load doctors from database
+    const doctorsResult = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       ORDER BY d.full_name`
+    );
+    doctors = doctorsResult.rows;
+    
+    // Load today's appointments
+    const appointmentsResult = await query(
+      `SELECT a.*, p.full_name as patient_name, d.full_name as doctor_name,
+              d.photo_url as doctor_photo, d.doctor_id
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE a.appointment_date = CURRENT_DATE
+       ORDER BY a.appointment_time`
+    );
+    todaysAppointments = appointmentsResult.rows;
+    
     return generateHTML();
+  } catch (error) {
+    console.error('Error loading admin dashboard data:', error);
+    return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+  }
 };

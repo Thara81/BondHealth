@@ -395,7 +395,8 @@ const SIGNIN_TEMPLATE = `<!doctype html>
       }
       
       try {
-          const response = await fetch('/api/auth/login', {
+          // CHANGE THIS URL - point to home.js API
+          const response = await fetch('http://localhost:3005/api/auth/login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username, password, role })
@@ -408,12 +409,12 @@ const SIGNIN_TEMPLATE = `<!doctype html>
               
               setTimeout(() => {
                   const redirectMap = {
-                      patient: '/patient-dashboard',
-                      doctor: '/doctor-dashboard',
-                      admin: '/admin-dashboard',
-                      lab: '/lab-dashboard'
+                      patient: 'http://localhost:3005/patient-dashboard',
+                      doctor: 'http://localhost:3005/doctor-dashboard',
+                      admin: 'http://localhost:3005/admin-dashboard',
+                      lab: 'http://localhost:3005/lab-dashboard'
                   };
-                  window.location.href = redirectMap[data.user.role] || '/';
+                  window.location.href = redirectMap[data.user.role] || 'http://localhost:3005/';
               }, 1000);
           } else {
               showMessage(data.message || 'Login failed');

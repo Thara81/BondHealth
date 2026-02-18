@@ -6,58 +6,13 @@ const PORT = process.env.PORT || 3000;
 let hospitalData = {
   hospitalName: 'City General Hospital',
   hospitalId: 'HOS-12345',
-  specialities: [
-    'Cardiology',
-    'Neurology', 
-    'Orthopedics',
-    'Pediatrics'
-  ],
-  doctors: [
-    { name: 'Dr. Sarah Johnson', speciality: 'Cardiology', phone: '9876543210', email: 'sarah@hospital.com' },
-    { name: 'Dr. Michael Chen', speciality: 'Neurology', phone: '9876543211', email: 'michael@hospital.com' }
-  ],
-  medicines: [
-    { name: 'Paracetamol', quantity: 150, price: '₹10', expiry: '2024-12-31' },
-    { name: 'Amoxicillin', quantity: 80, price: '₹25', expiry: '2024-10-15' }
-  ],
-  labs: [
-    {
-      name: 'Pathology Lab',
-      type: 'Pathology',
-      licenseNumber: 'LAB-2024-001',
-      headInCharge: {
-        name: 'Dr. Anil Sharma',
-        qualification: 'MD Pathology',
-        experience: 12,
-        phone: '9876543212',
-        email: 'anil@hospital.com'
-      },
-      location: {
-        address: 'Ground Floor, Block A',
-        floor: 'G'
-      },
-      operatingHours: {
-        openingTime: '08:00',
-        closingTime: '20:00',
-        days: 'Monday-Saturday'
-      },
-      services: {
-        description: 'Complete pathology services including blood tests, biopsies, and microbiology',
-        equipment: 'Automated analyzers, Microscopes, Centrifuges',
-        specializations: 'Clinical pathology, Hematology'
-      },
-      additionalInfo: {
-        capacity: '200 tests/day',
-        status: 'Operational'
-      },
-      createdAt: new Date().toISOString()
-    },
-    'Radiology Department',
-    'Blood Test Lab'
-  ],
+  specialities: [],
+  doctors: [],
+  medicines: [],
+  labs: [],
   specialityDetails: []
 };
-
+let currentHospitalData = { ...hospitalData, stats: { total_doctors: 0, total_medicines: 0, total_labs: 0 } };
 const server = http.createServer((req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -707,8 +662,8 @@ function getMainDashboardHTML() {
                 <p>Manage all healthcare services</p>
             </div>
             <div class="hospital-info">
-                <div class="hospital-name" id="hospitalName">City General Hospital</div>
-                <div class="hospital-id" id="hospitalId">HOS-12345</div>
+                <div class="hospital-name" id="hospitalName">${currentHospitalData.hospitalName}</div>
+                <div class="hospital-id" id="hospitalId">${currentHospitalData.hospitalId}</div>
             </div>
         </div>
 
@@ -717,28 +672,28 @@ function getMainDashboardHTML() {
                 <div class="stat-icon">
                     <i class="fas fa-user-md"></i>
                 </div>
-                <div class="stat-value" id="totalDoctors">0</div>
+                <div class="stat-value" id="totalDoctors">${currentHospitalData.stats.total_doctors}</div>
                 <div class="stat-label">Total Doctors</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-heartbeat"></i>
                 </div>
-                <div class="stat-value" id="totalSpecialities">0</div>
+                <div class="stat-value" id="totalSpecialities">${currentHospitalData.specialities.length}</div>
                 <div class="stat-label">Specialities</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-pills"></i>
                 </div>
-                <div class="stat-value" id="totalMedicines">0</div>
+                <div class="stat-value" id="totalMedicines">${currentHospitalData.stats.total_medicines}</div>
                 <div class="stat-label">Medicines</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-flask"></i>
                 </div>
-                <div class="stat-value" id="totalLabs">0</div>
+                <div class="stat-value" id="totalLabs">${currentHospitalData.stats.total_labs}</div>
                 <div class="stat-label">Laboratories</div>
             </div>
         </div>
@@ -3214,16 +3169,18 @@ function getAddLabHTML() {
 </body>
 </html>`;
 }
-module.exports = getMainDashboardHTML;
-server.listen(PORT, () => {
-  console.log(`🏥 Hospital Management System running at:`);
-  console.log(`   🌐 http://localhost:${PORT}`);
-  console.log(`   📁 Single file: Hospital.js`);
-  console.log(`   🚀 No dependencies required!`);
-  console.log(`   📊 Main Dashboard: http://localhost:${PORT}`);
-  console.log(`   ➕ Add Speciality: http://localhost:${PORT}/add-speciality`);
-  console.log(`   👨‍⚕️ Add Doctor: http://localhost:${PORT}/add-doctor`);
-  console.log(`   💊 Add Medicine: http://localhost:${PORT}/add-medicine`);
-  console.log(`   🔬 Add Lab: http://localhost:${PORT}/add-lab`);
-  console.log(`   🔙 Back to Sign In: http://localhost:3001/`);
-});
+module.exports = function renderHospitalDashboard(data = null) {
+    if (data) {
+        currentHospitalData = {
+            hospitalName: data.hospital?.name || 'City General Hospital',
+            hospitalId: data.hospital?.hospital_uuid || 'HOS-12345',
+            specialities: data.specialities || [],
+            doctors: data.doctors || [],
+            medicines: data.medicines || [],
+            labs: data.labs || [],
+            stats: data.stats || { total_doctors: 0, total_medicines: 0, total_labs: 0 },
+            recentActivity: data.recentActivity || []
+        };
+    }
+    return getMainDashboardHTML();
+};

@@ -326,7 +326,7 @@ function generateSignUpHTML() {
       };
       
       // Submit via AJAX
-      fetch('/signup', {
+      fetch('http://localhost:3005/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

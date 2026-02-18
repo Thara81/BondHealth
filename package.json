@@ -24,11 +24,13 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.3.1",
     "express": "^4.22.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

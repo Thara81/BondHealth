@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
+const { query, getClient } = require('./db/config');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
@@ -16,108 +17,9 @@ app.use(cookieParser());
 // PATIENT API ROUTES - Copied from Patient.js
 // ============================================
 
-// Patient data
-const patientData = {
-  id: 'PT-2024-0847',
-  name: 'Alex Johnson',
-  age: 32,
-  gender: 'Male',
-  bloodType: 'O+',
-  email: 'alex.johnson@email.com',
-  contact: '+1 (555) 123-4567',
-  address: '123 Health Street, Medical City',
-  emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
-  conditions: ['Hypertension', 'Asthma'],
-  allergies: ['Penicillin'],
-  lastVisit: '2024-11-15',
-  nextAppointment: '2024-12-20'
-};
-
-const appointments = [
-  {
-    id: 'APT-001',
-    doctor: 'Dr. Sarah Chen',
-    specialization: 'Cardiology',
-    date: '2024-12-20',
-    time: '10:30 AM',
-    location: 'Room 304',
-    status: 'confirmed',
-    reason: 'Routine heart checkup',
-    notes: 'Bring previous test reports'
-  }
-];
-
-const doctors = [
-  { id: 'd1', name: 'Dr. Sarah Chen', specialization: 'Cardiology', department: 'cardiology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.9, experience: '15 years', available: true },
-  { id: 'd2', name: 'Dr. Michael Rodriguez', specialization: 'Neurology', department: 'neurology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👨‍⚕️', rating: 4.8, experience: '12 years', available: true },
-  { id: 'd3', name: 'Dr. Emily Brown', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👩‍⚕️', rating: 4.7, experience: '8 years', available: false },
-  { id: 'd4', name: 'Dr. James Wilson', specialization: 'Orthopedics', department: 'orthopedics', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.8, experience: '18 years', available: true },
-  { id: 'd5', name: 'Dr. Priya Sharma', specialization: 'Pediatrics', department: 'pediatrics', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.6, experience: '10 years', available: true },
-  { id: 'd6', name: 'Dr. Lisa Anderson', specialization: 'Gynecology', department: 'gynecology', hospital: 'Aster Medical Center', hospitalId: 'h2', avatar: '👩‍⚕️', rating: 4.7, experience: '14 years', available: true },
-  { id: 'd7', name: 'Dr. David Kim', specialization: 'Neurology', department: 'neurology', hospital: 'Apollo Hospital', hospitalId: 'h3', avatar: '👨‍⚕️', rating: 4.9, experience: '22 years', available: true },
-  { id: 'd8', name: 'Dr. Rachel Green', specialization: 'Cardiology', department: 'cardiology', hospital: 'City General Hospital', hospitalId: 'h4', avatar: '👩‍⚕️', rating: 4.8, experience: '16 years', available: false },
-  { id: 'd9', name: 'Dr. Alex Martinez', specialization: 'Dermatology', department: 'dermatology', hospital: "St Mary's Hospital", hospitalId: 'h1', avatar: '👨‍⚕️', rating: 4.7, experience: '11 years', available: true }
-];
-
-const hospitals = [
-  { id: 'h1', name: "St Mary's Hospital", color: '#1dbfec' },
-  { id: 'h2', name: 'Aster Medical Center', color: '#0099cc' },
-  { id: 'h3', name: 'Apollo Hospital', color: '#0fb7c9' },
-  { id: 'h4', name: 'City General Hospital', color: '#07a0b4' }
-];
-
-const reports = [
-  { id: 'RPT-001', name: 'Blood Test Results', date: '2024-11-10', type: 'lab' },
-  { id: 'RPT-002', name: 'ECG Report', date: '2024-11-05', type: 'ecg' },
-  { id: 'RPT-003', name: 'X-Ray Chest', date: '2024-10-28', type: 'xray' }
-];
-
-const prescriptions = [
-  { id: 'RX-001', medicine: 'Metoprolol', dosage: '50mg', frequency: 'Once daily', validUntil: '2025-03-15' },
-  { id: 'RX-002', medicine: 'Atorvastatin', dosage: '20mg', frequency: 'At bedtime', validUntil: '2025-03-15' }
-];
-
 // ============================================
 // IN-MEMORY USER DATABASE (Replace with PostgreSQL later)
 // ============================================
-let users = [
-    {
-        id: '1',
-        username: 'alexjohnson',
-        email: 'alex.johnson@email.com',
-        password: '$2a$10$dummyhashfordemo', // You'll create real users via registration
-        role: 'patient',
-        profile: { name: 'Alex Johnson', patientId: 'PT-2024-0847' },
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: '2',
-        username: 'drsarahchen',
-        email: 'sarah.chen@bondhealth.com',
-        password: '$2a$10$dummyhashfordemo',
-        role: 'doctor',
-        profile: { name: 'Dr. Sarah Chen', doctorId: 'DR-2024-0567' },
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: '3',
-        username: 'admin',
-        email: 'admin@bondhealth.com',
-        password: '$2a$10$dummyhashfordemo',
-        role: 'admin',
-        profile: { name: 'Admin User', adminId: 'ADM-2024-001' },
-        createdAt: new Date().toISOString()
-    },
-    {
-        id: '4',
-        username: 'labtech',
-        email: 'lab@bondhealth.com',
-        password: '$2a$10$dummyhashfordemo',
-        role: 'lab',
-        profile: { name: 'Lab Technician', technicianId: 'LAB-2024-8473' },
-        createdAt: new Date().toISOString()
-    }
-];
 
 // Track active sessions
 let activeSessions = new Map();
@@ -187,84 +89,143 @@ const authorize = (...roles) => {
     };
 };
 
+const requireAuth = (role) => {
+    return (req, res, next) => {
+        const token = req.cookies.token;
+        if (!token) return res.redirect('/signin');
+
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id)) {
+            return res.redirect('/signin');
+        }
+
+        if (role && decoded.role !== role) {
+            return res.status(403).send(`
+                <h1>403 - Access Denied</h1>
+                <p>You don't have permission to access this page.</p>
+                <a href="/">Go to Home</a>
+            `);
+        }
+
+        req.user = decoded;
+        next();
+    };
+};
+
 // ============================================
 // AUTHENTICATION ROUTES
 // ============================================
 
 // Register
 app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { username, email, password, role, ...profile } = req.body;
-        
-        if (users.find(u => u.username === username || u.email === email)) {
-            return res.status(400).json({ success: false, message: 'User exists' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const newUser = {
-            id: (users.length + 1).toString(),
-            username,
-            email,
-            password: hashedPassword,
-            role: role || 'patient',
-            profile,
-            createdAt: new Date().toISOString()
-        };
-
-        users.push(newUser);
-        const token = generateToken(newUser);
-        activeSessions.set(newUser.id, { token, loginTime: new Date().toISOString() });
-
-        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-        
-        res.json({
-            success: true,
-            token,
-            user: { id: newUser.id, username, email, role: newUser.role }
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { username, email, password, role, ...profile } = req.body;
+    
+    // Check if user exists
+    const existing = await client.query(
+      'SELECT * FROM users WHERE username = $1 OR email = $2',
+      [username, email]
+    );
+    
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'User exists' });
     }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert user
+    const userResult = await client.query(
+      `INSERT INTO users (username, email, password_hash, role) 
+       VALUES ($1, $2, $3, $4) RETURNING user_id, username, email, role`,
+      [username, email, hashedPassword, role || 'patient']
+    );
+    
+    const user = userResult.rows[0];
+
+    // If patient, create patient profile
+    if (role === 'patient' || !role) {
+      await client.query(
+        `INSERT INTO patients (
+          user_id, full_name, email, phone, address, 
+          emergency_contact_name, emergency_contact_phone, date_of_birth, gender
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          user.user_id, profile.name, email, profile.phone, profile.address,
+          profile.emergencyContact, profile.emergencyPhone, profile.dob, profile.gender
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    const token = generateToken({ id: user.user_id, username, role: user.role });
+    activeSessions.set(user.user_id, { token, loginTime: new Date().toISOString() });
+
+    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    res.json({
+      success: true,
+      token,
+      user: { id: user.user_id, username, email, role: user.role }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    client.release();
+  }
 });
 
 // Login
 app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, email, password, role } = req.body;
-        
-        const user = users.find(u => 
-            (username && u.username === username) || 
-            (email && u.email === email)
-        );
-
-        if (!user) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials' });
-        }
-
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials' });
-        }
-
-        if (role && user.role !== role) {
-            return res.status(403).json({ success: false, message: 'Wrong role' });
-        }
-
-        const token = generateToken(user);
-        activeSessions.set(user.id, { token, loginTime: new Date().toISOString() });
-
-        res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
-        
-        res.json({
-            success: true,
-            token,
-            user: { id: user.id, username: user.username, email: user.email, role: user.role }
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
+  try {
+    const { username, email, password, role } = req.body;
+    
+    const result = await query(
+      'SELECT * FROM users WHERE username = $1 OR email = $2',
+      [username || '', email || '']
+    );
+    
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ success: false, message: 'Wrong role' });
+    }
+
+    // Update last login
+    await query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = $1', [user.user_id]);
+
+    const token = generateToken({ 
+      id: user.user_id, 
+      username: user.username, 
+      role: user.role 
+    });
+    
+    activeSessions.set(user.user_id, { token, loginTime: new Date().toISOString() });
+
+    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    res.json({
+      success: true,
+      token,
+      user: { id: user.user_id, username: user.username, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Logout
@@ -279,71 +240,203 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Get current user
-app.get('/api/auth/me', authenticate, (req, res) => {
-    const user = users.find(u => u.id === req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+app.get('/api/auth/me', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT u.user_id, u.username, u.email, u.role, u.created_at,
+              CASE 
+                WHEN u.role = 'patient' THEN row_to_json(p.*)
+                WHEN u.role = 'doctor' THEN row_to_json(d.*)
+                WHEN u.role = 'lab' THEN row_to_json(l.*)
+                WHEN u.role = 'admin' THEN row_to_json(a.*)
+              END as profile
+       FROM users u
+       LEFT JOIN patients p ON u.user_id = p.user_id
+       LEFT JOIN doctors d ON u.user_id = d.user_id
+       LEFT JOIN lab_technicians l ON u.user_id = l.user_id
+       LEFT JOIN hospital_admins a ON u.user_id = a.user_id
+       WHERE u.user_id = $1`,
+      [req.user.id]
+    );
     
-    const { password, ...userWithoutPassword } = user;
-    res.json({ success: true, user: userWithoutPassword });
+    if (!result.rows[0]) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    res.json({ success: true, user: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Patient API Routes
-app.get('/api/patient', authenticate, authorize('patient'), (req, res) => {
-  res.json(patientData);
+app.get('/api/patient', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT p.* FROM patients p
+       JOIN users u ON p.user_id = u.user_id
+       WHERE u.user_id = $1`,
+      [req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/appointments', authenticate, (req, res) => {
+app.get('/api/appointments', authenticate, async (req, res) => {
+  try {
+    let result;
     if (req.user.role === 'patient') {
-        const patientAppointments = appointments.filter(a => a.patientId === patientData.id);
-        res.json(patientAppointments);
+      result = await query(
+        `SELECT a.*, d.full_name as doctor_name, d.specialization 
+         FROM appointments a
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN users u ON p.user_id = u.user_id
+         WHERE u.user_id = $1
+         ORDER BY a.appointment_date DESC`,
+        [req.user.id]
+      );
     } else if (req.user.role === 'doctor') {
-        res.json(todaysAppointments);
-    } else {
-        res.json(appointments);
+      result = await query(
+        `SELECT a.*, p.full_name as patient_name 
+         FROM appointments a
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         JOIN users u ON d.user_id = u.user_id
+         WHERE u.user_id = $1 AND a.appointment_date = CURRENT_DATE
+         ORDER BY a.appointment_time`,
+        [req.user.id]
+      );
     }
-});
-
-app.get('/api/doctors', authenticate, (req, res) => {
-  res.json(doctors);
-});
-
-app.get('/api/hospitals', authenticate, (req, res) => {
-  res.json(hospitals);
-});
-
-app.get('/api/reports', authenticate, (req, res) => {
-  if (req.user.role === 'patient') {
-    const patientReports = reports.filter(r => r.patientId === patientData.id);
-    res.json(patientReports);
-  } else {
-    res.json(reports);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/prescriptions', authenticate, (req, res) => {
-  if (req.user.role === 'patient') {
-    const patientPrescriptions = prescriptions.filter(p => p.patientId === patientData.id);
-    res.json(patientPrescriptions);
-  } else {
-    res.json(prescriptions);
+app.get('/api/doctors', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       WHERE d.status = 'Available'
+       ORDER BY d.full_name`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/appointments', authenticate, authorize('patient'), (req, res) => {
-    const newAppointment = {
-        id: `APT-${Date.now()}`,
-        ...req.body,
-        patientId: patientData.id,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-    };
-    appointments.push(newAppointment);
-    res.status(201).json(newAppointment);
+app.get('/api/hospitals', authenticate, async (req, res) => {
+  try {
+    const result = await query('SELECT * FROM hospitals ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.put('/api/patient', authenticate, authorize('patient'), (req, res) => {
-  Object.assign(patientData, req.body);
-  res.json(patientData);
+app.get('/api/reports', authenticate, async (req, res) => {
+  try {
+    let result;
+    if (req.user.role === 'patient') {
+      result = await query(
+        `SELECT r.* FROM lab_reports r
+         JOIN patients p ON r.patient_id = p.patient_id
+         JOIN users u ON p.user_id = u.user_id
+         WHERE u.user_id = $1
+         ORDER BY r.created_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      result = await query(
+        `SELECT r.*, p.full_name as patient_name 
+         FROM lab_reports r
+         JOIN patients p ON r.patient_id = p.patient_id
+         ORDER BY r.created_at DESC`
+      );
+    }
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/prescriptions', authenticate, async (req, res) => {
+  try {
+    let result;
+    if (req.user.role === 'patient') {
+      result = await query(
+        `SELECT p.* FROM prescriptions p
+         JOIN patients pt ON p.patient_id = pt.patient_id
+         JOIN users u ON pt.user_id = u.user_id
+         WHERE u.user_id = $1 AND p.status = 'active'
+         ORDER BY p.created_at DESC`,
+        [req.user.id]
+      );
+    }
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/appointments', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const { doctor_id, appointment_date, appointment_time, reason, type, location } = req.body;
+    
+    // Get patient_id from user
+    const patientResult = await query(
+      'SELECT patient_id FROM patients WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const result = await query(
+      `INSERT INTO appointments (
+        patient_id, doctor_id, hospital_id, appointment_date,
+        appointment_time, reason, type, location, status
+      ) VALUES (
+        $1, $2, (SELECT hospital_id FROM doctors WHERE doctor_id = $2),
+        $3, $4, $5, $6, $7, 'pending'
+      ) RETURNING *`,
+      [patientResult.rows[0].patient_id, doctor_id, appointment_date, 
+       appointment_time, reason, type, location]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/patient', authenticate, authorize('patient'), async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE patients 
+       SET full_name = COALESCE($1, full_name),
+           phone = COALESCE($2, phone),
+           address = COALESCE($3, address),
+           emergency_contact_name = COALESCE($4, emergency_contact_name),
+           emergency_contact_phone = COALESCE($5, emergency_contact_phone)
+       WHERE user_id = $6
+       RETURNING *`,
+      [
+        req.body.full_name,
+        req.body.phone,
+        req.body.address,
+        req.body.emergency_contact_name,
+        req.body.emergency_contact_phone,
+        req.user.id
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // SERVE PATIENT SIGNUP
@@ -394,185 +487,220 @@ app.get('/signin', (req, res) => {
 // DOCTOR API ROUTES - Copied from Doctor.js
 // ============================================
 
-// Doctor data
-const doctorData = {
-  id: 'DR-2024-0567',
-  name: 'Dr. Sarah Chen',
-  designation: 'Senior Cardiologist',
-  specialization: 'Cardiology',
-  experience: '12 years',
-  qualification: 'MD, DM Cardiology',
-  email: 'sarah.chen@bondhealth.com',
-  contact: '+1 (555) 234-5678',
-  address: '456 Medical Center, Cardiology Wing',
-  consultationFee: '$150',
-  availableDays: ['Mon', 'Wed', 'Fri'],
-  availableTime: '9:00 AM - 5:00 PM'
-};
-
-const todaysAppointments = [
-  {
-    id: 'APT-001',
-    patientName: 'Alex Johnson',
-    patientId: 'PT-2024-0847',
-    time: '10:30 AM',
-    reason: 'Routine heart checkup',
-    status: 'confirmed',
-    type: 'in-person'
-  },
-  {
-    id: 'APT-002',
-    patientName: 'Michael Brown',
-    patientId: 'PT-2024-0923',
-    time: '11:45 AM',
-    reason: 'Chest pain evaluation',
-    status: 'confirmed',
-    type: 'in-person'
-  },
-  {
-    id: 'APT-003',
-    patientName: 'Emily Davis',
-    patientId: 'PT-2024-0789',
-    time: '2:30 PM',
-    reason: 'Follow-up consultation',
-    status: 'pending',
-    type: 'online'
-  },
-  {
-    id: 'APT-004',
-    patientName: 'Robert Wilson',
-    patientId: 'PT-2024-1012',
-    time: '3:45 PM',
-    reason: 'ECG review',
-    status: 'confirmed',
-    type: 'in-person'
-  }
-];
-
-const labReports = [
-  {
-    id: 'LAB-001',
-    patientName: 'Alex Johnson',
-    patientId: 'PT-2024-0847',
-    testName: 'Complete Blood Count',
-    date: '2024-12-10',
-    status: 'reviewed',
-    findings: 'Normal ranges, no abnormalities detected'
-  },
-  {
-    id: 'LAB-002',
-    patientName: 'Michael Brown',
-    patientId: 'PT-2024-0923',
-    testName: 'ECG Report',
-    date: '2024-12-09',
-    status: 'pending',
-    findings: 'Awaiting review'
-  },
-  {
-    id: 'LAB-003',
-    patientName: 'Sarah Miller',
-    patientId: 'PT-2024-0567',
-    testName: 'Lipid Profile',
-    date: '2024-12-08',
-    status: 'reviewed',
-    findings: 'Slightly elevated cholesterol levels'
-  }
-];
-
-const patients = [
-  {
-    id: 'PT-2024-0847',
-    name: 'Alex Johnson',
-    age: 32,
-    gender: 'Male',
-    lastVisit: '2024-11-15',
-    nextAppointment: '2024-12-20',
-    condition: 'Hypertension',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0923',
-    name: 'Michael Brown',
-    age: 45,
-    gender: 'Male',
-    lastVisit: '2024-12-01',
-    nextAppointment: '2024-12-28',
-    condition: 'Cardiac Arrhythmia',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0789',
-    name: 'Emily Davis',
-    age: 28,
-    gender: 'Female',
-    lastVisit: '2024-11-25',
-    nextAppointment: '2025-01-05',
-    condition: 'Heart Murmur',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-1012',
-    name: 'Robert Wilson',
-    age: 60,
-    gender: 'Male',
-    lastVisit: '2024-12-05',
-    nextAppointment: '2024-12-22',
-    condition: 'Coronary Artery Disease',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0678',
-    name: 'Jennifer Lee',
-    age: 38,
-    gender: 'Female',
-    lastVisit: '2024-10-30',
-    nextAppointment: '2025-01-15',
-    condition: 'Hypertension',
-    status: 'follow-up'
-  }
-];
-
 // Doctor API Routes
-app.get('/api/doctor', authenticate, authorize('doctor'), (req, res) => {
-    res.json(doctorData);
+app.get('/api/doctor', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       WHERE d.user_id = $1`,
+      [req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/appointments/today', authenticate, authorize('doctor'), (req, res) => {
-    res.json(todaysAppointments);
+app.get('/api/appointments/today', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT a.*, p.full_name as patient_name 
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE d.user_id = $1 AND a.appointment_date = CURRENT_DATE
+       ORDER BY a.appointment_time`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/lab-reports', authenticate, authorize('doctor'), (req, res) => {
-    res.json(labReports);
+
+
+app.get('/api/lab-reports', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT r.*, p.full_name as patient_name 
+       FROM lab_reports r
+       JOIN patients p ON r.patient_id = p.patient_id
+       JOIN doctors d ON r.doctor_id = d.doctor_id
+       WHERE d.user_id = $1 AND r.status = 'pending'
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/api/patients', authenticate, authorize('doctor'), (req, res) => {
-    res.json(patients);
+app.get('/api/patients', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT DISTINCT p.* 
+       FROM patients p
+       JOIN appointments a ON p.patient_id = a.patient_id
+       JOIN doctors d ON a.doctor_id = d.doctor_id
+       WHERE d.user_id = $1
+       ORDER BY p.full_name`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.put('/api/doctor', authenticate, authorize('doctor'), (req, res) => {
-  Object.assign(doctorData, req.body);
-  res.json(doctorData);
+// SERVE HOSPITAL DASHBOARD - Using Hospital.js
+app.get('/hospital-dashboard', requireAuth('admin'), async (req, res) => {
+    try {
+        // Get hospital data for the logged-in admin
+        const hospitalResult = await query(
+            `SELECT h.* FROM hospitals h
+             JOIN hospital_admins ha ON h.hospital_id = ha.hospital_id
+             WHERE ha.user_id = $1`,
+            [req.user.id]
+        );
+        
+        // Get dashboard statistics
+        const statsResult = await query(
+            `SELECT 
+                (SELECT COUNT(*) FROM doctors WHERE hospital_id = $1) as total_doctors,
+                (SELECT COUNT(*) FROM appointments WHERE hospital_id = $1 AND appointment_date >= CURRENT_DATE) as upcoming_appointments,
+                (SELECT COUNT(*) FROM medicines WHERE hospital_id = $1) as total_medicines,
+                (SELECT COUNT(*) FROM lab_technicians WHERE hospital_id = $1) as total_labs`,
+            [hospitalResult.rows[0]?.hospital_id || null]
+        );
+        
+        // Get recent activity
+        const recentResult = await query(
+            `SELECT 'appointment' as type, a.appointment_date as date, 
+                    p.full_name as patient_name, d.full_name as doctor_name
+             FROM appointments a
+             JOIN patients p ON a.patient_id = p.patient_id
+             JOIN doctors d ON a.doctor_id = d.doctor_id
+             WHERE a.hospital_id = $1
+             ORDER BY a.created_at DESC
+             LIMIT 10`,
+            [hospitalResult.rows[0]?.hospital_id || null]
+        );
+        
+        // Require and render the dashboard
+        const renderHospitalDashboard = require('./Hospital.js');
+        
+        // Pass data to the render function
+        const html = renderHospitalDashboard({
+            hospital: hospitalResult.rows[0] || null,
+            stats: statsResult.rows[0] || {},
+            recentActivity: recentResult.rows || []
+        });
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading Hospital.js:', err);
+        res.status(500).send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Error - Hospital Dashboard</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; text-align: center; }
+                    .error-container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    h1 { color: #e53e3e; }
+                    .back-btn { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #4299e1; color: white; text-decoration: none; border-radius: 5px; }
+                </style>
+            </head>
+            <body>
+                <div class="error-container">
+                    <h1>500 - Hospital Dashboard Error</h1>
+                    <p>${err.message}</p>
+                    <p>Make sure Hospital.js is in the same directory.</p>
+                    <a href="/signin" class="back-btn">← Back to Sign In</a>
+                </div>
+            </body>
+            </html>
+        `);
+    }
 });
 
-app.put('/api/appointments/:id', authenticate, authorize('doctor', 'admin'), (req, res) => {
-  const appointmentId = req.params.id;
-  const appointment = todaysAppointments.find(apt => apt.id === appointmentId);
-  if (appointment) {
-    Object.assign(appointment, req.body);
-    res.json(appointment);
-  } else {
-    res.status(404).json({ error: 'Appointment not found' });
+app.put('/api/doctor', authenticate, authorize('doctor'), async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE doctors 
+       SET full_name = COALESCE($1, full_name),
+           designation = COALESCE($2, designation),
+           consultation_fee = COALESCE($3, consultation_fee),
+           available_days = COALESCE($4, available_days),
+           available_time = COALESCE($5, available_time),
+           phone = COALESCE($6, phone),
+           address = COALESCE($7, address)
+       WHERE user_id = $8
+       RETURNING *`,
+      [
+        req.body.full_name,
+        req.body.designation,
+        req.body.consultation_fee,
+        req.body.available_days,
+        req.body.available_time,
+        req.body.phone,
+        req.body.address,
+        req.user.id
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/appointments/:id', authenticate, authorize('doctor', 'admin'), async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE appointments 
+       SET status = COALESCE($1, status),
+           appointment_time = COALESCE($2, appointment_time),
+           reason = COALESCE($3, reason),
+           notes = COALESCE($4, notes)
+       WHERE appointment_id = $5
+       RETURNING *`,
+      [
+        req.body.status,
+        req.body.appointment_time,
+        req.body.reason,
+        req.body.notes,
+        req.params.id
+      ]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
 
 // API endpoint for feedback submission
-app.post('/api/feedback', (req, res) => {
-    console.log('Feedback received:', req.body);
-    res.json({
-        success: true,
-        message: 'Thank you for your feedback!'
-    });
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+    await query(
+      'INSERT INTO feedback (name, email, message) VALUES ($1, $2, $3)',
+      [name, email, message]
+    );
+    res.json({ success: true, message: 'Thank you for your feedback!' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // API endpoint for signin
@@ -1296,28 +1424,6 @@ function generateHTML() {
 // ============================================
 // DASHBOARD PROTECTION MIDDLEWARE
 // ============================================
-const requireAuth = (role) => {
-    return (req, res, next) => {
-        const token = req.cookies.token;
-        if (!token) return res.redirect('/signin');
-
-        const decoded = verifyToken(token);
-        if (!decoded || !activeSessions.has(decoded.id)) {
-            return res.redirect('/signin');
-        }
-
-        if (role && decoded.role !== role) {
-            return res.status(403).send(`
-                <h1>403 - Access Denied</h1>
-                <p>You don't have permission to access this page.</p>
-                <a href="/">Go to Home</a>
-            `);
-        }
-
-        req.user = decoded;
-        next();
-    };
-};
 
 
 // ============================================
@@ -1375,40 +1481,6 @@ app.get('/admin-dashboard', requireAuth('admin'), (req, res) => {
     }
 });
 
-// SERVE HOSPITAL ADMIN DASHBOARD
-app.get('/hospital-dashboard', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Hospital Admin Dashboard</title>
-            <style>
-                body { font-family: Arial, sans-serif; padding: 40px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-                .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: slideUp 0.8s ease; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                h1 { color: #0099cc; margin-bottom: 20px; }
-                .welcome-badge { background: #f0f0f0; padding: 10px 20px; border-radius: 30px; display: inline-block; margin-bottom: 30px; }
-                .back-btn { margin-top: 30px; padding: 12px 30px; background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
-                .back-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0, 212, 255, 0.4); }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🏥 Hospital Admin Dashboard</h1>
-                <div class="welcome-badge" id="welcomeMessage">Welcome, Admin!</div>
-                <p>Welcome to the Hospital Admin Panel!</p>
-                <button class="back-btn" onclick="window.location.href='/signin'">← Back to Sign In</button>
-            </div>
-            <script>
-                const username = sessionStorage.getItem('hospitalUsername');
-                if (username) {
-                    document.getElementById('welcomeMessage').innerHTML = 'Welcome, Admin ' + username + '!';
-                }
-            </script>
-        </body>
-        </html>
-    `);
-});
 
 // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
 app.get('/doctor-dashboard', requireAuth('doctor'), (req, res) => {
