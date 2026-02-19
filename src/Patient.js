@@ -1430,13 +1430,14 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
 // ============================================
 // EXPORT for signin.js
 // ============================================
-module.exports = async function renderPatientDashboard() {
+module.exports = async function renderPatientDashboard(userId) {
   try {
-    console.log('🔍 Starting renderPatientDashboard...');
+    console.log('🔍 Starting renderPatientDashboard for user:', userId);
     
-    console.log('📊 Fetching patient data for PT-2024-0847...');
+    // Get patient data using the user_id from the logged-in user
     const patientResult = await query(
-      `SELECT * FROM patients WHERE patient_uuid = 'PT-2024-0847'`
+      `SELECT * FROM patients WHERE user_id = $1`,
+      [userId]
     );
     
     console.log('📋 Patient query result:', {
@@ -1445,7 +1446,8 @@ module.exports = async function renderPatientDashboard() {
     });
     
     if (!patientResult.rows[0]) {
-      console.log('⚠️ No patient found, using default data');
+      console.log('⚠️ No patient found for user:', userId);
+      return '<h1>Error: Patient profile not found</h1><p>Please contact support.</p>';
     }
     
     const patientId = patientResult.rows[0]?.patient_id;
