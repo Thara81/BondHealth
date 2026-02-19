@@ -119,8 +119,9 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
 
     // Map appointments data
     const appointments = appointmentsData.map(apt => ({
-        id: apt.appointment_uuid || apt.id,
+        id: apt.appointment_uuid || apt.appointment_id,
         doctor: apt.doctor || 'Dr. Sarah Chen',
+        doctor_id: apt.doctor_id,
         specialization: apt.specialization || 'Cardiology',
         reason: apt.reason || 'Regular checkup',
         status: apt.status || 'confirmed',
@@ -646,7 +647,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                           <span class="px-3 py-1 bg-cyan-500 text-white rounded-full text-sm font-semibold">
                             ${apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
                           </span>
-                          <button class="px-4 py-2 btn-cyan rounded-lg reschedule-btn" data-id="${apt.id}">
+                          <button class="px-4 py-2 btn-cyan rounded-lg reschedule-btn" data-id="${apt.id}" data-doctor="${apt.doctor_id}" data-date="${apt.date}" data-time="${apt.time}">
                             Reschedule
                           </button>
                           <button class="px-4 py-2 btn-white rounded-lg cancel-btn" data-id="${apt.id}">
@@ -798,6 +799,55 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         </div>
       </div>
       
+      <!-- Reschedule Modal -->
+      <div id="rescheduleModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto animate-slide-up scrollbar-thin">
+          <div class="p-8">
+            <div class="flex justify-between items-center mb-8">
+              <h3 class="text-2xl font-bold cyan-text">Reschedule Appointment</h3>
+              <button id="closeRescheduleModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <div id="rescheduleDoctorInfo" class="flex items-center gap-5 p-5 cyan-light rounded-2xl mb-8 border cyan-border">
+              <!-- Doctor info will be populated here -->
+            </div>
+            
+            <form id="rescheduleForm">
+              <input type="hidden" id="rescheduleAppointmentId">
+              <input type="hidden" id="rescheduleDoctorId">
+              
+              <div class="mb-6">
+                <label class="block text-sm font-medium cyan-text mb-3">Select New Date</label>
+                <input type="date" id="rescheduleDate" required class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg">
+              </div>
+              
+              <div class="mb-8">
+                <label class="block text-sm font-medium cyan-text mb-3">Select New Time</label>
+                <div id="rescheduleTimeSlots" class="grid grid-cols-3 gap-3">
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00 AM</button>
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00 AM</button>
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00 AM</button>
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00 PM</button>
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00 PM</button>
+                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00 PM</button>
+                </div>
+              </div>
+              
+              <div class="mb-6">
+                <label class="block text-sm font-medium cyan-text mb-3">Reason for Rescheduling</label>
+                <textarea id="rescheduleReason" class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg" placeholder="Please provide a reason..."></textarea>
+              </div>
+              
+              <button type="submit" id="confirmReschedule" class="w-full book-btn text-white font-semibold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300" disabled>
+                Confirm Reschedule
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
       <!-- Success Toast -->
       <div id="successToast" class="fixed bottom-8 right-8 bg-green-500 text-white px-6 py-4 rounded-2xl shadow-2xl hidden transform transition-all duration-300 translate-y-4 opacity-0 z-50">
         <div class="flex items-center gap-4">
@@ -880,16 +930,21 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             showToast('Edit Profile', 'Profile editing feature coming soon!', 'info');
           });
           
+          // Reschedule button handler
           document.addEventListener('click', function(e) {
             if (e.target.classList.contains('reschedule-btn')) {
               const appointmentId = e.target.dataset.id;
-              showToast('Reschedule', \`Opening reschedule options for appointment \${appointmentId}\`, 'info');
+              const doctorId = e.target.dataset.doctor;
+              const currentDate = e.target.dataset.date;
+              const currentTime = e.target.dataset.time;
+              
+              openRescheduleModal(appointmentId, doctorId, currentDate, currentTime);
             }
             
             if (e.target.classList.contains('cancel-btn')) {
               const appointmentId = e.target.dataset.id;
               if (confirm('Are you sure you want to cancel this appointment?')) {
-                showToast('Cancelled', \`Appointment \${appointmentId} has been cancelled\`, 'success');
+                cancelAppointment(appointmentId);
               }
             }
           });
@@ -947,10 +1002,21 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             }
           });
           
-          // Time slot selection
-          document.querySelectorAll('.time-slot').forEach(slot => {
+          // Setup reschedule modal event listeners
+          document.getElementById('closeRescheduleModal').addEventListener('click', () => {
+            document.getElementById('rescheduleModal').classList.add('hidden');
+          });
+          
+          document.getElementById('rescheduleModal').addEventListener('click', (e) => {
+            if (e.target.id === 'rescheduleModal') {
+              document.getElementById('rescheduleModal').classList.add('hidden');
+            }
+          });
+          
+          // Time slot selection for booking
+          document.querySelectorAll('#timeSlots .time-slot').forEach(slot => {
             slot.addEventListener('click', () => {
-              document.querySelectorAll('.time-slot').forEach(s => {
+              document.querySelectorAll('#timeSlots .time-slot').forEach(s => {
                 s.classList.remove('selected');
               });
               slot.classList.add('selected');
@@ -958,13 +1024,33 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             });
           });
           
-          // Date selection
+          // Time slot selection for reschedule
+          document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(slot => {
+            slot.addEventListener('click', () => {
+              document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(s => {
+                s.classList.remove('selected');
+              });
+              slot.classList.add('selected');
+              updateRescheduleConfirmButton();
+            });
+          });
+          
+          // Date selection for booking
           document.getElementById('appointmentDate').addEventListener('change', updateConfirmButton);
+          
+          // Date selection for reschedule
+          document.getElementById('rescheduleDate').addEventListener('change', updateRescheduleConfirmButton);
           
           // Booking form submission
           document.getElementById('bookingForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             await bookAppointment();
+          });
+          
+          // Reschedule form submission
+          document.getElementById('rescheduleForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await rescheduleAppointment();
           });
         });
         
@@ -974,6 +1060,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         let selectedTime = '';
         let currentFilter = 'all';
         let searchQuery = '';
+        
+        // State for rescheduling
+        let rescheduleAppointmentId = null;
+        let rescheduleDoctorId = null;
+        let rescheduleDate = '';
+        let rescheduleTime = '';
         
         async function loadBookContent() {
           const response = await fetch('/api/doctors');
@@ -1078,12 +1170,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         function renderDoctors(doctorsData) {
           const filtered = doctorsData.filter(doc => {
-            const matchesFilter = currentFilter === 'all' || doc.department === currentFilter;
+            const matchesFilter = currentFilter === 'all' || doc.specialization?.toLowerCase() === currentFilter;
             const matchesSearch = searchQuery === '' || 
-              doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              doc.hospital.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              doc.specialization.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesFilter && matchesSearch && doc.available;
+              (doc.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (doc.hospital_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (doc.specialization || '').toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesFilter && matchesSearch && doc.status === 'Available';
           });
           
           document.getElementById('doctorCount').textContent = \`\${filtered.length} \${filtered.length === 1 ? 'doctor' : 'doctors'} available\`;
@@ -1096,11 +1188,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                   <i class="fas fa-user-md text-3xl cyan-text"></i>
                 </div>
                 <div class="flex-1">
-                  <h3 class="font-bold cyan-text text-lg mb-1">\${doc.name}</h3>
+                  <h3 class="font-bold cyan-text text-lg mb-1">\${doc.full_name}</h3>
                   <p class="cyan-text font-medium mb-2">\${doc.specialization}</p>
                   <div class="flex items-center cyan-text opacity-75 text-sm">
                     <i class="fas fa-hospital mr-2"></i>
-                    <span>\${doc.hospital}</span>
+                    <span>\${doc.hospital_name}</span>
                   </div>
                 </div>
               </div>
@@ -1109,11 +1201,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 <div class="flex items-center gap-4 text-sm cyan-text opacity-75">
                   <span class="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full">
                     <i class="fas fa-star text-yellow-500"></i>
-                    <span class="font-semibold">\${doc.rating}</span>
+                    <span class="font-semibold">\${doc.rating || '4.5'}</span>
                   </span>
-                  <span class="bg-gray-100 px-3 py-1 rounded-full">\${doc.experience}</span>
+                  <span class="bg-gray-100 px-3 py-1 rounded-full">\${doc.experience || '10+ years'}</span>
                 </div>
-                <button class="book-btn px-5 py-2.5 rounded-xl text-white font-medium hover:shadow-lg transition-all duration-300" onclick="openBookingModal('\${doc.id}')">
+                <button class="book-btn px-5 py-2.5 rounded-xl text-white font-medium hover:shadow-lg transition-all duration-300" onclick="openBookingModal('\${doc.doctor_id}')">
                   Book Now
                 </button>
               </div>
@@ -1143,7 +1235,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         async function openBookingModal(doctorId) {
           const doctors = await fetch('/api/doctors').then(res => res.json());
-          selectedDoctor = doctors.find(d => d.id === doctorId);
+          selectedDoctor = doctors.find(d => d.doctor_id === doctorId);
           if (!selectedDoctor) return;
           
           const modal = document.getElementById('bookingModal');
@@ -1154,11 +1246,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <i class="fas fa-user-md text-2xl cyan-text"></i>
             </div>
             <div class="flex-1">
-              <h4 class="font-bold cyan-text text-lg">\${selectedDoctor.name}</h4>
+              <h4 class="font-bold cyan-text text-lg">\${selectedDoctor.full_name}</h4>
               <p class="cyan-text font-medium">\${selectedDoctor.specialization}</p>
               <div class="flex items-center cyan-text opacity-75 text-sm mt-1">
                 <i class="fas fa-hospital mr-2"></i>
-                <span>\${selectedDoctor.hospital}</span>
+                <span>\${selectedDoctor.hospital_name}</span>
               </div>
             </div>
           \`;
@@ -1171,7 +1263,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           // Reset selections
           selectedDate = '';
           selectedTime = '';
-          document.querySelectorAll('.time-slot').forEach(slot => {
+          document.querySelectorAll('#timeSlots .time-slot').forEach(slot => {
             slot.classList.remove('selected');
           });
           document.getElementById('visitReason').value = '';
@@ -1195,13 +1287,24 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         function updateConfirmButton() {
           const dateInput = document.getElementById('appointmentDate');
-          const timeSlot = document.querySelector('.time-slot.selected');
+          const timeSlot = document.querySelector('#timeSlots .time-slot.selected');
           const btn = document.getElementById('confirmBooking');
           
           selectedDate = dateInput.value;
           selectedTime = timeSlot ? timeSlot.dataset.time : '';
           
           btn.disabled = !selectedDate || !selectedTime;
+        }
+        
+        function updateRescheduleConfirmButton() {
+          const dateInput = document.getElementById('rescheduleDate');
+          const timeSlot = document.querySelector('#rescheduleTimeSlots .time-slot.selected');
+          const btn = document.getElementById('confirmReschedule');
+          
+          rescheduleDate = dateInput.value;
+          rescheduleTime = timeSlot ? timeSlot.dataset.time : '';
+          
+          btn.disabled = !rescheduleDate || !rescheduleTime;
         }
         
         async function bookAppointment() {
@@ -1218,15 +1321,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                doctor: selectedDoctor.name,
-                specialization: selectedDoctor.specialization,
-                hospital: selectedDoctor.hospital,
-                date: selectedDate,
-                time: selectedTime,
+                doctor_id: selectedDoctor.doctor_id,
+                appointment_date: selectedDate,
+                appointment_time: selectedTime,
                 reason: reason || 'General consultation',
-                status: 'pending',
-                location: 'To be assigned',
-                notes: 'New appointment booked through patient portal'
+                type: 'in-person',
+                location: selectedDoctor.hospital_name
               })
             });
             
@@ -1234,22 +1334,134 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               const data = await response.json();
               
               document.getElementById('bookingModal').classList.add('hidden');
-              showBookingSuccessToast();
+              showToast('Success', 'Appointment booked successfully!', 'success');
               
               // Switch back to appointments section
               setTimeout(() => {
                 document.querySelector('[data-section="appointments"]').click();
+                // Reload appointments by refreshing the page
+                window.location.reload();
               }, 2000);
             } else {
-              showToast('Failed to book appointment. Please try again.', 'error');
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to book appointment', 'error');
             }
           } catch (error) {
             console.error('Error booking appointment:', error);
-            showToast('Network error. Please try again.', 'error');
+            showToast('Error', 'Network error. Please try again.', 'error');
           }
           
           btn.disabled = false;
           btn.textContent = 'Confirm Booking';
+        }
+        
+        function openRescheduleModal(appointmentId, doctorId, currentDate, currentTime) {
+          rescheduleAppointmentId = appointmentId;
+          rescheduleDoctorId = doctorId;
+          
+          document.getElementById('rescheduleAppointmentId').value = appointmentId;
+          document.getElementById('rescheduleDoctorId').value = doctorId;
+          
+          // Set min date to today
+          const today = new Date().toISOString().split('T')[0];
+          document.getElementById('rescheduleDate').min = today;
+          document.getElementById('rescheduleDate').value = '';
+          
+          // Reset selections
+          rescheduleDate = '';
+          rescheduleTime = '';
+          document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(slot => {
+            slot.classList.remove('selected');
+          });
+          document.getElementById('rescheduleReason').value = '';
+          document.getElementById('confirmReschedule').disabled = true;
+          
+          // Set doctor info
+          const doctor = doctorsData.find(d => d.doctor_id === doctorId);
+          if (doctor) {
+            document.getElementById('rescheduleDoctorInfo').innerHTML = \`
+              <div class="w-16 h-16 rounded-xl cyan-light border-2 cyan-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                <i class="fas fa-user-md text-2xl cyan-text"></i>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-bold cyan-text text-lg">\${doctor.full_name}</h4>
+                <p class="cyan-text font-medium">\${doctor.specialization}</p>
+                <p class="text-xs text-gray-500 mt-1">Current: \${currentDate} at \${currentTime}</p>
+              </div>
+            \`;
+          }
+          
+          document.getElementById('rescheduleModal').classList.remove('hidden');
+        }
+        
+        async function rescheduleAppointment() {
+          if (!rescheduleAppointmentId || !rescheduleDate || !rescheduleTime) return;
+          
+          const btn = document.getElementById('confirmReschedule');
+          const reason = document.getElementById('rescheduleReason').value;
+          
+          btn.disabled = true;
+          btn.textContent = 'Rescheduling...';
+          
+          try {
+            const response = await fetch(\`/api/appointments/\${rescheduleAppointmentId}/reschedule\`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                new_date: rescheduleDate,
+                new_time: rescheduleTime,
+                reason: reason || 'Patient requested reschedule'
+              })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              
+              document.getElementById('rescheduleModal').classList.add('hidden');
+              showToast('Success', 'Appointment rescheduled successfully!', 'success');
+              
+              // Reload page to show updated appointments
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            } else {
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to reschedule', 'error');
+            }
+          } catch (error) {
+            console.error('Error rescheduling appointment:', error);
+            showToast('Error', 'Network error. Please try again.', 'error');
+          }
+          
+          btn.disabled = false;
+          btn.textContent = 'Confirm Reschedule';
+        }
+        
+        async function cancelAppointment(appointmentId) {
+          try {
+            const response = await fetch(\`/api/appointments/\${appointmentId}/cancel\`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                reason: 'Cancelled by patient'
+              })
+            });
+            
+            if (response.ok) {
+              showToast('Success', 'Appointment cancelled successfully!', 'success');
+              
+              // Reload page to show updated appointments
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+            } else {
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to cancel', 'error');
+            }
+          } catch (error) {
+            console.error('Error cancelling appointment:', error);
+            showToast('Error', 'Network error. Please try again.', 'error');
+          }
         }
         
         function showBookingSuccessToast() {
@@ -1406,6 +1618,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             alert('Downloading report: ' + reportId);
             // In a real app, this would download the report
         };
+        
+        // Make doctorsData available globally for reschedule modal
+        const doctorsData = ${JSON.stringify(doctors)};
+        
         window.patientData = {
           reports: ${JSON.stringify(reports)},
           prescriptions: ${JSON.stringify(prescriptions)},
@@ -1454,25 +1670,35 @@ module.exports = async function renderPatientDashboard(userId) {
     console.log('🆔 Patient ID:', patientId);
     
     const appointmentsResult = await query(
-      `SELECT a.*, d.full_name as doctor, d.specialization 
+      `SELECT a.*, d.full_name as doctor, d.specialization, d.doctor_id
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
-       WHERE a.patient_id = $1`,
+       WHERE a.patient_id = $1
+       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
       [patientId]
     );
     console.log('📅 Appointments found:', appointmentsResult.rows.length);
     
     const reportsResult = await query(
-      `SELECT * FROM lab_reports WHERE patient_id = $1`,
+      `SELECT * FROM lab_reports WHERE patient_id = $1 ORDER BY created_at DESC`,
       [patientId]
     );
     console.log('📄 Reports found:', reportsResult.rows.length);
     
     const prescriptionsResult = await query(
-      `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active'`,
+      `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active' ORDER BY created_at DESC`,
       [patientId]
     );
     console.log('💊 Prescriptions found:', prescriptionsResult.rows.length);
+    
+    // Get doctors for booking
+    const doctorsResult = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       WHERE d.status = 'Available'
+       ORDER BY d.full_name`
+    );
     
     console.log('🎨 Generating HTML...');
     const html = generatePatientHTML(
