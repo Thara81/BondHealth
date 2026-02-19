@@ -1,5 +1,7 @@
 // hospital-admin-dashboard.js
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const port = 3002;
 
@@ -10,6 +12,48 @@ const { query } = require('./db/config');
 
 let doctors = [];
 let todaysAppointments = [];
+
+// Read home.js file and extract the HTML template
+function getHomePageHTML() {
+  try {
+    const homeFilePath = path.join(__dirname, 'home.js');
+    const homeFileContent = fs.readFileSync(homeFilePath, 'utf8');
+    
+    // Extract the HTML template - adjust regex based on how your home.js exports HTML
+    const templateMatch = homeFileContent.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
+    
+    if (templateMatch && templateMatch[1]) {
+      return templateMatch[1];
+    } else {
+      console.error('Could not extract HTML template from home.js');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error reading home.js:', error.message);
+    return null;
+  }
+}
+
+// Read hospital.js file and extract the HTML template
+function getHospitalRegisterHTML() {
+  try {
+    const hospitalFilePath = path.join(__dirname, 'hospital.js');
+    const hospitalFileContent = fs.readFileSync(hospitalFilePath, 'utf8');
+    
+    // Extract the HTML template - adjust regex based on how your hospital.js exports HTML
+    const templateMatch = hospitalFileContent.match(/const HTML_TEMPLATE = `([\s\S]*?)`;/);
+    
+    if (templateMatch && templateMatch[1]) {
+      return templateMatch[1];
+    } else {
+      console.error('Could not extract HTML template from hospital.js');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error reading hospital.js:', error.message);
+    return null;
+  }
+}
 
 function generateHTML(doctorsData = [], appointmentsData = []) {
   doctors = doctorsData;
@@ -205,6 +249,17 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
             font-size: 12px;
         }
         
+        .logout-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -251,7 +306,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <i class="fas fa-calendar-times mr-3"></i>
                 Update Leave
             </div>
-            <div class="nav-item" onclick="window.location.href='http://localhost:3001'">
+            <div class="nav-item" onclick="openDoctorRegistration()">
                 <i class="fas fa-user-plus mr-3"></i>
                 Register Doctor
             </div>
@@ -280,8 +335,8 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
             </div>
         </div>
         
-        <!-- Admin Profile -->
-        <div class="absolute bottom-6 left-6 right-6">
+        <!-- Admin Profile & Logout -->
+        <div class="absolute bottom-6 left-6 right-6 space-y-3">
             <div class="flex items-center gap-3 p-3 bg-cyan-50 rounded-lg">
                 <div class="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-user-cog text-cyan-600"></i>
@@ -291,6 +346,12 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                     <p class="text-sm text-gray-500">Hospital Administrator</p>
                 </div>
             </div>
+            
+            <!-- Logout Button -->
+            <button onclick="logout()" class="logout-btn w-full text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+                <i class="fas fa-sign-out-alt"></i>
+                Sign Out
+            </button>
         </div>
     </div>
 
@@ -303,14 +364,19 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <p id="pageSubtitle" class="text-gray-500">Today: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             <div class="flex items-center gap-4">
-                <button class="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2" onclick="showLeaveModal()">
-                    <i class="fas fa-calendar-plus"></i>
-                    Update Leave
+                <button class="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2" onclick="openDoctorRegistration()">
+                    <i class="fas fa-user-plus"></i>
+                    Register Doctor
                 </button>
                 <div class="relative">
                     <i class="fas fa-bell text-gray-500 text-xl cursor-pointer"></i>
                     <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
                 </div>
+                <!-- Mobile Logout Button (visible on small screens) -->
+                <button onclick="logout()" class="md:hidden bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sign Out
+                </button>
             </div>
         </header>
 
@@ -453,7 +519,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-lg font-bold text-gray-800">All Doctors</h3>
                     <button class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 flex items-center gap-2" 
-                            onclick="window.location.href='http://localhost:3001'">
+                            onclick="openDoctorRegistration()">
                         <i class="fas fa-plus"></i>
                         Add New Doctor
                     </button>
@@ -616,6 +682,10 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
     </div>
 
     <script>
+        // Store the extracted templates
+        const homePageTemplate = ${JSON.stringify(getHomePageHTML())};
+        const hospitalRegisterTemplate = ${JSON.stringify(getHospitalRegisterHTML())};
+        
         // Make doctors data available globally
         const doctorsData = ${JSON.stringify(doctors)};
         
@@ -649,6 +719,55 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 schedule: "Today's Schedule"
             };
             document.getElementById('pageTitle').textContent = titles[sectionId] || 'Dashboard';
+        }
+        
+        // Function to open doctor registration page
+        function openDoctorRegistration() {
+            console.log('Opening doctor registration page...');
+            
+            if (hospitalRegisterTemplate) {
+                try {
+                    // Open in new tab with extracted HTML
+                    const registerWindow = window.open('', '_blank');
+                    if (registerWindow) {
+                        registerWindow.document.write(hospitalRegisterTemplate);
+                        registerWindow.document.close();
+                        console.log('✅ Doctor registration page opened in new tab');
+                    } else {
+                        // Popup blocked - try fallback
+                        console.log('Popup blocked, trying fallback...');
+                        window.location.href = '/register-doctor';
+                    }
+                } catch (error) {
+                    console.error('Error opening registration page:', error);
+                    window.location.href = '/register-doctor';
+                }
+            } else {
+                // Fallback to dedicated route
+                console.log('No template, redirecting to /register-doctor');
+                window.location.href = '/register-doctor';
+            }
+        }
+        
+        // Logout function - redirects to home page
+        function logout() {
+            console.log('Logging out...');
+            
+            if (homePageTemplate) {
+                try {
+                    // Open home page in same window
+                    document.write(homePageTemplate);
+                    document.close();
+                    console.log('✅ Home page loaded');
+                } catch (error) {
+                    console.error('Error loading home page:', error);
+                    window.location.href = '/home';
+                }
+            } else {
+                // Fallback to dedicated route
+                console.log('No template, redirecting to /home');
+                window.location.href = '/home';
+            }
         }
         
         // Show doctor schedule modal
@@ -908,6 +1027,49 @@ app.get('/', (req, res) => {
   res.send(generateHTML());
 });
 
+// Add route for home page
+app.get('/home', (req, res) => {
+  const homeHTML = getHomePageHTML();
+  if (homeHTML) {
+    res.send(homeHTML);
+  } else {
+    // Fallback error page
+    res.status(404).send(`
+      <html>
+        <head><title>Home Page Not Found</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
+          <h1 style="color: #ef4444;">❌ Home Page Not Found</h1>
+          <p>Could not load home.js template.</p>
+          <p style="color: #6b7280; margin-top: 20px;">Make sure home.js is in the same directory as this file.</p>
+          <a href="/" style="display: inline-block; margin-top: 30px; padding: 10px 20px; background: #38bdf8; color: white; text-decoration: none; border-radius: 8px;">← Back to Dashboard</a>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Add route for doctor registration page
+app.get('/register-doctor', (req, res) => {
+  const hospitalHTML = getHospitalRegisterHTML();
+  if (hospitalHTML) {
+    res.send(hospitalHTML);
+  } else {
+    // Fallback error page
+    res.status(404).send(`
+      <html>
+        <head><title>Registration Page Not Found</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
+          <h1 style="color: #ef4444;">❌ Doctor Registration Page Not Found</h1>
+          <p>Could not load hospital.js template.</p>
+          <p style="color: #6b7280; margin-top: 20px;">Make sure hospital.js is in the same directory as this file.</p>
+          <a href="/" style="display: inline-block; margin-top: 30px; padding: 10px 20px; background: #38bdf8; color: white; text-decoration: none; border-radius: 8px;">← Back to Dashboard</a>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Keep your existing API routes (commented out for now)
 /*app.get('/api/doctors', (req, res) => {
   res.json({
     success: true,
@@ -954,16 +1116,41 @@ app.post('/api/doctors/:id/leave', (req, res) => {
 // ============================================
 if (require.main === module) {
     app.listen(port, () => {
-        console.log(`Hospital Admin Dashboard running at http://localhost:${port}`);
-        console.log(`Total doctors: ${doctors.length}`);
-        console.log(`Available today: ${doctors.filter(d => d.status === 'Available').length}`);
+        console.log('\n🚀 ========================================');
+        console.log(`   Hospital Admin Dashboard running at http://localhost:${port}`);
+        console.log('========================================\n');
+        console.log('📊 Dashboard: http://localhost:3002/');
+        console.log('📝 Register Doctor: http://localhost:3002/register-doctor');
+        console.log('🏠 Home Page: http://localhost:3002/home');
+        console.log(`\n✅ Total doctors: ${doctors.length}`);
+        console.log(`✅ Available today: ${doctors.filter(d => d.status === 'Available').length}`);
+        
+        // Check if home.js exists
+        try {
+            const homePath = path.join(__dirname, 'home.js');
+            fs.accessSync(homePath, fs.constants.F_OK);
+            console.log('\n✅ home.js found - Home page ready at /home');
+        } catch (error) {
+            console.log('\n⚠️  WARNING: home.js NOT FOUND in current directory');
+            console.log('   → Place home.js in:', __dirname);
+        }
+        
+        // Check if hospital.js exists
+        try {
+            const hospitalPath = path.join(__dirname, 'hospital.js');
+            fs.accessSync(hospitalPath, fs.constants.F_OK);
+            console.log('✅ hospital.js found - Doctor registration page ready at /register-doctor');
+        } catch (error) {
+            console.log('⚠️  WARNING: hospital.js NOT FOUND in current directory');
+            console.log('   → Place hospital.js in:', __dirname);
+        }
+        console.log('========================================\n');
     });
 }
 
 // ============================================
 // EXPORT for signin.js - THIS REPLACES the old module.exports
 // ============================================
-// REPLACE the export at the bottom with:
 module.exports = async function renderAdminDashboard(userId) {
   try {
     // First, get the hospital_id for this admin
