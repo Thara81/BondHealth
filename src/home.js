@@ -30,7 +30,7 @@ let activeSessions = new Map();
 const generateToken = (user) => {
     return jwt.sign(
         { 
-            id: user.id, 
+            id: user.id || user.user_id, 
             username: user.username, 
             role: user.role 
         }, 
@@ -117,12 +117,18 @@ const requireAuth = (role) => {
 // ============================================
 
 // Register
+// Register
 app.post('/api/auth/register', async (req, res) => {
+  console.log('📝 Registration attempt:', req.body);
   const client = await getClient();
   try {
     await client.query('BEGIN');
     
-    const { username, email, password, role, ...profile } = req.body;
+    const { name, email, password, gender, phone, address, dob, ...rest } = req.body;
+    const role = 'patient';
+    const username = email.split('@')[0]; // Create username from email
+    
+    console.log('Extracted data:', { name, email, username, gender, phone, address, dob });
     
     // Check if user exists
     const existing = await client.query(
@@ -132,7 +138,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     if (existing.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ success: false, message: 'User exists' });
+      return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -142,26 +148,25 @@ app.post('/api/auth/register', async (req, res) => {
     const userResult = await client.query(
       `INSERT INTO users (username, email, password_hash, role) 
        VALUES ($1, $2, $3, $4) RETURNING user_id, username, email, role`,
-      [username, email, hashedPassword, role || 'patient']
+      [username, email, hashedPassword, role]
     );
     
     const user = userResult.rows[0];
+    console.log('✅ User created:', user);
 
-    // If patient, create patient profile
-    if (role === 'patient' || !role) {
-      await client.query(
-        `INSERT INTO patients (
-          user_id, full_name, email, phone, address, 
-          emergency_contact_name, emergency_contact_phone, date_of_birth, gender
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          user.user_id, profile.name, email, profile.phone, profile.address,
-          profile.emergencyContact, profile.emergencyPhone, profile.dob, profile.gender
-        ]
-      );
-    }
+    // Insert patient profile (without emergency contact fields since they're not in the form)
+    await client.query(
+      `INSERT INTO patients (
+        user_id, full_name, email, phone, address, date_of_birth, gender
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        user.user_id, name, email, phone, address, dob, gender
+      ]
+    );
+    console.log('✅ Patient profile created');
 
     await client.query('COMMIT');
+    console.log('✅ Registration successful');
 
     const token = generateToken({ id: user.user_id, username, role: user.role });
     activeSessions.set(user.user_id, { token, loginTime: new Date().toISOString() });
@@ -175,7 +180,8 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   } finally {
     client.release();
   }
