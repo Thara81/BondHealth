@@ -11,9 +11,9 @@ const { query } = require('./db/config');
 let doctors = [];
 let todaysAppointments = [];
 
-function generateHTML() {
-  const doctors = doctorsData;
-  const todaysAppointments = appointmentsData;  
+function generateHTML(doctorsData = [], appointmentsData = []) {
+  doctors = doctorsData;
+  todaysAppointments = appointmentsData;
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -381,7 +381,7 @@ function generateHTML() {
                         ${doctors.filter(d => d.status === 'Available').map(doctor => `
                         <div class="doctor-card available p-6" onclick="showDoctorSchedule(${doctor.id})">
                             <div class="flex items-center gap-4">
-                                <img src="${doctor.photo}" 
+                                <img src="${doctor.photo_url || ''}" 
                                      alt="${doctor.name}" 
                                      class="w-16 h-16 rounded-full object-cover border-2 border-cyan-200">
                                 <div class="flex-1">
@@ -425,8 +425,8 @@ function generateHTML() {
                                 ${doctors.filter(d => d.status === 'On Leave').map(doctor => `
                                 <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                     <div class="flex items-center gap-3">
-                                        <img src="${doctor.photo}" 
-                                             alt="${doctor.name}" 
+                                        <img src="${doctor.photo_url || ''}" 
+                                             alt="${doctor.full_name}" 
                                              class="w-10 h-10 rounded-full object-cover">
                                         <div class="flex-1">
                                             <p class="font-medium text-gray-800">${doctor.name}</p>
@@ -466,11 +466,11 @@ function generateHTML() {
                                  alt="${doctor.name}" 
                                  class="w-16 h-16 rounded-full object-cover border-2 ${doctor.status === 'Available' ? 'border-cyan-200' : 'border-amber-200'}">
                             <div class="flex-1">
-                                <h4 class="font-bold text-gray-800">${doctor.name}</h4>
-                                <p class="text-cyan-600 text-sm font-medium">${doctor.specialty}</p>
+                                <h4 class="font-bold text-gray-800">${doctor.full_name}</h4>
+                                <p class="text-cyan-600 text-sm font-medium">${doctor.specialization || ''}</p>
                                 <div class="mt-2">
                                     <span class="status-badge ${doctor.status === 'Available' ? 'status-available' : 'status-leave'}">
-                                        ${doctor.status}
+                                        ${doctor.status || 'Available'}
                                     </span>
                                 </div>
                             </div>
