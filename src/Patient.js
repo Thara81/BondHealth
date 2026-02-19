@@ -65,8 +65,31 @@ app.put('/api/patient', (req, res) => {
 // FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
 // ============================================
 function generatePatientHTML(patientData = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
-    // Use the parameter if provided, otherwise use default
-    let patient = patientData || {
+    // Map database fields to the format expected by the template
+    console.log('🎯 generatePatientHTML called with:', {
+        patientData: patientData ? 'Data present' : 'No data',
+        appointmentsCount: appointmentsData.length,
+        reportsCount: reportsData.length,
+        prescriptionsCount: prescriptionsData.length
+    });
+    
+    let patient = patientData ? {
+        id: patientData.patient_uuid || 'PT-2024-0847',
+        name: patientData.full_name || 'Alex Johnson',
+        age: patientData.date_of_birth ? calculateAge(patientData.date_of_birth) : 32,
+        gender: patientData.gender || 'Male',
+        bloodType: patientData.blood_type || 'O+',
+        email: patientData.email || 'alex.johnson@email.com',
+        contact: patientData.phone || '+1 (555) 123-4567',
+        address: patientData.address || '123 Health Street, Medical City',
+        emergencyContact: patientData.emergency_contact_name ? 
+            `${patientData.emergency_contact_name} ${patientData.emergency_contact_phone || ''}` : 
+            'Jane Johnson (Wife) +1 (555) 987-6543',
+        conditions: patientData.medical_conditions || ['Hypertension', 'Asthma'],
+        allergies: patientData.allergies || ['Penicillin'],
+        lastVisit: patientData.last_visit || '2024-11-15',
+        nextAppointment: patientData.next_appointment || '2024-12-20'
+    } : {
         id: 'PT-2024-0847',
         name: 'Alex Johnson',
         age: 32,
@@ -82,9 +105,47 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         nextAppointment: '2024-12-20'
     };
 
-  const appointments = appointmentsData.length ? appointmentsData : [];
-  const reports = reportsData.length ? reportsData : [];
-  const prescriptions = prescriptionsData.length ? prescriptionsData : [];
+    // Helper function to calculate age from date of birth
+    function calculateAge(dob) {
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
+    // Map appointments data
+    const appointments = appointmentsData.map(apt => ({
+        id: apt.appointment_uuid || apt.id,
+        doctor: apt.doctor || 'Dr. Sarah Chen',
+        specialization: apt.specialization || 'Cardiology',
+        reason: apt.reason || 'Regular checkup',
+        status: apt.status || 'confirmed',
+        date: apt.appointment_date || new Date().toISOString().split('T')[0],
+        time: apt.appointment_time || '10:30 AM',
+        location: apt.location || 'Room 304, Cardiology Wing',
+        notes: apt.notes || ''
+    }));
+
+    // Map reports data
+    const reports = reportsData.map(rep => ({
+        id: rep.report_uuid || rep.id,
+        name: rep.test_type || 'Medical Report',
+        type: rep.test_type?.toLowerCase().includes('blood') ? 'lab' : 'general',
+        date: rep.test_date || rep.created_at || new Date().toISOString().split('T')[0]
+    }));
+
+    // Map prescriptions data
+    const prescriptions = prescriptionsData.map(rx => ({
+        id: rx.prescription_uuid || rx.id,
+        medicine: rx.medicine_name || 'Medication',
+        dosage: rx.dosage || 'As prescribed',
+        frequency: rx.frequency || 'Daily',
+        validUntil: rx.valid_until || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+    }));
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -1202,8 +1263,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         async function loadReportsContent() {
-          const response = await fetch('/api/reports');
-          const reports = await response.json();
+          const reports = window.patientData?.reports || [];
           
           const reportsContent = document.getElementById('reportsContent');
           reportsContent.innerHTML = \`
@@ -1247,8 +1307,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         async function loadPrescriptionsContent() {
-          const response = await fetch('/api/prescriptions');
-          const prescriptions = await response.json();
+          const prescriptions = window.patientData?.prescriptions || [];
           
           const prescriptionsContent = document.getElementById('prescriptionsContent');
           prescriptionsContent.innerHTML = \`
@@ -1338,6 +1397,20 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             });
           });
         }
+        window.viewReport = function(reportId) {
+            alert('Viewing report: ' + reportId);
+            // In a real app, this would open the report
+        };
+
+        window.downloadReport = function(reportId) {
+            alert('Downloading report: ' + reportId);
+            // In a real app, this would download the report
+        };
+        window.patientData = {
+          reports: ${JSON.stringify(reports)},
+          prescriptions: ${JSON.stringify(prescriptions)},
+          appointments: ${JSON.stringify(appointments)}
+        };
       </script>
     </body>
     </html>
@@ -1359,39 +1432,59 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
 // ============================================
 module.exports = async function renderPatientDashboard() {
   try {
-    // Get the logged-in user's ID (this will be passed from home.js)
-    // For now, we'll use the seeded patient data
+    console.log('🔍 Starting renderPatientDashboard...');
     
+    console.log('📊 Fetching patient data for PT-2024-0847...');
     const patientResult = await query(
       `SELECT * FROM patients WHERE patient_uuid = 'PT-2024-0847'`
     );
+    
+    console.log('📋 Patient query result:', {
+      rowCount: patientResult.rows.length,
+      patientData: patientResult.rows[0] || 'No patient found'
+    });
+    
+    if (!patientResult.rows[0]) {
+      console.log('⚠️ No patient found, using default data');
+    }
+    
+    const patientId = patientResult.rows[0]?.patient_id;
+    console.log('🆔 Patient ID:', patientId);
     
     const appointmentsResult = await query(
       `SELECT a.*, d.full_name as doctor, d.specialization 
        FROM appointments a
        JOIN doctors d ON a.doctor_id = d.doctor_id
        WHERE a.patient_id = $1`,
-      [patientResult.rows[0]?.patient_id]
+      [patientId]
     );
+    console.log('📅 Appointments found:', appointmentsResult.rows.length);
     
     const reportsResult = await query(
       `SELECT * FROM lab_reports WHERE patient_id = $1`,
-      [patientResult.rows[0]?.patient_id]
+      [patientId]
     );
+    console.log('📄 Reports found:', reportsResult.rows.length);
     
     const prescriptionsResult = await query(
       `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active'`,
-      [patientResult.rows[0]?.patient_id]
+      [patientId]
     );
+    console.log('💊 Prescriptions found:', prescriptionsResult.rows.length);
     
-    return generatePatientHTML(
+    console.log('🎨 Generating HTML...');
+    const html = generatePatientHTML(
       patientResult.rows[0] || null,
       appointmentsResult.rows || [],
       reportsResult.rows || [],
       prescriptionsResult.rows || []
     );
+    
+    console.log('✅ HTML generated successfully');
+    return html;
+    
   } catch (error) {
-    console.error('Error loading patient dashboard:', error);
+    console.error('❌ Error loading patient dashboard:', error);
     return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
   }
 };
