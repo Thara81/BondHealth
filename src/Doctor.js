@@ -1,147 +1,16 @@
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3001;
-
+const { query } = require('./db/config');
 app.use(express.json());
 
-const doctorData = {
-  id: 'DR-2024-0567',
-  name: 'Dr. Sarah Chen',
-  designation: 'Senior Cardiologist',
-  specialization: 'Cardiology',
-  experience: '12 years',
-  qualification: 'MD, DM Cardiology',
-  email: 'sarah.chen@bondhealth.com',
-  contact: '+1 (555) 234-5678',
-  address: '456 Medical Center, Cardiology Wing',
-  consultationFee: '$150',
-  availableDays: ['Mon', 'Wed', 'Fri'],
-  availableTime: '9:00 AM - 5:00 PM'
-};
+// Variables to store data from database
+let doctorData = null;
+let todaysAppointments = [];
+let labReports = [];
+let patients = [];
 
-const todaysAppointments = [
-  {
-    id: 'APT-001',
-    patientName: 'Alex Johnson',
-    patientId: 'PT-2024-0847',
-    time: '10:30 AM',
-    reason: 'Routine heart checkup',
-    status: 'confirmed',
-    type: 'in-person'
-  },
-  {
-    id: 'APT-002',
-    patientName: 'Michael Brown',
-    patientId: 'PT-2024-0923',
-    time: '11:45 AM',
-    reason: 'Chest pain evaluation',
-    status: 'confirmed',
-    type: 'in-person'
-  },
-  {
-    id: 'APT-003',
-    patientName: 'Emily Davis',
-    patientId: 'PT-2024-0789',
-    time: '2:30 PM',
-    reason: 'Follow-up consultation',
-    status: 'pending',
-    type: 'online'
-  },
-  {
-    id: 'APT-004',
-    patientName: 'Robert Wilson',
-    patientId: 'PT-2024-1012',
-    time: '3:45 PM',
-    reason: 'ECG review',
-    status: 'confirmed',
-    type: 'in-person'
-  }
-];
-
-const labReports = [
-  {
-    id: 'LAB-001',
-    patientName: 'Alex Johnson',
-    patientId: 'PT-2024-0847',
-    testName: 'Complete Blood Count',
-    date: '2024-12-10',
-    status: 'reviewed',
-    findings: 'Normal ranges, no abnormalities detected'
-  },
-  {
-    id: 'LAB-002',
-    patientName: 'Michael Brown',
-    patientId: 'PT-2024-0923',
-    testName: 'ECG Report',
-    date: '2024-12-09',
-    status: 'pending',
-    findings: 'Awaiting review'
-  },
-  {
-    id: 'LAB-003',
-    patientName: 'Sarah Miller',
-    patientId: 'PT-2024-0567',
-    testName: 'Lipid Profile',
-    date: '2024-12-08',
-    status: 'reviewed',
-    findings: 'Slightly elevated cholesterol levels'
-  }
-];
-
-const patients = [
-  {
-    id: 'PT-2024-0847',
-    name: 'Alex Johnson',
-    age: 32,
-    gender: 'Male',
-    lastVisit: '2024-11-15',
-    nextAppointment: '2024-12-20',
-    condition: 'Hypertension',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0923',
-    name: 'Michael Brown',
-    age: 45,
-    gender: 'Male',
-    lastVisit: '2024-12-01',
-    nextAppointment: '2024-12-28',
-    condition: 'Cardiac Arrhythmia',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0789',
-    name: 'Emily Davis',
-    age: 28,
-    gender: 'Female',
-    lastVisit: '2024-11-25',
-    nextAppointment: '2025-01-05',
-    condition: 'Heart Murmur',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-1012',
-    name: 'Robert Wilson',
-    age: 60,
-    gender: 'Male',
-    lastVisit: '2024-12-05',
-    nextAppointment: '2024-12-22',
-    condition: 'Coronary Artery Disease',
-    status: 'active'
-  },
-  {
-    id: 'PT-2024-0678',
-    name: 'Jennifer Lee',
-    age: 38,
-    gender: 'Female',
-    lastVisit: '2024-10-30',
-    nextAppointment: '2025-01-15',
-    condition: 'Hypertension',
-    status: 'follow-up'
-  }
-];
-
-app.get('/api/doctor', (req, res) => {
+/*app.get('/api/doctor', (req, res) => {
   res.json(doctorData);
 });
 
@@ -176,11 +45,31 @@ app.put('/api/appointments/:id', (req, res) => {
 app.get('/', (req, res) => {
   res.send(generateDoctorHTML());
 });
-
+*/
 // ============================================
 // FUNCTION TO GENERATE HTML - MOVE YOUR HTML HERE
 // ============================================
-function generateDoctorHTML() {
+function generateDoctorHTML(doctor = null, appointments = [], reports = [], patientList = []) {
+    // Use provided data or defaults
+  const doctorData = doctor || {
+    id: 'DR-2024-0567',
+    name: 'Dr. Sarah Chen',
+    designation: 'Senior Cardiologist',
+    specialization: 'Cardiology',
+    experience: '12 years',
+    qualification: 'MD, DM Cardiology',
+    email: 'sarah.chen@bondhealth.com',
+    contact: '+1 (555) 234-5678',
+    address: '456 Medical Center, Cardiology Wing',
+    consultationFee: '$150',
+    availableDays: ['Mon', 'Wed', 'Fri'],
+    availableTime: '9:00 AM - 5:00 PM'
+  };
+
+  const todaysAppointments = appointments.length ? appointments : [];
+  const labReports = reports.length ? reports : [];
+  const patients = patientList.length ? patientList : [];
+
   return `<!DOCTYPE html>
     <!DOCTYPE html>
     <html lang="en">
@@ -575,7 +464,7 @@ function generateDoctorHTML() {
           <div class="flex doctor-header items-start md:items-center justify-between">
             <div class="flex items-center space-x-4 mb-4 md:mb-0">
               <button id="profileBtn" class="doctor-avatar w-20 h-20 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white hover-lift ripple-effect">
-                ${doctorData.name.split(' ').map(n => n[0]).join('')}
+                ${doctorData && doctorData.name ? doctorData.name.split(' ').map(n => n[0]).join('') : 'DR'}
               </button>
             </div>
             
@@ -696,8 +585,8 @@ function generateDoctorHTML() {
                             <i class="fas fa-user-injured text-xl text-white"></i>
                           </div>
                           <div>
-                            <h3 class="text-xl font-bold cyan-text">${apt.patientName}</h3>
-                            <p class="text-gray-600">ID: ${apt.patientId}</p>
+                            <h3 class="text-xl font-bold cyan-text">${apt.patient_name}</h3>
+                            <p class="text-gray-600">ID: ${apt.patient_uuid}</p>
                             <p class="text-gray-700 mt-1"><i class="fas fa-stethoscope mr-2 cyan-text"></i>${apt.reason}</p>
                           </div>
                         </div>
@@ -706,10 +595,10 @@ function generateDoctorHTML() {
                             <span class="status-badge ${apt.status === 'confirmed' ? 'status-confirmed' : 'status-pending'}">
                               ${apt.status}
                             </span>
-                            <span class="text-lg font-bold cyan-text">${apt.time}</span>
+                            <span class="text-lg font-bold cyan-text">${apt.appointment_time}</span>
                           </div>
                           <div class="flex space-x-3">
-                            <button class="px-4 py-2 btn-cyan rounded-lg start-consult-btn" data-id="${apt.id}" data-patient="${apt.patientName}">
+                            <button class="px-4 py-2 btn-cyan rounded-lg start-consult-btn" data-id="${apt.id}" data-patient="${apt.patient_name}">
                               <i class="fas fa-play-circle mr-2"></i>Start Consult
                             </button>
                             <button class="px-4 py-2 btn-white rounded-lg reschedule-btn" data-id="${apt.id}">
@@ -779,12 +668,12 @@ function generateDoctorHTML() {
           
           <div class="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
             <div class="w-32 h-32 cyan-bg rounded-full flex items-center justify-center text-4xl font-bold text-white">
-              ${doctorData.name.split(' ').map(n => n[0]).join('')}
+              ${doctorData && doctorData.name ? doctorData.name.split(' ').map(n => n[0]).join('') : 'DR'}
             </div>
             <div class="flex-1">
-              <h3 class="text-3xl font-bold cyan-text">${doctorData.name}</h3>
-              <p class="text-xl cyan-text opacity-80 mt-1">${doctorData.designation}</p>
-              <p class="text-gray-600 mt-2">${doctorData.qualification}</p>
+              <h3 class="text-3xl font-bold cyan-text">${doctorData && doctorData.name ? doctorData.name : 'Doctor'}</h3>
+              <p class="text-xl cyan-text opacity-80 mt-1">${doctorData && doctorData.designation ? doctorData.designation : 'Doctor'}</p>
+              <p class="text-gray-600 mt-2">${doctorData && doctorData.qualification ? doctorData.qualification : ''}</p>
             </div>
           </div>
           
@@ -794,7 +683,7 @@ function generateDoctorHTML() {
               'Specialization': doctorData.specialization,
               'Experience': doctorData.experience,
               'Consultation Fee': doctorData.consultationFee,
-              'Available Days': doctorData.availableDays.join(', '),
+              'Available Days': doctorData.availableDays ? doctorData.availableDays.join(', ') : '',
               'Available Time': doctorData.availableTime,
               'Email': doctorData.email,
               'Contact': doctorData.contact
@@ -815,7 +704,7 @@ function generateDoctorHTML() {
               </div>
               <div>
                 <p class="text-sm cyan-text">Consultation Hours</p>
-                <p class="font-semibold">${doctorData.availableTime} (${doctorData.availableDays.join(', ')})</p>
+                <p class="font-semibold">${doctorData.availableTime} (${doctorData.availableDays ? doctorData.availableDays.join(', ') : ''})</p>
               </div>
               <div>
                 <p class="text-sm cyan-text">Services Offered</p>
@@ -1013,9 +902,9 @@ function generateDoctorHTML() {
                         <i class="fas \${report.testName.includes('ECG') ? 'fa-heartbeat' : 'fa-vial'} text-xl text-white"></i>
                       </div>
                       <div>
-                        <h3 class="text-xl font-bold cyan-text">\${report.patientName}</h3>
-                        <p class="text-gray-600">ID: \${report.patientId}</p>
-                        <p class="text-gray-700 mt-1"><i class="fas fa-flask mr-2 cyan-text"></i>\${report.testName}</p>
+                        <h3 class="text-xl font-bold cyan-text">\${report.patient_name}</h3>
+                        <p class="text-gray-600">ID: \${report.patient_uuid}</p>
+                        <p class="text-gray-700 mt-1"><i class="fas fa-flask mr-2 cyan-text"></i>\${report.test_type}</p>
                       </div>
                     </div>
                     <div class="flex flex-col md:items-end space-y-3">
@@ -1023,7 +912,7 @@ function generateDoctorHTML() {
                         <span class="status-badge \${report.status === 'reviewed' ? 'status-reviewed' : 'status-pending'}">
                           \${report.status}
                         </span>
-                        <span class="text-sm cyan-text">\${new Date(report.date).toLocaleDateString()}</span>
+                        <span class="text-sm cyan-text">\${new Date(report.test_date).toLocaleDateString()}</span>
                       </div>
                       <div class="flex space-x-3">
                         <button class="px-4 py-2 btn-cyan rounded-lg view-report-btn" data-id="\${report.id}">
@@ -1125,8 +1014,8 @@ function generateDoctorHTML() {
                       <i class="fas fa-user-injured text-2xl text-white"></i>
                     </div>
                     <div>
-                      <h3 class="text-xl font-bold cyan-text">\${patient.name}</h3>
-                      <p class="text-gray-600">ID: \${patient.id}</p>
+                      <h3 class="text-xl font-bold cyan-text">\${patient.full_name}</h3>
+                      <p class="text-gray-600">ID: \${patient.patient_uuid}</p>
                       <p class="text-sm cyan-text">\${patient.age} years • \${patient.gender}</p>
                     </div>
                   </div>
@@ -1134,15 +1023,15 @@ function generateDoctorHTML() {
                   <div class="space-y-3 mb-4">
                     <div class="flex justify-between">
                       <span class="text-sm cyan-text opacity-75">Condition:</span>
-                      <span class="text-sm font-medium cyan-text">\${patient.condition}</span>
+                      <span class="text-sm font-medium cyan-text">\${patient.medical_conditions ? patient.medical_conditions[0] : 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-sm cyan-text opacity-75">Last Visit:</span>
-                      <span class="text-sm cyan-text">\${new Date(patient.lastVisit).toLocaleDateString()}</span>
+                      <span class="text-sm cyan-text">\${patient.last_visit ? new Date(patient.last_visit).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                       <span class="text-sm cyan-text opacity-75">Next Appointment:</span>
-                      <span class="text-sm cyan-text font-semibold">\${new Date(patient.nextAppointment).toLocaleDateString()}</span>
+                      <span class="text-sm cyan-text font-semibold">\${patient.next_appointment ? new Date(patient.next_appointment).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
                   
@@ -1231,16 +1120,61 @@ app.get('/', (req, res) => {
 // ============================================
 // START SERVER - ONLY when run directly
 // ============================================
-if (require.main === module) {
+/*if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`BondHealth Doctor Portal running on port ${PORT}`);
     console.log(`http://localhost:${PORT}`);
   });
-}
+}*/
 
 // ============================================
 // EXPORT for home.js and signin.js
 // ============================================
-module.exports = function renderDoctorDashboard() {
-  return generateDoctorHTML();
+module.exports = async function renderDoctorDashboard() {
+  try {
+    // Get the logged-in doctor's data (using the seeded doctor for now)
+    const doctorResult = await query(
+      `SELECT * FROM doctors WHERE doctor_uuid = 'DR-2024-0567'`
+    );
+    
+    // Get today's appointments for this doctor
+    const appointmentsResult = await query(
+      `SELECT a.*, p.full_name as patient_name, p.patient_uuid
+       FROM appointments a
+       JOIN patients p ON a.patient_id = p.patient_id
+       WHERE a.doctor_id = $1 AND a.appointment_date = CURRENT_DATE
+       ORDER BY a.appointment_time`,
+      [doctorResult.rows[0]?.doctor_id]
+    );
+    
+    // Get pending lab reports
+    const reportsResult = await query(
+      `SELECT r.*, p.full_name as patient_name, p.patient_uuid
+       FROM lab_reports r
+       JOIN patients p ON r.patient_id = p.patient_id
+       WHERE r.doctor_id = $1 AND r.status = 'pending'
+       ORDER BY r.created_at DESC`,
+      [doctorResult.rows[0]?.doctor_id]
+    );
+    
+    // Get patients for this doctor
+    const patientsResult = await query(
+      `SELECT DISTINCT p.* 
+       FROM patients p
+       JOIN appointments a ON p.patient_id = a.patient_id
+       WHERE a.doctor_id = $1
+       ORDER BY p.full_name`,
+      [doctorResult.rows[0]?.doctor_id]
+    );
+    
+    return generateDoctorHTML(
+      doctorResult.rows[0] || null,
+      appointmentsResult.rows || [],
+      reportsResult.rows || [],
+      patientsResult.rows || []
+    );
+  } catch (error) {
+    console.error('Error loading doctor dashboard:', error);
+    return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+  }
 };

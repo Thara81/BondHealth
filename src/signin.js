@@ -1,9 +1,55 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { query, getClient } = require('./db/config');
+require('dotenv').config();
 const hospitalRegistrationPage = require('./HospitalRegistration');
 const hospitalPage = require('./Hospital');
 const PORT = process.env.PORT || 3005;
+
+// JWT helper functions
+const generateToken = (user) => {
+    return jwt.sign(
+        { 
+            id: user.user_id, 
+            username: user.username, 
+            role: user.role 
+        }, 
+        process.env.JWT_SECRET || 'fallback_secret', 
+        { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+};
+
+const verifyToken = (token) => {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    } catch (error) {
+        return null;
+    }
+};
+
+// Track active sessions
+let activeSessions = new Map();
+
+// Cookie parser helper
+function parseCookies(request) {
+    const list = {};
+    const cookieHeader = request.headers.cookie;
+    if (cookieHeader) {
+        cookieHeader.split(';').forEach(cookie => {
+            let [name, ...rest] = cookie.split('=');
+            name = name.trim();
+            if (!name) return;
+            const value = rest.join('=').trim();
+            if (!value) return;
+            list[name] = decodeURIComponent(value);
+        });
+    }
+    return list;
+}
+
 
 // ============================================
 // SIGNIN PAGE TEMPLATE - COMPLETE HTML
@@ -396,7 +442,8 @@ const SIGNIN_TEMPLATE = `<!doctype html>
       
       try {
           // CHANGE THIS URL - point to home.js API
-          const response = await fetch('http://localhost:3005/api/auth/login', {
+          // Use the signin API endpoint
+          const response = await fetch('/api/signin', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username, password, role })
@@ -441,7 +488,7 @@ const SIGNIN_TEMPLATE = `<!doctype html>
 // ============================================
 // HTTP SERVER
 // ============================================
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     
     // Serve Sign In page
@@ -454,10 +501,27 @@ const server = http.createServer((req, res) => {
     }
     
     // SERVE LAB DASHBOARD - USING EXPORTED FUNCTION FROM labs.js
+    // SERVE LAB DASHBOARD - WITH AUTHENTICATION
     else if (req.url === '/lab-dashboard') {
+        const cookies = parseCookies(req);
+        const token = cookies.token;
+        
+        if (!token) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id) || decoded.role !== 'lab') {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
         try {
             const renderLabDashboard = require('./labs.js');
-            const html = renderLabDashboard();
+            const html = await renderLabDashboard(decoded.id);
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(html);
         } catch (err) {
@@ -468,10 +532,27 @@ const server = http.createServer((req, res) => {
     }
     
     // SERVE PATIENT DASHBOARD - USING EXPORTED FUNCTION FROM Patient.js
+    // SERVE PATIENT DASHBOARD - WITH AUTHENTICATION
     else if (req.url === '/patient-dashboard') {
+        const cookies = parseCookies(req);
+        const token = cookies.token;
+        
+        if (!token) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id) || decoded.role !== 'patient') {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
         try {
             const renderPatientDashboard = require('./Patient.js');
-            const html = renderPatientDashboard();
+            const html = await renderPatientDashboard(decoded.id);
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(html);
         } catch (err) {
@@ -482,10 +563,27 @@ const server = http.createServer((req, res) => {
     }
     
     // SERVE ADMIN DASHBOARD - USING EXPORTED FUNCTION FROM admin.js
+    // SERVE ADMIN DASHBOARD - WITH AUTHENTICATION
     else if (req.url === '/admin-dashboard') {
+        const cookies = parseCookies(req);
+        const token = cookies.token;
+        
+        if (!token) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id) || decoded.role !== 'admin') {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
         try {
             const renderAdminDashboard = require('./admin.js');
-            const html = renderAdminDashboard();
+            const html = await renderAdminDashboard(decoded.id);
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(html);
         } catch (err) {
@@ -496,10 +594,27 @@ const server = http.createServer((req, res) => {
     }
     
     // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
+    // SERVE DOCTOR DASHBOARD - WITH AUTHENTICATION
     else if (req.url === '/doctor-dashboard') {
+        const cookies = parseCookies(req);
+        const token = cookies.token;
+        
+        if (!token) {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
+        const decoded = verifyToken(token);
+        if (!decoded || !activeSessions.has(decoded.id) || decoded.role !== 'doctor') {
+            res.writeHead(302, { 'Location': '/' });
+            res.end();
+            return;
+        }
+        
         try {
             const renderDoctorDashboard = require('./Doctor.js');
-            const html = renderDoctorDashboard();
+            const html = await renderDoctorDashboard(decoded.id);
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(html);
         } catch (err) {
@@ -573,40 +688,118 @@ const server = http.createServer((req, res) => {
     }
     
     // API endpoint for signin
+    // API endpoint for signin
     else if (req.url === '/api/signin' && req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                console.log('Sign in attempt:', data);
+                console.log('Sign in attempt:', data.username);
                 
-                const isValid = data.username && data.password;
+                const { username, password, role } = data;
                 
+                if (!username || !password) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Username and password required' }));
+                    return;
+                }
+                
+                // Query database for user
+                const result = await query(
+                    'SELECT * FROM users WHERE username = $1 OR email = $1',
+                    [username]
+                );
+                
+                const user = result.rows[0];
+                
+                if (!user) {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Invalid credentials' }));
+                    return;
+                }
+                
+                // Verify password
+                const isValid = await bcrypt.compare(password, user.password_hash);
+                
+                if (!isValid) {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Invalid credentials' }));
+                    return;
+                }
+                
+                // Verify role matches
+                if (role && user.role !== role) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Invalid role for this user' }));
+                    return;
+                }
+                
+                // Update last login
+                await query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = $1', [user.user_id]);
+                
+                // Generate token
+                const token = generateToken({ 
+                    user_id: user.user_id, 
+                    username: user.username, 
+                    role: user.role 
+                });
+                
+                activeSessions.set(user.user_id, { token, loginTime: new Date().toISOString() });
+                
+                // Set cookie
+                res.setHeader('Set-Cookie', `token=${token}; HttpOnly; Max-Age=604800; Path=/`);
+                
+                // Determine redirect URL
                 let redirectUrl = null;
-                if (data.role === 'admin') {
+                if (user.role === 'admin') {
                     redirectUrl = '/admin-dashboard';
-                } else if (data.role === 'doctor') {
+                } else if (user.role === 'doctor') {
                     redirectUrl = '/doctor-dashboard';
-                } else if (data.role === 'lab') {
+                } else if (user.role === 'lab') {
                     redirectUrl = '/lab-dashboard';
+                } else if (user.role === 'patient') {
+                    redirectUrl = '/patient-dashboard';
                 }
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
-                    success: isValid,
-                    message: isValid ? 'Sign in successful!' : 'Invalid credentials',
-                    userType: data.userType || 'patient',
-                    role: data.role || null,
+                    success: true,
+                    message: 'Sign in successful!',
+                    user: { 
+                        id: user.user_id, 
+                        username: user.username, 
+                        email: user.email, 
+                        role: user.role 
+                    },
                     redirectTo: redirectUrl
                 }));
+                
             } catch (error) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'Invalid request' }));
+                console.error('Sign in error:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Server error' }));
             }
         });
     }
     
+    // Logout endpoint
+    else if (req.url === '/api/logout' && req.method === 'POST') {
+        const cookies = parseCookies(req);
+        const token = cookies.token;
+        
+        if (token) {
+            const decoded = verifyToken(token);
+            if (decoded) {
+                activeSessions.delete(decoded.id);
+            }
+        }
+        
+        res.setHeader('Set-Cookie', 'token=; HttpOnly; Max-Age=0; Path=/');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'Logged out' }));
+    }
+
     // 404 Not Found
     else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });

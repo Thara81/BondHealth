@@ -1,5 +1,173 @@
 const http = require('http');
 const PORT = process.env.PORT || 3002;
+const { query, getClient } = require('./db/config');
+
+// Database helper functions
+async function getLabTechnicianData(userId) {
+    try {
+        const result = await query(
+            `SELECT lt.*, u.username, u.email, h.name as hospital_name 
+             FROM lab_technicians lt
+             JOIN users u ON lt.user_id = u.user_id
+             LEFT JOIN hospitals h ON lt.hospital_id = h.hospital_id
+             WHERE lt.user_id = $1`,
+            [userId]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error fetching lab technician:', error);
+        return null;
+    }
+}
+
+async function getDashboardStats(labTechId, hospitalId) {
+    try {
+        const todayTests = await query(
+            `SELECT COUNT(*) as count 
+             FROM lab_reports 
+             WHERE lab_tech_id = $1 AND DATE(created_at) = CURRENT_DATE`,
+            [labTechId]
+        );
+
+        const pendingReports = await query(
+            `SELECT COUNT(*) as count 
+             FROM lab_reports 
+             WHERE lab_tech_id = $1 AND status = 'pending'`,
+            [labTechId]
+        );
+
+        const completedToday = await query(
+            `SELECT COUNT(*) as count 
+             FROM lab_reports 
+             WHERE lab_tech_id = $1 
+               AND status = 'completed' 
+               AND DATE(created_at) = CURRENT_DATE`,
+            [labTechId]
+        );
+
+        const urgentCases = await query(
+            `SELECT COUNT(*) as count 
+             FROM lab_reports 
+             WHERE lab_tech_id = $1 AND priority = 'urgent' AND status != 'completed'`,
+            [labTechId]
+        );
+
+        return {
+            todayTests: parseInt(todayTests.rows[0].count) || 0,
+            pendingReports: parseInt(pendingReports.rows[0].count) || 0,
+            completedToday: parseInt(completedToday.rows[0].count) || 0,
+            urgentCases: parseInt(urgentCases.rows[0].count) || 0
+        };
+    } catch (error) {
+        console.error('Error fetching stats:', error);
+        return {
+            todayTests: 0,
+            pendingReports: 0,
+            completedToday: 0,
+            urgentCases: 0
+        };
+    }
+}
+
+async function getPatientHistory(labTechId) {
+    try {
+        const result = await query(
+            `SELECT 
+                lr.report_id,
+                lr.report_uuid as id,
+                p.full_name as name,
+                p.patient_uuid as patient_id,
+                lr.test_type,
+                lr.test_date as date,
+                lr.status,
+                lr.priority,
+                lr.created_at
+             FROM lab_reports lr
+             JOIN patients p ON lr.patient_id = p.patient_id
+             WHERE lr.lab_tech_id = $1
+             ORDER BY lr.created_at DESC
+             LIMIT 50`,
+            [labTechId]
+        );
+        return result.rows;
+    } catch (error) {
+        console.error('Error fetching patient history:', error);
+        return [];
+    }
+}
+
+async function getRecentPatients(labTechId) {
+    try {
+        const result = await query(
+            `SELECT DISTINCT p.patient_uuid
+             FROM lab_reports lr
+             JOIN patients p ON lr.patient_id = p.patient_id
+             WHERE lr.lab_tech_id = $1
+             ORDER BY lr.created_at DESC
+             LIMIT 3`,
+            [labTechId]
+        );
+        return result.rows.map(row => row.patient_uuid);
+    } catch (error) {
+        console.error('Error fetching recent patients:', error);
+        return ['P-1001', 'P-1005', 'P-1012'];
+    }
+}
+
+async function saveLabReport(reportData, labTechId) {
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        
+        // Get patient_id from patient_uuid
+        const patientResult = await client.query(
+            'SELECT patient_id FROM patients WHERE patient_uuid = $1',
+            [reportData.pid]
+        );
+        
+        if (patientResult.rows.length === 0) {
+            throw new Error('Patient not found');
+        }
+        
+        // Get doctor_id from doctor_id
+        const doctorResult = await client.query(
+            'SELECT doctor_id FROM doctors WHERE doctor_uuid = $1 OR doctor_id::text = $1',
+            [reportData.docId]
+        );
+        
+        const reportUUID = 'REP-' + Date.now();
+        
+        // Insert lab report
+        const result = await client.query(
+            `INSERT INTO lab_reports (
+                report_uuid, patient_id, doctor_id, lab_tech_id,
+                test_type, test_date, results, findings, status,
+                priority, shared_with
+            ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7, 'pending', $8, $9)
+            RETURNING report_id, report_uuid`,
+            [
+                reportUUID,
+                patientResult.rows[0].patient_id,
+                doctorResult.rows[0]?.doctor_id || null,
+                labTechId,
+                reportData.testType,
+                reportData.testResults,
+                reportData.testResults,
+                reportData.priority,
+                reportData.sendTo
+            ]
+        );
+        
+        await client.query('COMMIT');
+        return result.rows[0].report_uuid;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error saving lab report:', error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
 
 const HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
@@ -556,13 +724,11 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         <div class="user-info">
             <div class="user-controls">
                 <div class="user-details">
-                    <div class="user-id" id="loggedInUser">Technician ID: Loading...</div>
-                    <div class="user-role">Lab Technician</div>
+                    <div class="user-id" id="loggedInUser">Technician ID: <span id="techIdDisplay">Loading...</span></div>
+                    <div class="user-role" id="userRole">Lab Technician</div>
                 </div>
                 <button class="logout-btn" onclick="logout()">← Sign Out</button>
             </div>
-            <div class="user-id">Technician ID: LAB-2024-8473</div>
-            <div class="user-role">Lab Technician</div>
         </div>
     </div>
 
@@ -630,7 +796,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     
                     <div class="form-group">
                         <label class="form-label">Technician ID</label>
-                        <input type="text" class="form-input" id="techId" value="LAB-2024-8473" readonly>
+                        <input type="text" class="form-input" id="techId" value="" readonly>
                     </div>
                     
                     <div class="form-group">
@@ -772,6 +938,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         });
 
         // Form Submission
+        // Form Submission
         document.getElementById('submitReport').addEventListener('click', function(e) {
             e.preventDefault();
             
@@ -789,34 +956,83 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 return;
             }
             
-            // Show success message
-            const successMessage = document.getElementById('successMessage');
-            let recipientText = '';
-            if (sendTo === 'doctor') recipientText = 'Doctor';
-            else if (sendTo === 'patient') recipientText = 'Patient';
-            else recipientText = 'Doctor & Patient';
-            
-            successMessage.querySelector('.success-text').textContent = 
-                'Report for Patient ' + pid + ' sent to ' + recipientText;
-            successMessage.classList.add('show');
-            
-            // Reset form
-            document.getElementById('pid').value = '';
-            document.getElementById('docId').value = '';
-            document.getElementById('testType').value = '';
-            document.getElementById('priority').value = 'normal';
-            document.getElementById('testResults').value = '';
-            document.getElementById('fileName').textContent = '';
-            document.getElementById('fileInput').value = '';
-            
-            // Hide success message after 3 seconds
-            setTimeout(function() {
-                successMessage.classList.remove('show');
-            }, 3000);
-            
-            // Update stats
-            updateStats();
+            // Send to server
+            fetch('/api/send-report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-Id': document.getElementById('techId').value // Send technician ID
+                },
+                body: JSON.stringify({
+                    pid: pid,
+                    docId: docId,
+                    testType: testType,
+                    priority: priority,
+                    testResults: testResults,
+                    sendTo: sendTo
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    const successMessage = document.getElementById('successMessage');
+                    let recipientText = '';
+                    if (sendTo === 'doctor') recipientText = 'Doctor';
+                    else if (sendTo === 'patient') recipientText = 'Patient';
+                    else recipientText = 'Doctor & Patient';
+                    
+                    successMessage.querySelector('.success-text').textContent = 
+                        'Report for Patient ' + pid + ' sent to ' + recipientText + ' (ID: ' + data.reportId + ')';
+                    successMessage.classList.add('show');
+                    
+                    // Reset form
+                    document.getElementById('pid').value = '';
+                    document.getElementById('docId').value = '';
+                    document.getElementById('testType').value = '';
+                    document.getElementById('priority').value = 'normal';
+                    document.getElementById('testResults').value = '';
+                    document.getElementById('fileName').textContent = '';
+                    document.getElementById('fileInput').value = '';
+                    
+                    // Hide success message after 3 seconds
+                    setTimeout(function() {
+                        successMessage.classList.remove('show');
+                    }, 3000);
+                    
+                    // Update stats
+                    updateStats();
+                    
+                    // Refresh patient history if on that tab
+                    if (!document.getElementById('patientsTab').classList.contains('hidden')) {
+                        fetchPatientHistory();
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Network error. Please try again.');
+            });
         });
+
+        // Function to fetch patient history from server
+        function fetchPatientHistory() {
+            fetch('/api/patient-history', {
+                headers: {
+                    'X-User-Id': document.getElementById('techId').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.patientHistoryData = data;
+                populatePatientsTable();
+            })
+            .catch(error => {
+                console.error('Error fetching patient history:', error);
+            });
+        }
 
         // Sample patient data
         const samplePatients = [
@@ -831,11 +1047,24 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         ];
 
         // Populate patients table
+        // Populate patients table
         function populatePatientsTable() {
             const tableBody = document.getElementById('patientsTable');
             tableBody.innerHTML = '';
             
-            samplePatients.forEach(function(patient) {
+            // Use data from server if available
+            const patients = window.patientHistoryData || [
+                { id: 'P-1001', name: 'John Smith', testType: 'Blood Test', date: '2024-12-15', status: 'completed' },
+                { id: 'P-1002', name: 'Emma Johnson', testType: 'X-Ray', date: '2024-12-15', status: 'pending' },
+                { id: 'P-1003', name: 'Michael Brown', testType: 'MRI Scan', date: '2024-12-14', status: 'completed' },
+                { id: 'P-1004', name: 'Sarah Davis', testType: 'Urine Analysis', date: '2024-12-14', status: 'urgent' },
+                { id: 'P-1005', name: 'Robert Wilson', testType: 'ECG', date: '2024-12-13', status: 'completed' },
+                { id: 'P-1006', name: 'Lisa Miller', testType: 'Ultrasound', date: '2024-12-13', status: 'pending' },
+                { id: 'P-1007', name: 'David Taylor', testType: 'Blood Test', date: '2024-12-12', status: 'completed' },
+                { id: 'P-1008', name: 'Jennifer Lee', testType: 'X-Ray', date: '2024-12-12', status: 'completed' }
+            ];
+            
+            patients.forEach(function(patient) {
                 const row = document.createElement('tr');
                 
                 // Status badge class
@@ -850,14 +1079,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 }
                 
                 row.innerHTML = 
-                    '<td>' + patient.id + '</td>' +
-                    '<td>' + patient.name + '</td>' +
-                    '<td>' + patient.testType + '</td>' +
-                    '<td>' + patient.date + '</td>' +
+                    '<td>' + (patient.patient_id || patient.id) + '</td>' +
+                    '<td>' + (patient.name || 'Unknown') + '</td>' +
+                    '<td>' + (patient.test_type || patient.testType) + '</td>' +
+                    '<td>' + (patient.test_date || patient.date || 'N/A') + '</td>' +
                     '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
                     '<td>' +
-                        '<button class="action-btn view-btn" data-id="' + patient.id + '">View</button>' +
-                        '<button class="action-btn download-btn" data-id="' + patient.id + '">Download</button>' +
+                        '<button class="action-btn view-btn" data-id="' + (patient.patient_id || patient.id) + '">View</button>' +
+                        '<button class="action-btn download-btn" data-id="' + (patient.patient_id || patient.id) + '">Download</button>' +
                     '</td>';
                 
                 tableBody.appendChild(row);
@@ -927,7 +1156,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             }
         }
         // Initialize
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Get technician ID from the page
+            const techIdElement = document.getElementById('techIdDisplay');
+            if (techIdElement) {
+                document.getElementById('loggedInUser').textContent = 'Technician ID: ' + techIdElement.textContent;
+            }
+            
             // Populate initial patient suggestions
             populatePatientsTable();
             
@@ -935,63 +1171,152 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             const now = new Date();
             document.getElementById('testResults').placeholder = 
                 'Test conducted on ' + now.toLocaleDateString() + '\\nEnter detailed test results and observations...';
-            
-            // Show logged in user
-            const loggedInUser = document.getElementById('loggedInUser');
-            loggedInUser.textContent = 'Technician ID: LAB-2024-8473';
         });
     </script>
 </body>
 </html>`;
 
 // Create HTTP server
-const server = http.createServer((req, res) => {
+// Create HTTP server
+const server = http.createServer(async (req, res) => {
     if (req.url === '/' || req.url === '/lab-dashboard') {
-        res.writeHead(200, { 
-            'Content-Type': 'text/html',
-            'Cache-Control': 'no-cache'
-        });
-        res.end(HTML_TEMPLATE);
+        try {
+            // Get user from cookie/session (you'll need to implement this based on your auth)
+            // For now, using a default or getting from query param
+            const userId = req.headers['x-user-id'] || 'default-user-id';
+            
+            // Get lab technician data
+            const labTech = await getLabTechnicianData(userId);
+            const stats = labTech ? await getDashboardStats(labTech.lab_tech_id, labTech.hospital_id) : null;
+            const recentPatients = labTech ? await getRecentPatients(labTech.lab_tech_id) : [];
+            const patientHistory = labTech ? await getPatientHistory(labTech.lab_tech_id) : [];
+            
+            // Inject data into HTML
+            let html = HTML_TEMPLATE;
+            
+            // Replace technician ID
+            if (labTech) {
+                html = html.replace(
+                    '<span id="techIdDisplay">Loading...</span>', 
+                    `<span id="techIdDisplay">${labTech.technician_uuid || labTech.employee_id || 'LAB-' + Date.now()}</span>`
+                );
+                html = html.replace(
+                    'id="techId" value=""', 
+                    `id="techId" value="${labTech.technician_uuid || labTech.employee_id || ''}"`
+                );
+            }
+            
+            // Replace stats
+            if (stats) {
+                html = html.replace(
+                    '<div class="stat-value">47</div>',
+                    `<div class="stat-value">${stats.todayTests}</div>`
+                ).replace(
+                    '<div class="stat-value">8</div>',
+                    `<div class="stat-value">${stats.pendingReports}</div>`
+                ).replace(
+                    '<div class="stat-value">39</div>',
+                    `<div class="stat-value">${stats.completedToday}</div>`
+                ).replace(
+                    '<div class="stat-value">2</div>',
+                    `<div class="stat-value">${stats.urgentCases}</div>`
+                );
+            }
+            
+            // Replace recent patient suggestions
+            if (recentPatients.length > 0) {
+                const suggestionHtml = recentPatients.map((pid, index) => 
+                    `<span class="patient-suggestion" style="color: #0066cc; cursor: pointer; margin: 0 5px;">${pid}</span>`
+                ).join('');
+                
+                html = html.replace(
+                    /Recent: <span class="patient-suggestion"[^>]*>P-1001<\/span>\s*<span class="patient-suggestion"[^>]*>P-1005<\/span>\s*<span class="patient-suggestion"[^>]*>P-1012<\/span>/,
+                    `Recent: ${suggestionHtml}`
+                );
+            }
+            
+            // Inject patient history data as JSON for JavaScript
+            if (patientHistory.length > 0) {
+                const patientHistoryJSON = JSON.stringify(patientHistory);
+                html = html.replace(
+                    '</head>',
+                    `<script>window.patientHistoryData = ${patientHistoryJSON};</script></head>`
+                );
+            }
+            
+            res.writeHead(200, { 
+                'Content-Type': 'text/html',
+                'Cache-Control': 'no-cache'
+            });
+            res.end(html);
+        } catch (error) {
+            console.error('Error rendering lab dashboard:', error);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end('<h1>500 - Internal Server Error</h1><p>Unable to load dashboard</p>');
+        }
     } else if (req.url === '/api/send-report' && req.method === 'POST') {
         let body = '';
         req.on('data', function(chunk) {
             body += chunk.toString();
         });
-        req.on('end', function() {
+        req.on('end', async function() {
             try {
                 const data = JSON.parse(body);
-                console.log('Lab Report Submission:', {
-                    timestamp: new Date().toISOString(),
-                    patientId: data.pid,
-                    doctorId: data.docId,
-                    testType: data.testType,
-                    priority: data.priority,
-                    sentTo: data.sendTo
-                });
+                
+                // Get user ID from headers
+                const userId = req.headers['x-user-id'] || 'default-user-id';
+                
+                // Get lab technician ID
+                const labTech = await getLabTechnicianData(userId);
+                
+                if (!labTech) {
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        message: 'Lab technician not found'
+                    }));
+                    return;
+                }
+                
+                // Save to database
+                const reportId = await saveLabReport(data, labTech.lab_tech_id);
                 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
                     message: 'Lab report submitted successfully',
-                    reportId: 'REP-' + Date.now(),
+                    reportId: reportId,
                     timestamp: new Date().toISOString()
                 }));
             } catch (error) {
+                console.error('Error saving report:', error);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ 
                     success: false, 
-                    message: 'Invalid request format' 
+                    message: error.message || 'Invalid request format' 
                 }));
             }
         });
-    } else if (req.url === '/api/patient-history') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify([
-            { id: 'P-1001', name: 'John Smith', testType: 'Blood Test', date: '2024-12-15', status: 'completed' },
-            { id: 'P-1002', name: 'Emma Johnson', testType: 'X-Ray', date: '2024-12-15', status: 'pending' },
-            { id: 'P-1003', name: 'Michael Brown', testType: 'MRI Scan', date: '2024-12-14', status: 'completed' },
-            { id: 'P-1004', name: 'Sarah Davis', testType: 'Urine Analysis', date: '2024-12-14', status: 'urgent' }
-        ]));
+    } else if (req.url === '/api/patient-history' && req.method === 'GET') {
+        try {
+            const userId = req.headers['x-user-id'] || 'default-user-id';
+            const labTech = await getLabTechnicianData(userId);
+            
+            if (!labTech) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Unauthorized' }));
+                return;
+            }
+            
+            const history = await getPatientHistory(labTech.lab_tech_id);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(history));
+        } catch (error) {
+            console.error('Error fetching patient history:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, message: 'Server error' }));
+        }
     } else {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 - Page Not Found');
@@ -1015,14 +1340,77 @@ if (require.main === module) {
 // ============================================
 // EXPORT for signin.js
 // ============================================
-module.exports = function renderLabDashboard() {
-    return HTML_TEMPLATE;
+// ============================================
+// EXPORT for signin.js
+// ============================================
+module.exports = async function renderLabDashboard(userId) {
+    try {
+        // Get lab technician data
+        const labTech = await getLabTechnicianData(userId);
+        const stats = labTech ? await getDashboardStats(labTech.lab_tech_id, labTech.hospital_id) : null;
+        const recentPatients = labTech ? await getRecentPatients(labTech.lab_tech_id) : [];
+        const patientHistory = labTech ? await getPatientHistory(labTech.lab_tech_id) : [];
+        
+        // Inject data into HTML (same logic as in the server)
+        let html = HTML_TEMPLATE;
+        
+        if (labTech) {
+            html = html.replace(
+                '<span id="techIdDisplay">Loading...</span>', 
+                `<span id="techIdDisplay">${labTech.technician_uuid || labTech.employee_id || 'LAB-' + Date.now()}</span>`
+            );
+            html = html.replace(
+                'id="techId" value=""', 
+                `id="techId" value="${labTech.technician_uuid || labTech.employee_id || ''}"`
+            );
+        }
+        
+        if (stats) {
+            html = html.replace(
+                '<div class="stat-value">47</div>',
+                `<div class="stat-value">${stats.todayTests}</div>`
+            ).replace(
+                '<div class="stat-value">8</div>',
+                `<div class="stat-value">${stats.pendingReports}</div>`
+            ).replace(
+                '<div class="stat-value">39</div>',
+                `<div class="stat-value">${stats.completedToday}</div>`
+            ).replace(
+                '<div class="stat-value">2</div>',
+                `<div class="stat-value">${stats.urgentCases}</div>`
+            );
+        }
+        
+        if (recentPatients.length > 0) {
+            const suggestionHtml = recentPatients.map(pid => 
+                `<span class="patient-suggestion" style="color: #0066cc; cursor: pointer; margin: 0 5px;">${pid}</span>`
+            ).join('');
+            
+            html = html.replace(
+                /Recent: <span class="patient-suggestion"[^>]*>P-1001<\/span>\s*<span class="patient-suggestion"[^>]*>P-1005<\/span>\s*<span class="patient-suggestion"[^>]*>P-1012<\/span>/,
+                `Recent: ${suggestionHtml}`
+            );
+        }
+        
+        if (patientHistory.length > 0) {
+            const patientHistoryJSON = JSON.stringify(patientHistory);
+            html = html.replace(
+                '</head>',
+                `<script>window.patientHistoryData = ${patientHistoryJSON};</script></head>`
+            );
+        }
+        
+        return html;
+    } catch (error) {
+        console.error('Error rendering lab dashboard:', error);
+        return HTML_TEMPLATE; // Return template without data on error
+    }
 };
 // Start server
-server.listen(PORT, function() {
+/*server.listen(PORT, function() {
     console.log('🔬 Lab Technician Dashboard running at:');
     console.log('   🌐 http://localhost:' + PORT + '/lab-dashboard');
     console.log('   📊 Stats: Real-time updates');
     console.log('   📤 Send reports & view patient history');
     console.log('   🚀 Ready for lab operations!');
-});
+});*/

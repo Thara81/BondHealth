@@ -64,22 +64,23 @@ app.put('/api/patient', (req, res) => {
 // ============================================
 // FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
 // ============================================
-function generatePatientHTML(patient = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
-    const patient = patientData || {
-    id: 'PT-2024-0847',
-    name: 'Alex Johnson',
-    age: 32,
-    gender: 'Male',
-    bloodType: 'O+',
-    email: 'alex.johnson@email.com',
-    contact: '+1 (555) 123-4567',
-    address: '123 Health Street, Medical City',
-    emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
-    conditions: ['Hypertension', 'Asthma'],
-    allergies: ['Penicillin'],
-    lastVisit: '2024-11-15',
-    nextAppointment: '2024-12-20'
-  };
+function generatePatientHTML(patientData = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
+    // Use the parameter if provided, otherwise use default
+    let patient = patientData || {
+        id: 'PT-2024-0847',
+        name: 'Alex Johnson',
+        age: 32,
+        gender: 'Male',
+        bloodType: 'O+',
+        email: 'alex.johnson@email.com',
+        contact: '+1 (555) 123-4567',
+        address: '123 Health Street, Medical City',
+        emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
+        conditions: ['Hypertension', 'Asthma'],
+        allergies: ['Penicillin'],
+        lastVisit: '2024-11-15',
+        nextAppointment: '2024-12-20'
+    };
 
   const appointments = appointmentsData.length ? appointmentsData : [];
   const reports = reportsData.length ? reportsData : [];

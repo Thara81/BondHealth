@@ -385,6 +385,72 @@ app.get('/api/prescriptions', authenticate, async (req, res) => {
   }
 });
 
+// API endpoint for signin (used by signin.js)
+app.post('/api/signin', async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+    
+    const result = await query(
+      'SELECT * FROM users WHERE username = $1 OR email = $1',
+      [username]
+    );
+    
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ success: false, message: 'Wrong role' });
+    }
+
+    // Update last login
+    await query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = $1', [user.user_id]);
+
+    const token = generateToken({ 
+      id: user.user_id, 
+      username: user.username, 
+      role: user.role 
+    });
+    
+    activeSessions.set(user.user_id, { token, loginTime: new Date().toISOString() });
+
+    res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    // Determine redirect URL
+    let redirectUrl = null;
+    if (user.role === 'admin') {
+        redirectUrl = '/admin-dashboard';
+    } else if (user.role === 'doctor') {
+        redirectUrl = '/doctor-dashboard';
+    } else if (user.role === 'lab') {
+        redirectUrl = '/lab-dashboard';
+    } else if (user.role === 'patient') {
+        redirectUrl = '/patient-dashboard';
+    }
+    
+    res.json({
+      success: true,
+      message: 'Sign in successful!',
+      user: { 
+        id: user.user_id, 
+        username: user.username, 
+        email: user.email, 
+        role: user.role 
+      },
+      redirectTo: redirectUrl
+    });
+  } catch (error) {
+    console.error('Sign in error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 app.post('/api/appointments', authenticate, authorize('patient'), async (req, res) => {
   try {
     const { doctor_id, appointment_date, appointment_time, reason, type, location } = req.body;
@@ -1431,10 +1497,12 @@ function generateHTML() {
 // ============================================
 
 // SERVE LAB DASHBOARD - Simple extraction, no data needed
+// SERVE LAB DASHBOARD
 app.get('/lab-dashboard', requireAuth('lab'), async (req, res) => {
     try {
         const renderLabDashboard = require('./labs.js');
-        const html = await renderLabDashboard();
+        // Pass the actual user ID from the authenticated user
+        const html = await renderLabDashboard(req.user.id);
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1449,10 +1517,11 @@ app.get('/lab-dashboard', requireAuth('lab'), async (req, res) => {
 
 
 // SERVE PATIENT DASHBOARD - Auto-extract everything from Patient.js
+// SERVE PATIENT DASHBOARD
 app.get('/patient-dashboard', requireAuth('patient'), async(req, res) => {
     try {
         const renderPatientDashboard = require('./Patient.js');
-        const html = await renderPatientDashboard();
+        const html = await renderPatientDashboard(req.user.id); // Pass user ID
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1465,10 +1534,10 @@ app.get('/patient-dashboard', requireAuth('patient'), async(req, res) => {
     }
 });
 
-app.get('/admin-dashboard', requireAuth('admin'), async (req, res) => {  // ← Add async
+app.get('/admin-dashboard', requireAuth('admin'), async (req, res) => {
     try {
         const renderAdminDashboard = require('./admin.js');
-        const html = await renderAdminDashboard();  // ← Add await
+        const html = await renderAdminDashboard(req.user.id); // Pass user ID
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
@@ -1483,10 +1552,11 @@ app.get('/admin-dashboard', requireAuth('admin'), async (req, res) => {  // ← 
 
 
 // SERVE DOCTOR DASHBOARD - USING EXPORTED FUNCTION FROM Doctor.js
+// SERVE DOCTOR DASHBOARD
 app.get('/doctor-dashboard', requireAuth('doctor'), async(req, res) => {
     try {
         const renderDoctorDashboard = require('./Doctor.js');
-        const html = await renderDoctorDashboard();
+        const html = await renderDoctorDashboard(req.user.id); // Pass user ID
         res.setHeader('Content-Type', 'text/html');
         res.send(html);
     } catch (err) {
