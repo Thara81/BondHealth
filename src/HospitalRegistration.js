@@ -1,6 +1,6 @@
 // HospitalRegistration.js - Hospital Registration Portal (Single File)
-const http = require('http');
-const PORT = process.env.PORT || 3002;
+const { query, getClient } = require('./db/config');
+const bcrypt = require('bcryptjs');
 
 const HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
@@ -1673,7 +1673,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 // Data storage for registered hospitals (in-memory for demo)
-let registeredHospitals = [];
+/*let registeredHospitals = [];
 
 const server = http.createServer((req, res) => {
     // Serve the main registration page
@@ -1749,11 +1749,84 @@ const server = http.createServer((req, res) => {
         res.end('404 Not Found');
     }
 });
+*/
+// ============================================
+// API ENDPOINT HANDLER (to be used by home.js)
+// ============================================
+async function handleHospitalRegistration(reqBody) {
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        
+        const {
+            hospitalName,
+            hospitalType,
+            registrationNumber,
+            city,
+            contactNo,
+            officialEmail,
+            adminName,
+            designation,
+            adminEmail,
+            departments
+        } = reqBody;
+        
+        // Insert hospital
+        const hospitalResult = await client.query(
+            `INSERT INTO hospitals (hospital_uuid, name, type, city, phone, email)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING hospital_id, hospital_uuid`,
+            ['HOSP-' + Date.now(), hospitalName, hospitalType, city, contactNo, officialEmail]
+        );
+        
+        const hospitalId = hospitalResult.rows[0].hospital_id;
+        
+        // Create admin user
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('password123', salt); // Temporary password
+        
+        const userResult = await client.query(
+            `INSERT INTO users (username, email, password_hash, role, hospital_id)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING user_id`,
+            [adminEmail.split('@')[0], adminEmail, hashedPassword, 'admin', hospitalId]
+        );
+        
+        // Insert hospital admin
+        await client.query(
+            `INSERT INTO hospital_admins (user_id, hospital_id, full_name, position, phone, email)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [userResult.rows[0].user_id, hospitalId, adminName, designation, contactNo, adminEmail]
+        );
+        
+        await client.query('COMMIT');
+        
+        return {
+            success: true,
+            hospitalId: hospitalResult.rows[0].hospital_uuid,
+            message: 'Hospital registered successfully'
+        };
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Hospital registration error:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    } finally {
+        client.release();
+    }
+}
 
-// At the bottom of HospitalRegistration.js, add:
+// Export both the template and the handler
 module.exports = function renderHospitalRegistration() {
     return HTML_TEMPLATE;
 };
+module.exports.handleRegistration = handleHospitalRegistration;
+
+// At the bottom of HospitalRegistration.js, add:
+
 
 
 // server.listen(PORT, () => {

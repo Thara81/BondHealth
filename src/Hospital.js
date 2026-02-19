@@ -1,10 +1,8 @@
-// Hospital.js - Hospital Management Dashboard (Single File)
-const http = require('http');
+//Hospital.js
 const PORT = process.env.PORT || 3000;
 const express = require('express');
 const app = express();
-const { query, getClient } = require('./db/config');
-const { query } = require('./db/config');
+const { query, getClient } = require('./db/config');  // ← ONLY this line
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 // Data storage (simulating localStorage on server)
@@ -173,8 +171,18 @@ app.use(express.urlencoded({ extended: true }));
 });*/
 
 // HTML Template Functions
-function getMainDashboardHTML() {
-  return `<!DOCTYPE html>
+function getMainDashboardHTML(hospitalData = null, doctors = [], medicines = [], labs = []) {
+    const currentHospitalData = {
+        hospitalName: hospitalData?.name || 'City General Hospital',
+        hospitalId: hospitalData?.hospital_uuid || 'HOS-12345',
+        stats: {
+            total_doctors: doctors.length,
+            total_medicines: medicines.length,
+            total_labs: labs.length
+        },
+        specialities: [...new Set(doctors.map(d => d.specialization).filter(Boolean))]
+    };
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">

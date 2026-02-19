@@ -8,8 +8,12 @@ app.use(express.urlencoded({ extended: true }));
 
 const { query } = require('./db/config');
 
+let doctors = [];
+let todaysAppointments = [];
 
 function generateHTML() {
+  const doctors = doctorsData;
+  const todaysAppointments = appointmentsData;  
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -960,35 +964,44 @@ if (require.main === module) {
 // EXPORT for signin.js - THIS REPLACES the old module.exports
 // ============================================
 // REPLACE the export at the bottom with:
-module.exports = async function renderAdminDashboard() {
+module.exports = async function renderAdminDashboard(userId) {
   try {
-    // Load doctors from database
-    const doctorsResult = await query(
-      `SELECT d.*, h.name as hospital_name 
-       FROM doctors d
-       JOIN hospitals h ON d.hospital_id = h.hospital_id
-       ORDER BY d.full_name`
-    );
-    doctors = doctorsResult.rows;
-
+    // First, get the hospital_id for this admin
     const adminResult = await query(
       `SELECT hospital_id FROM hospital_admins WHERE user_id = $1`,
       [userId]
     );
     
-    // Load today's appointments
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      console.error('No hospital found for admin user:', userId);
+      return '<h1>Error: No hospital associated with this admin account</h1>';
+    }
+    
+    // Load doctors for this hospital
+    const doctorsResult = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       WHERE d.hospital_id = $1
+       ORDER BY d.full_name`,
+      [hospitalId]
+    );
+    
+    // Load today's appointments for this hospital
     const appointmentsResult = await query(
       `SELECT a.*, p.full_name as patient_name, d.full_name as doctor_name,
               d.photo_url as doctor_photo, d.doctor_id
        FROM appointments a
        JOIN patients p ON a.patient_id = p.patient_id
        JOIN doctors d ON a.doctor_id = d.doctor_id
-       WHERE a.appointment_date = CURRENT_DATE
-       ORDER BY a.appointment_time`
+       WHERE a.hospital_id = $1 AND a.appointment_date = CURRENT_DATE
+       ORDER BY a.appointment_time`,
+      [hospitalId]
     );
-    todaysAppointments = appointmentsResult.rows;
     
-    return generateHTML();
+    return generateHTML(doctorsResult.rows, appointmentsResult.rows);
   } catch (error) {
     console.error('Error loading admin dashboard data:', error);
     return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
