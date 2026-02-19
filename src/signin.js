@@ -488,7 +488,7 @@ const SIGNIN_TEMPLATE = `<!doctype html>
 // ============================================
 // HTTP SERVER
 // ============================================
-const server = http.createServer(async (req, res) => {
+/*const server = http.createServer(async (req, res) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     
     // Serve Sign In page
@@ -805,7 +805,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('404 Not Found');
     }
-});
+});*/
 
 // At the bottom of signin.js, add:
 module.exports = function renderSignInPage() {

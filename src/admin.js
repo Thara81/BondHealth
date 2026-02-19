@@ -8,8 +8,6 @@ app.use(express.urlencoded({ extended: true }));
 
 const { query } = require('./db/config');
 
-let doctors = [];
-let todaysAppointments = [];
 
 function generateHTML() {
   return `
@@ -972,6 +970,11 @@ module.exports = async function renderAdminDashboard() {
        ORDER BY d.full_name`
     );
     doctors = doctorsResult.rows;
+
+    const adminResult = await query(
+      `SELECT hospital_id FROM hospital_admins WHERE user_id = $1`,
+      [userId]
+    );
     
     // Load today's appointments
     const appointmentsResult = await query(

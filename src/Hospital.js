@@ -1,19 +1,14 @@
 // Hospital.js - Hospital Management Dashboard (Single File)
 const http = require('http');
 const PORT = process.env.PORT || 3000;
-
+const express = require('express');
+const app = express();
+const { query, getClient } = require('./db/config');
+const { query } = require('./db/config');
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // Data storage (simulating localStorage on server)
-let hospitalData = {
-  hospitalName: 'City General Hospital',
-  hospitalId: 'HOS-12345',
-  specialities: [],
-  doctors: [],
-  medicines: [],
-  labs: [],
-  specialityDetails: []
-};
-let currentHospitalData = { ...hospitalData, stats: { total_doctors: 0, total_medicines: 0, total_labs: 0 } };
-const server = http.createServer((req, res) => {
+/*const server = http.createServer((req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -175,7 +170,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('404 Not Found');
   }
-});
+});*/
 
 // HTML Template Functions
 function getMainDashboardHTML() {
@@ -3169,18 +3164,111 @@ function getAddLabHTML() {
 </body>
 </html>`;
 }
-module.exports = function renderHospitalDashboard(data = null) {
-    if (data) {
-        currentHospitalData = {
-            hospitalName: data.hospital?.name || 'City General Hospital',
-            hospitalId: data.hospital?.hospital_uuid || 'HOS-12345',
-            specialities: data.specialities || [],
-            doctors: data.doctors || [],
-            medicines: data.medicines || [],
-            labs: data.labs || [],
-            stats: data.stats || { total_doctors: 0, total_medicines: 0, total_labs: 0 },
-            recentActivity: data.recentActivity || []
-        };
-    }
-    return getMainDashboardHTML();
+
+app.get('/api/hospital/data', async (req, res) => {
+  try {
+    // For now, get the first hospital (you'll need to pass hospital_id)
+    const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
+    const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    
+    res.json({
+      hospitalName: hospitalResult.rows[0]?.name || 'City General Hospital',
+      hospitalId: hospitalResult.rows[0]?.hospital_uuid || 'HOS-12345',
+      doctors: doctorsResult.rows,
+      medicines: medicinesResult.rows,
+      labs: labsResult.rows,
+      specialities: [...new Set(doctorsResult.rows.map(d => d.specialization).filter(Boolean))]
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hospital/add/doctor', async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { name, speciality, phone, email, designation } = req.body;
+    
+    // Create user account for doctor
+    const userResult = await client.query(
+      `INSERT INTO users (username, email, password_hash, role) 
+       VALUES ($1, $2, $3, $4) RETURNING user_id`,
+      [email.split('@')[0], email, 'temporary_hash', 'doctor']
+    );
+    
+    // Add doctor to doctors table
+    const doctorResult = await client.query(
+      `INSERT INTO doctors (user_id, hospital_id, full_name, specialization, phone, email, designation)
+       VALUES ($1, (SELECT hospital_id FROM hospitals LIMIT 1), $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [userResult.rows[0].user_id, name, speciality, phone, email, designation]
+    );
+    
+    await client.query('COMMIT');
+    res.json({ success: true, data: doctorResult.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/hospital/add/medicine', async (req, res) => {
+  try {
+    const { name, quantity, price, expiry } = req.body;
+    
+    const result = await query(
+      `INSERT INTO medicines (hospital_id, name, quantity, price, expiry_date)
+       VALUES ((SELECT hospital_id FROM hospitals LIMIT 1), $1, $2, $3, $4)
+       RETURNING *`,
+      [name, quantity, price, expiry]
+    );
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/hospital/add/lab', async (req, res) => {
+  try {
+    const labData = req.body;
+    
+    // Store lab data in a labs table (you may need to create this table)
+    const result = await query(
+      `INSERT INTO lab_technicians (hospital_id, full_name, employee_id, phone, email)
+       VALUES ((SELECT hospital_id FROM hospitals LIMIT 1), $1, $2, $3, $4)
+       RETURNING *`,
+      [labData.name, labData.licenseNumber, labData.phone, labData.email]
+    );
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+module.exports = async function renderHospitalDashboard(data = null) {
+  try {
+    // Get hospital data from database
+    const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
+    const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+    
+    return getMainDashboardHTML(
+      hospitalResult.rows[0] || null,
+      doctorsResult.rows || [],
+      medicinesResult.rows || [],
+      labsResult.rows || []
+    );
+  } catch (error) {
+    console.error('Error loading hospital dashboard:', error);
+    return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+  }
 };
