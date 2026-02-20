@@ -10,6 +10,7 @@ const patient = {};
 
 const appointments = [];
 
+// Enhanced doctors data
 const doctors = [];
 
 const hospitals = [];
@@ -18,12 +19,53 @@ const reports = [];
 
 const prescriptions = [];
 
+
+/*
+app.get('/api/patient', (req, res) => {
+  res.json(patient);
+});
+
+app.get('/api/appointments', (req, res) => {
+  res.json(appointments);
+});
+
+app.get('/api/doctors', (req, res) => {
+  res.json(doctors);
+});
+
+app.get('/api/hospitals', (req, res) => {
+  res.json(hospitals);
+});
+
+app.get('/api/reports', (req, res) => {
+  res.json(reports);
+});
+
+app.get('/api/prescriptions', (req, res) => {
+  res.json(prescriptions);
+});
+
+app.post('/api/appointments', (req, res) => {
+  const newAppointment = {
+    id: `APT-${Date.now()}`,
+    ...req.body,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+  appointments.push(newAppointment);
+  res.status(201).json(newAppointment);
+});
+*/
 app.put('/api/patient', (req, res) => {
   Object.assign(patient, req.body);
   res.json(patient);
 });
 
+// ============================================
+// FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
+// ============================================
 function generatePatientHTML(patientData = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
+    // Map database fields to the format expected by the template
     console.log('🎯 generatePatientHTML called with:', {
         patientData: patientData ? 'Data present' : 'No data',
         appointmentsCount: appointmentsData.length,
@@ -41,9 +83,8 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         contact: patientData.phone || '+1 (555) 123-4567',
         address: patientData.address || '123 Health Street, Medical City',
         emergencyContact: patientData.emergency_contact_name ? 
-            patientData.emergency_contact_name : 'Jane Johnson',
-        emergencyPhone: patientData.emergency_contact_phone || '+1 (555) 987-6543',
-        emergencyRelation: patientData.emergency_relation || 'Wife',
+            `${patientData.emergency_contact_name} ${patientData.emergency_contact_phone || ''}` : 
+            'Jane Johnson (Wife) +1 (555) 987-6543',
         conditions: patientData.medical_conditions || ['Hypertension', 'Asthma'],
         allergies: patientData.allergies || ['Penicillin'],
         lastVisit: patientData.last_visit || '2024-11-15',
@@ -57,15 +98,14 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         email: 'alex.johnson@email.com',
         contact: '+1 (555) 123-4567',
         address: '123 Health Street, Medical City',
-        emergencyContact: 'Jane Johnson',
-        emergencyPhone: '+1 (555) 987-6543',
-        emergencyRelation: 'Wife',
+        emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
         conditions: ['Hypertension', 'Asthma'],
         allergies: ['Penicillin'],
         lastVisit: '2024-11-15',
         nextAppointment: '2024-12-20'
     };
 
+    // Helper function to calculate age from date of birth
     function calculateAge(dob) {
         const birthDate = new Date(dob);
         const today = new Date();
@@ -77,6 +117,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         return age;
     }
 
+    // Map appointments data
     const appointments = appointmentsData.map(apt => ({
         id: apt.appointment_uuid || apt.appointment_id,
         doctor: apt.doctor || 'Dr. Sarah Chen',
@@ -90,28 +131,27 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         notes: apt.notes || ''
     }));
 
+    // Map reports data
     const reports = reportsData.map(rep => ({
         id: rep.report_uuid || rep.report_id,
         name: rep.test_type || 'Medical Report',
         type: rep.test_type?.toLowerCase().includes('blood') ? 'lab' : 'general',
         date: rep.test_date || rep.created_at || new Date().toISOString().split('T')[0],
-        file_url: rep.file_url || '#',
         results: rep.results || 'Results pending',
-        doctor: rep.doctor_name || 'Dr. Smith',
-        notes: rep.notes || ''
+        findings: rep.findings || 'No findings recorded',
+        doctor: 'Dr. Sarah Chen',
+        file_url: rep.file_url || '#'
     }));
 
+    // Map prescriptions data
     const prescriptions = prescriptionsData.map(rx => ({
         id: rx.prescription_uuid || rx.prescription_id,
         medicine: rx.medicine_name || 'Medication',
         dosage: rx.dosage || 'As prescribed',
         frequency: rx.frequency || 'Daily',
-        duration: rx.duration || '30 days',
-        instructions: rx.instructions || 'Take with food',
-        refills: rx.refills_remaining || 2,
         validUntil: rx.valid_until || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
-        doctor: rx.doctor_name || 'Dr. Sarah Chen',
-        pharmacy: 'BondHealth Pharmacy'
+        instructions: rx.instructions || 'Take with food',
+        refills: 2
     }));
 
   return `
@@ -330,16 +370,16 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         .btn-logout {
-          background: #4b5563;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
           color: white;
           font-weight: 600;
           transition: all 0.3s ease;
         }
         
         .btn-logout:hover {
-          background: #1f2937;
+          background: linear-gradient(135deg, #dc2626, #b91c1c);
           transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(75, 85, 99, 0.3);
+          box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
         }
         
         .glass-effect {
@@ -716,7 +756,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               'Patient ID': patient.id,
               'Age': `${patient.age} years`,
               'Gender': patient.gender,
-              'Blood Type': patient.bloodType || 'Not specified',
+              'Blood Type': patient.bloodType,
               'Contact': patient.contact,
               'Email': patient.email,
               'Last Visit': patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'
@@ -734,22 +774,22 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div>
                 <p class="text-sm text-gray-500">Medical Conditions</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patient.conditions && patient.conditions.length > 0 ? patient.conditions.map(cond => `
+                  ${patient.conditions.map(cond => `
                     <span class="px-3 py-1 cyan-bg text-white rounded-full text-sm">${cond}</span>
-                  `).join('') : '<span class="text-gray-500">None listed</span>'}
+                  `).join('')}
                 </div>
               </div>
               <div>
                 <p class="text-sm cyan-text">Allergies</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patient.allergies && patient.allergies.length > 0 ? patient.allergies.map(allergy => `
+                  ${patient.allergies.map(allergy => `
                     <span class="px-3 py-1 cyan-dark text-white rounded-full text-sm">${allergy}</span>
-                  `).join('') : '<span class="text-gray-500">None listed</span>'}
+                  `).join('')}
                 </div>
               </div>
               <div>
                 <p class="text-sm cyan-text">Emergency Contact</p>
-                <p class="font-semibold">${patient.emergencyContact} (${patient.emergencyRelation}) - ${patient.emergencyPhone}</p>
+                <p class="font-semibold">${patient.emergencyContact}</p>
               </div>
               <div>
                 <p class="text-sm cyan-text">Address</p>
@@ -792,16 +832,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Phone</label>
-                  <div class="flex">
-                    <select id="editCountryCode" class="px-3 py-3 border border-gray-200 rounded-l-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                      <option value="+1">+1 (US)</option>
-                      <option value="+44">+44 (UK)</option>
-                      <option value="+91" selected>+91 (IN)</option>
-                      <option value="+61">+61 (AU)</option>
-                      <option value="+971">+971 (UAE)</option>
-                    </select>
-                    <input type="tel" id="editPhone" value="${patient.contact.replace(/[^0-9]/g, '')}" class="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                  </div>
+                  <input type="tel" id="editPhone" value="${patient.contact}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Gender</label>
@@ -809,7 +840,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                     <option value="Male" ${patient.gender === 'Male' ? 'selected' : ''}>Male</option>
                     <option value="Female" ${patient.gender === 'Female' ? 'selected' : ''}>Female</option>
                     <option value="Other" ${patient.gender === 'Other' ? 'selected' : ''}>Other</option>
-                    <option value="Prefer not to say" ${patient.gender === 'Prefer not to say' ? 'selected' : ''}>Prefer not to say</option>
                   </select>
                 </div>
                 <div>
@@ -819,11 +849,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                     <option value="A-" ${patient.bloodType === 'A-' ? 'selected' : ''}>A-</option>
                     <option value="B+" ${patient.bloodType === 'B+' ? 'selected' : ''}>B+</option>
                     <option value="B-" ${patient.bloodType === 'B-' ? 'selected' : ''}>B-</option>
-                    <option value="AB+" ${patient.bloodType === 'AB+' ? 'selected' : ''}>AB+</option>
-                    <option value="AB-" ${patient.bloodType === 'AB-' ? 'selected' : ''}>AB-</option>
                     <option value="O+" ${patient.bloodType === 'O+' ? 'selected' : ''}>O+</option>
                     <option value="O-" ${patient.bloodType === 'O-' ? 'selected' : ''}>O-</option>
-                    <option value="Unknown" ${!patient.bloodType || patient.bloodType === 'Unknown' ? 'selected' : ''}>Unknown</option>
+                    <option value="AB+" ${patient.bloodType === 'AB+' ? 'selected' : ''}>AB+</option>
+                    <option value="AB-" ${patient.bloodType === 'AB-' ? 'selected' : ''}>AB-</option>
                   </select>
                 </div>
                 <div>
@@ -842,24 +871,15 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Contact Name</label>
-                  <input type="text" id="editEmergencyName" value="${patient.emergencyContact}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <input type="text" id="editEmergencyName" value="${patient.emergencyContact.split(' ')[0]} ${patient.emergencyContact.split(' ')[1] || ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Relationship</label>
-                  <input type="text" id="editEmergencyRelation" value="${patient.emergencyRelation}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Wife, Husband, Brother">
+                  <input type="text" id="editEmergencyRelation" value="Wife" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div class="md:col-span-2">
                   <label class="block text-sm font-medium cyan-text mb-2">Emergency Phone</label>
-                  <div class="flex">
-                    <select id="editEmergencyCountryCode" class="px-3 py-3 border border-gray-200 rounded-l-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                      <option value="+1">+1 (US)</option>
-                      <option value="+44">+44 (UK)</option>
-                      <option value="+91" selected>+91 (IN)</option>
-                      <option value="+61">+61 (AU)</option>
-                      <option value="+971">+971 (UAE)</option>
-                    </select>
-                    <input type="tel" id="editEmergencyPhone" value="${patient.emergencyPhone.replace(/[^0-9]/g, '')}" class="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                  </div>
+                  <input type="tel" id="editEmergencyPhone" value="+1 (555) 987-6543" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
               </div>
               
@@ -869,11 +889,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div class="grid grid-cols-1 gap-4 mb-6">
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Medical Conditions (comma separated)</label>
-                  <input type="text" id="editConditions" value="${patient.conditions ? patient.conditions.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Hypertension, Asthma">
+                  <input type="text" id="editConditions" value="${patient.conditions ? patient.conditions.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Allergies (comma separated)</label>
-                  <input type="text" id="editAllergies" value="${patient.allergies ? patient.allergies.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Penicillin, Peanuts">
+                  <input type="text" id="editAllergies" value="${patient.allergies ? patient.allergies.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                 </div>
               </div>
               
@@ -1289,27 +1309,19 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const countryCode = document.getElementById('editCountryCode').value;
-            const phone = document.getElementById('editPhone').value;
-            const emergencyCountryCode = document.getElementById('editEmergencyCountryCode').value;
-            const emergencyPhone = document.getElementById('editEmergencyPhone').value;
-            
-            const conditions = document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c);
-            const allergies = document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a);
-            
             const formData = {
               full_name: document.getElementById('editName').value,
               email: document.getElementById('editEmail').value,
-              phone: countryCode + phone,
+              phone: document.getElementById('editPhone').value,
               gender: document.getElementById('editGender').value,
               blood_type: document.getElementById('editBloodType').value,
               date_of_birth: document.getElementById('editDob').value,
               address: document.getElementById('editAddress').value,
               emergency_contact_name: document.getElementById('editEmergencyName').value,
-              emergency_contact_phone: emergencyCountryCode + emergencyPhone,
+              emergency_contact_phone: document.getElementById('editEmergencyPhone').value,
               emergency_relation: document.getElementById('editEmergencyRelation').value,
-              medical_conditions: conditions,
-              allergies: allergies
+              medical_conditions: document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c),
+              allergies: document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a)
             };
             
             try {
@@ -1532,21 +1544,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           document.getElementById('uploadReportForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const testType = document.getElementById('reportTestType').value;
-            const testDate = document.getElementById('reportTestDate').value;
-            const notes = document.getElementById('reportNotes').value;
-            
-            if (!selectedFile) {
-              showToast('Error', 'Please select a file to upload', 'error');
-              return;
-            }
-            
-            const formData = new FormData();
-            formData.append('test_type', testType);
-            formData.append('test_date', testDate);
-            formData.append('notes', notes);
-            formData.append('file', selectedFile);
-            
             showToast('Success', 'Report uploaded successfully!', 'success');
             uploadReportModal.classList.add('hidden');
             setTimeout(() => window.location.reload(), 1500);
@@ -1567,11 +1564,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           
           document.getElementById('orderMedicinesForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const prescriptionId = document.getElementById('orderPrescription').value;
-            const quantity = document.getElementById('orderQuantity').value;
-            const address = document.getElementById('orderAddress').value;
-            const payment = document.getElementById('orderPayment').value;
             
             showToast('Success', 'Order placed successfully!', 'success');
             orderMedicinesModal.classList.add('hidden');
@@ -1821,13 +1813,31 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           btn.textContent = 'Booking...';
           
           try {
-            showToast('Success', 'Appointment booked successfully!', 'success');
-            document.getElementById('bookingModal').classList.add('hidden');
+            const response = await fetch('/api/appointments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                doctor_id: selectedDoctor.doctor_id,
+                appointment_date: selectedDate,
+                appointment_time: selectedTime,
+                reason: reason || 'General consultation',
+                type: 'in-person',
+                location: selectedDoctor.hospital_name
+              })
+            });
             
-            setTimeout(() => {
-              document.querySelector('[data-section="appointments"]').click();
-              window.location.reload();
-            }, 1500);
+            if (response.ok) {
+              showToast('Success', 'Appointment booked successfully!', 'success');
+              document.getElementById('bookingModal').classList.add('hidden');
+              
+              setTimeout(() => {
+                document.querySelector('[data-section="appointments"]').click();
+                window.location.reload();
+              }, 1500);
+            } else {
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to book appointment', 'error');
+            }
           } catch (error) {
             console.error('Error booking appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1885,12 +1895,27 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           btn.textContent = 'Rescheduling...';
           
           try {
-            showToast('Success', 'Appointment rescheduled successfully!', 'success');
-            document.getElementById('rescheduleModal').classList.add('hidden');
+            const response = await fetch(\`/api/appointments/\${rescheduleAppointmentId}/reschedule\`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                new_date: rescheduleDate,
+                new_time: rescheduleTime,
+                reason: reason || 'Patient requested reschedule'
+              })
+            });
             
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
+            if (response.ok) {
+              showToast('Success', 'Appointment rescheduled successfully!', 'success');
+              document.getElementById('rescheduleModal').classList.add('hidden');
+              
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
+            } else {
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to reschedule', 'error');
+            }
           } catch (error) {
             console.error('Error rescheduling appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1902,11 +1927,24 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         async function cancelAppointment(appointmentId) {
           try {
-            showToast('Success', 'Appointment cancelled successfully!', 'success');
+            const response = await fetch(\`/api/appointments/\${appointmentId}/cancel\`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                reason: 'Cancelled by patient'
+              })
+            });
             
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
+            if (response.ok) {
+              showToast('Success', 'Appointment cancelled successfully!', 'success');
+              
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
+            } else {
+              const error = await response.json();
+              showToast('Error', error.message || 'Failed to cancel', 'error');
+            }
           } catch (error) {
             console.error('Error cancelling appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1938,7 +1976,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                   </div>
                   <h3 class="text-base font-semibold cyan-text mb-1">\${report.name}</h3>
                   <p class="text-xs cyan-text opacity-75 mb-2">\${new Date(report.date).toLocaleDateString()}</p>
-                  <p class="text-xs text-gray-600 mb-3">Dr. \${report.doctor}</p>
                   <div class="flex justify-between">
                     <button class="text-xs cyan-dark text-white px-3 py-1.5 rounded-lg" onclick="viewReport('\${report.id}')">
                       <i class="fas fa-eye mr-1"></i>View
@@ -1989,24 +2026,20 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                     </div>
                   </div>
                   
-                  <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-200 text-xs">
+                  <div class="grid grid-cols-2 gap-2 pt-3 border-t border-gray-200 text-xs">
                     <div>
                       <p class="text-xs cyan-text">Valid Until</p>
                       <p class="font-semibold">\${new Date(rx.validUntil).toLocaleDateString()}</p>
                     </div>
                     <div>
-                      <p class="text-xs cyan-text">Days Left</p>
-                      <p class="font-semibold">\${Math.ceil((new Date(rx.validUntil) - new Date()) / (1000 * 60 * 60 * 24))}</p>
-                    </div>
-                    <div>
-                      <p class="text-xs cyan-text">Refills</p>
+                      <p class="text-xs cyan-text">Refills Left</p>
                       <p class="font-semibold">\${rx.refills}</p>
                     </div>
                   </div>
                   
-                  <div class="mt-3 flex justify-between items-center">
-                    <p class="text-xs text-gray-600">Dr. \${rx.doctor}</p>
-                    <div class="flex space-x-2">
+                  <div class="mt-3">
+                    <p class="text-xs text-gray-600 mb-2">\${rx.instructions || 'Take as directed by physician'}</p>
+                    <div class="flex justify-end">
                       <button class="text-xs btn-white px-3 py-1.5 rounded-lg" onclick="viewPrescription('\${rx.id}')">
                         <i class="fas fa-info-circle mr-1"></i>Details
                       </button>
@@ -2020,8 +2053,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div class="flex justify-between items-center mb-4">
                 <h3 class="text-base font-semibold cyan-text">Pharmacy Services</h3>
                 <button class="px-4 py-2 btn-cyan rounded-lg text-sm" onclick="openOrderMedicinesModal()">
-                  <i class="fas fa-shopping-cart mr-1"></i>Order
+                  <i class="fas fa-shopping-cart mr-1"></i>Order Medicines
                 </button>
+              </div>
+              <div class="grid grid-cols-1 gap-2 text-xs text-gray-600">
+                <p><i class="fas fa-truck mr-2 cyan-text"></i>Free home delivery on orders above $50</p>
+                <p><i class="fas fa-clock mr-2 cyan-text"></i>24/7 pharmacist support</p>
+                <p><i class="fas fa-shield-alt mr-2 cyan-text"></i>100% authentic medicines guaranteed</p>
               </div>
             </div>
           \`;
@@ -2050,18 +2088,14 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                   <p class="text-xs cyan-text">Date</p>
                   <p class="text-sm font-semibold">\${new Date(report.date).toLocaleDateString()}</p>
                 </div>
-                <div class="cyan-light p-3 rounded-lg">
-                  <p class="text-xs cyan-text">Doctor</p>
-                  <p class="text-sm font-semibold">\${report.doctor}</p>
-                </div>
-                <div class="cyan-light p-3 rounded-lg">
-                  <p class="text-xs cyan-text">Type</p>
-                  <p class="text-sm font-semibold">\${report.type.toUpperCase()}</p>
-                </div>
               </div>
               <div class="cyan-light p-3 rounded-lg">
                 <p class="text-xs cyan-text mb-1">Results</p>
                 <p class="text-sm">\${report.results}</p>
+              </div>
+              <div class="cyan-light p-3 rounded-lg">
+                <p class="text-xs cyan-text mb-1">Findings</p>
+                <p class="text-sm">\${report.findings}</p>
               </div>
             </div>
           \`;
@@ -2116,12 +2150,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         window.viewPrescription = viewPrescription;
         
-        function viewPrescriptionHistory(prescriptionId) {
-          showToast('History', \`Viewing history for prescription \${prescriptionId}\`, 'info');
-        }
-        
-        window.viewPrescriptionHistory = viewPrescriptionHistory;
-        
         function requestRefill(prescriptionId) {
           const prescription = prescriptionsData.find(p => p.id === prescriptionId);
           if (prescription) {
@@ -2169,16 +2197,33 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         window.openSettings = openSettings;
+        
+        // Make doctorsData available globally for reschedule modal
+        const doctorsData = ${JSON.stringify(doctors)};
       </script>
     </body>
     </html>
   `;
 }
 
+// ============================================
+// ROUTES - Use the generatePatientHTML function
+// ============================================
+
+
+// ============================================
+// START SERVER - ONLY when run directly
+// ============================================
+
+
+// ============================================
+// EXPORT for signin.js
+// ============================================
 module.exports = async function renderPatientDashboard(userId) {
   try {
     console.log('🔍 Starting renderPatientDashboard for user:', userId);
     
+    // Get patient data using the user_id from the logged-in user
     const patientResult = await query(
       `SELECT * FROM patients WHERE user_id = $1`,
       [userId]
@@ -2214,14 +2259,19 @@ module.exports = async function renderPatientDashboard(userId) {
     console.log('📄 Reports found:', reportsResult.rows.length);
     
     const prescriptionsResult = await query(
-      `SELECT p.*, d.full_name as doctor_name 
-       FROM prescriptions p
-       LEFT JOIN doctors d ON p.doctor_id = d.doctor_id
-       WHERE p.patient_id = $1 AND p.status = 'active' 
-       ORDER BY p.created_at DESC`,
+      `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active' ORDER BY created_at DESC`,
       [patientId]
     );
     console.log('💊 Prescriptions found:', prescriptionsResult.rows.length);
+    
+    // Get doctors for booking
+    const doctorsResult = await query(
+      `SELECT d.*, h.name as hospital_name 
+       FROM doctors d
+       JOIN hospitals h ON d.hospital_id = h.hospital_id
+       WHERE d.status = 'Available'
+       ORDER BY d.full_name`
+    );
     
     console.log('🎨 Generating HTML...');
     const html = generatePatientHTML(
