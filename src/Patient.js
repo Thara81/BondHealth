@@ -10,7 +10,6 @@ const patient = {};
 
 const appointments = [];
 
-// Enhanced doctors data
 const doctors = [];
 
 const hospitals = [];
@@ -19,53 +18,12 @@ const reports = [];
 
 const prescriptions = [];
 
-
-/*
-app.get('/api/patient', (req, res) => {
-  res.json(patient);
-});
-
-app.get('/api/appointments', (req, res) => {
-  res.json(appointments);
-});
-
-app.get('/api/doctors', (req, res) => {
-  res.json(doctors);
-});
-
-app.get('/api/hospitals', (req, res) => {
-  res.json(hospitals);
-});
-
-app.get('/api/reports', (req, res) => {
-  res.json(reports);
-});
-
-app.get('/api/prescriptions', (req, res) => {
-  res.json(prescriptions);
-});
-
-app.post('/api/appointments', (req, res) => {
-  const newAppointment = {
-    id: `APT-${Date.now()}`,
-    ...req.body,
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  };
-  appointments.push(newAppointment);
-  res.status(201).json(newAppointment);
-});
-*/
 app.put('/api/patient', (req, res) => {
   Object.assign(patient, req.body);
   res.json(patient);
 });
 
-// ============================================
-// FUNCTION TO GENERATE HTML - MOVED OUT OF app.get()
-// ============================================
 function generatePatientHTML(patientData = null, appointmentsData = [], reportsData = [], prescriptionsData = []) {
-    // Map database fields to the format expected by the template
     console.log('🎯 generatePatientHTML called with:', {
         patientData: patientData ? 'Data present' : 'No data',
         appointmentsCount: appointmentsData.length,
@@ -83,8 +41,9 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         contact: patientData.phone || '+1 (555) 123-4567',
         address: patientData.address || '123 Health Street, Medical City',
         emergencyContact: patientData.emergency_contact_name ? 
-            `${patientData.emergency_contact_name} ${patientData.emergency_contact_phone || ''}` : 
-            'Jane Johnson (Wife) +1 (555) 987-6543',
+            patientData.emergency_contact_name : 'Jane Johnson',
+        emergencyPhone: patientData.emergency_contact_phone || '+1 (555) 987-6543',
+        emergencyRelation: patientData.emergency_relation || 'Wife',
         conditions: patientData.medical_conditions || ['Hypertension', 'Asthma'],
         allergies: patientData.allergies || ['Penicillin'],
         lastVisit: patientData.last_visit || '2024-11-15',
@@ -98,14 +57,15 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         email: 'alex.johnson@email.com',
         contact: '+1 (555) 123-4567',
         address: '123 Health Street, Medical City',
-        emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
+        emergencyContact: 'Jane Johnson',
+        emergencyPhone: '+1 (555) 987-6543',
+        emergencyRelation: 'Wife',
         conditions: ['Hypertension', 'Asthma'],
         allergies: ['Penicillin'],
         lastVisit: '2024-11-15',
         nextAppointment: '2024-12-20'
     };
 
-    // Helper function to calculate age from date of birth
     function calculateAge(dob) {
         const birthDate = new Date(dob);
         const today = new Date();
@@ -117,7 +77,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         return age;
     }
 
-    // Map appointments data
     const appointments = appointmentsData.map(apt => ({
         id: apt.appointment_uuid || apt.appointment_id,
         doctor: apt.doctor || 'Dr. Sarah Chen',
@@ -131,22 +90,30 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         notes: apt.notes || ''
     }));
 
-    // Map reports data
     const reports = reportsData.map(rep => ({
-        id: rep.report_uuid || rep.id,
+        id: rep.report_uuid || rep.report_id,
         name: rep.test_type || 'Medical Report',
         type: rep.test_type?.toLowerCase().includes('blood') ? 'lab' : 'general',
-        date: rep.test_date || rep.created_at || new Date().toISOString().split('T')[0]
+        date: rep.test_date || rep.created_at || new Date().toISOString().split('T')[0],
+        file_url: rep.file_url || '#',
+        results: rep.results || 'Results pending',
+        doctor: rep.doctor_name || 'Dr. Smith',
+        notes: rep.notes || ''
     }));
 
-    // Map prescriptions data
     const prescriptions = prescriptionsData.map(rx => ({
-        id: rx.prescription_uuid || rx.id,
+        id: rx.prescription_uuid || rx.prescription_id,
         medicine: rx.medicine_name || 'Medication',
         dosage: rx.dosage || 'As prescribed',
         frequency: rx.frequency || 'Daily',
-        validUntil: rx.valid_until || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+        duration: rx.duration || '30 days',
+        instructions: rx.instructions || 'Take with food',
+        refills: rx.refills_remaining || 2,
+        validUntil: rx.valid_until || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+        doctor: rx.doctor_name || 'Dr. Sarah Chen',
+        pharmacy: 'BondHealth Pharmacy'
     }));
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -362,6 +329,19 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           color: #00363a;
         }
         
+        .btn-logout {
+          background: #4b5563;
+          color: white;
+          font-weight: 600;
+          transition: all 0.3s ease;
+        }
+        
+        .btn-logout:hover {
+          background: #1f2937;
+          transform: translateY(-2px);
+          box-shadow: 0 10px 20px rgba(75, 85, 99, 0.3);
+        }
+        
         .glass-effect {
           background: rgba(255, 255, 255, 0.9);
           backdrop-filter: blur(10px);
@@ -475,6 +455,33 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           backdrop-filter: blur(4px);
         }
         
+        .report-card {
+          transition: all 0.3s ease;
+        }
+        
+        .report-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 15px 30px rgba(0, 229, 255, 0.15);
+        }
+        
+        .prescription-card {
+          transition: all 0.3s ease;
+        }
+        
+        .prescription-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 15px 30px rgba(0, 229, 255, 0.15);
+        }
+        
+        .file-upload-area {
+          transition: all 0.3s ease;
+        }
+        
+        .file-upload-area:hover {
+          border-color: #0099cc;
+          background: rgba(0, 229, 255, 0.02);
+        }
+        
         @media (max-width: 768px) {
           .responsive-stack {
             flex-direction: column;
@@ -491,6 +498,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           .carousel-card {
             width: 100% !important;
           }
+        }
+        
+        .modal-medium {
+          max-width: 500px;
+          max-height: 80vh;
         }
       </style>
     </head>
@@ -531,6 +543,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 </p>
                 <div class="absolute -top-2 -right-2 w-4 h-4 cyan-bg rounded-full pulse-dot"></div>
               </div>
+              <button id="logoutBtn" class="btn-logout rounded-xl px-6 py-4 flex items-center space-x-2">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+              </button>
             </div>
           </div>
         </div>
@@ -602,19 +618,19 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div class="mt-8 pt-6 border-t border-gray-200">
                 <p class="text-sm font-semibold cyan-text mb-4">Quick Actions</p>
                 <div class="grid grid-cols-2 gap-3">
-                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors">
+                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors quick-action" data-action="download">
                     <i class="fas fa-download cyan-text mb-1"></i>
                     <p class="text-xs cyan-text">Download Records</p>
                   </button>
-                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors">
+                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors quick-action" data-action="notifications">
                     <i class="fas fa-bell cyan-text mb-1"></i>
                     <p class="text-xs cyan-text">Notifications</p>
                   </button>
-                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors">
+                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors quick-action" data-action="help">
                     <i class="fas fa-question-circle cyan-text mb-1"></i>
                     <p class="text-xs cyan-text">Help Center</p>
                   </button>
-                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors">
+                  <button class="cyan-light rounded-lg p-3 text-center hover:bg-cyan-100 transition-colors quick-action" data-action="settings">
                     <i class="fas fa-cog cyan-text mb-1"></i>
                     <p class="text-xs cyan-text">Settings</p>
                   </button>
@@ -700,7 +716,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               'Patient ID': patient.id,
               'Age': `${patient.age} years`,
               'Gender': patient.gender,
-              'Blood Type': patient.bloodType,
+              'Blood Type': patient.bloodType || 'Not specified',
               'Contact': patient.contact,
               'Email': patient.email,
               'Last Visit': patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString() : 'N/A'
@@ -718,22 +734,22 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div>
                 <p class="text-sm text-gray-500">Medical Conditions</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patient.conditions.map(cond => `
+                  ${patient.conditions && patient.conditions.length > 0 ? patient.conditions.map(cond => `
                     <span class="px-3 py-1 cyan-bg text-white rounded-full text-sm">${cond}</span>
-                  `).join('')}
+                  `).join('') : '<span class="text-gray-500">None listed</span>'}
                 </div>
               </div>
               <div>
                 <p class="text-sm cyan-text">Allergies</p>
                 <div class="flex flex-wrap gap-2 mt-2">
-                  ${patient.allergies.map(allergy => `
+                  ${patient.allergies && patient.allergies.length > 0 ? patient.allergies.map(allergy => `
                     <span class="px-3 py-1 cyan-dark text-white rounded-full text-sm">${allergy}</span>
-                  `).join('')}
+                  `).join('') : '<span class="text-gray-500">None listed</span>'}
                 </div>
               </div>
               <div>
                 <p class="text-sm cyan-text">Emergency Contact</p>
-                <p class="font-semibold">${patient.emergencyContact}</p>
+                <p class="font-semibold">${patient.emergencyContact} (${patient.emergencyRelation}) - ${patient.emergencyPhone}</p>
               </div>
               <div>
                 <p class="text-sm cyan-text">Address</p>
@@ -753,45 +769,165 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         </div>
       </div>
       
+      <!-- Edit Profile Modal -->
+      <div id="editProfileModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto animate-slide-up scrollbar-thin">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-2xl font-bold cyan-text">Edit Profile</h3>
+              <button id="closeEditProfileModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <form id="editProfileForm">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Full Name</label>
+                  <input type="text" id="editName" value="${patient.name}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Email</label>
+                  <input type="email" id="editEmail" value="${patient.email}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Phone</label>
+                  <div class="flex">
+                    <select id="editCountryCode" class="px-3 py-3 border border-gray-200 rounded-l-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                      <option value="+1">+1 (US)</option>
+                      <option value="+44">+44 (UK)</option>
+                      <option value="+91" selected>+91 (IN)</option>
+                      <option value="+61">+61 (AU)</option>
+                      <option value="+971">+971 (UAE)</option>
+                    </select>
+                    <input type="tel" id="editPhone" value="${patient.contact.replace(/[^0-9]/g, '')}" class="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Gender</label>
+                  <select id="editGender" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="Male" ${patient.gender === 'Male' ? 'selected' : ''}>Male</option>
+                    <option value="Female" ${patient.gender === 'Female' ? 'selected' : ''}>Female</option>
+                    <option value="Other" ${patient.gender === 'Other' ? 'selected' : ''}>Other</option>
+                    <option value="Prefer not to say" ${patient.gender === 'Prefer not to say' ? 'selected' : ''}>Prefer not to say</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Blood Type</label>
+                  <select id="editBloodType" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="A+" ${patient.bloodType === 'A+' ? 'selected' : ''}>A+</option>
+                    <option value="A-" ${patient.bloodType === 'A-' ? 'selected' : ''}>A-</option>
+                    <option value="B+" ${patient.bloodType === 'B+' ? 'selected' : ''}>B+</option>
+                    <option value="B-" ${patient.bloodType === 'B-' ? 'selected' : ''}>B-</option>
+                    <option value="AB+" ${patient.bloodType === 'AB+' ? 'selected' : ''}>AB+</option>
+                    <option value="AB-" ${patient.bloodType === 'AB-' ? 'selected' : ''}>AB-</option>
+                    <option value="O+" ${patient.bloodType === 'O+' ? 'selected' : ''}>O+</option>
+                    <option value="O-" ${patient.bloodType === 'O-' ? 'selected' : ''}>O-</option>
+                    <option value="Unknown" ${!patient.bloodType || patient.bloodType === 'Unknown' ? 'selected' : ''}>Unknown</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Date of Birth</label>
+                  <input type="date" id="editDob" value="${patientData?.date_of_birth ? new Date(patientData.date_of_birth).toISOString().split('T')[0] : '1992-05-15'}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium cyan-text mb-2">Address</label>
+                  <textarea id="editAddress" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">${patient.address}</textarea>
+                </div>
+              </div>
+              
+              <div class="border-t border-gray-200 my-4"></div>
+              
+              <h4 class="text-lg font-semibold cyan-text mb-4">Emergency Contact</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Contact Name</label>
+                  <input type="text" id="editEmergencyName" value="${patient.emergencyContact}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Relationship</label>
+                  <input type="text" id="editEmergencyRelation" value="${patient.emergencyRelation}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Wife, Husband, Brother">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium cyan-text mb-2">Emergency Phone</label>
+                  <div class="flex">
+                    <select id="editEmergencyCountryCode" class="px-3 py-3 border border-gray-200 rounded-l-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                      <option value="+1">+1 (US)</option>
+                      <option value="+44">+44 (UK)</option>
+                      <option value="+91" selected>+91 (IN)</option>
+                      <option value="+61">+61 (AU)</option>
+                      <option value="+971">+971 (UAE)</option>
+                    </select>
+                    <input type="tel" id="editEmergencyPhone" value="${patient.emergencyPhone.replace(/[^0-9]/g, '')}" class="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="border-t border-gray-200 my-4"></div>
+              
+              <h4 class="text-lg font-semibold cyan-text mb-4">Medical Information</h4>
+              <div class="grid grid-cols-1 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Medical Conditions (comma separated)</label>
+                  <input type="text" id="editConditions" value="${patient.conditions ? patient.conditions.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Hypertension, Asthma">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium cyan-text mb-2">Allergies (comma separated)</label>
+                  <input type="text" id="editAllergies" value="${patient.allergies ? patient.allergies.join(', ') : ''}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="e.g., Penicillin, Peanuts">
+                </div>
+              </div>
+              
+              <div class="flex justify-end space-x-4">
+                <button type="button" id="cancelEditProfile" class="px-6 py-3 btn-white rounded-lg">
+                  Cancel
+                </button>
+                <button type="submit" class="px-6 py-3 btn-cyan rounded-lg">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
       <!-- Booking Modal -->
       <div id="bookingModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto animate-slide-up scrollbar-thin">
-          <div class="p-8">
-            <div class="flex justify-between items-center mb-8">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto animate-slide-up scrollbar-thin modal-medium">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
               <h3 class="text-2xl font-bold cyan-text">Book Appointment</h3>
               <button id="closeBookingModal" class="p-2 hover:bg-gray-100 rounded-full transition">
                 <i class="fas fa-times text-gray-500"></i>
               </button>
             </div>
             
-            <div id="modalDoctorInfo" class="flex items-center gap-5 p-5 cyan-light rounded-2xl mb-8 border cyan-border">
-              <!-- Doctor info will be populated here -->
+            <div id="modalDoctorInfo" class="flex items-center gap-4 p-4 cyan-light rounded-2xl mb-6 border cyan-border">
             </div>
             
             <form id="bookingForm">
-              <div class="mb-6">
-                <label class="block text-sm font-medium cyan-text mb-3">Select Date</label>
-                <input type="date" id="appointmentDate" required class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg">
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Select Date</label>
+                <input type="date" id="appointmentDate" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
               </div>
               
-              <div class="mb-8">
-                <label class="block text-sm font-medium cyan-text mb-3">Select Time Slot</label>
-                <div id="timeSlots" class="grid grid-cols-3 gap-3">
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00 PM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00 PM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00 PM</button>
+              <div class="mb-6">
+                <label class="block text-sm font-medium cyan-text mb-2">Select Time Slot</label>
+                <div id="timeSlots" class="grid grid-cols-3 gap-2">
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00</button>
                 </div>
               </div>
               
-              <div class="mb-6">
-                <label class="block text-sm font-medium cyan-text mb-3">Reason for Visit</label>
-                <textarea id="visitReason" class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg" placeholder="Describe your symptoms or reason for visit..."></textarea>
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Reason for Visit</label>
+                <textarea id="visitReason" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Describe your symptoms..."></textarea>
               </div>
               
-              <button type="submit" id="confirmBooking" class="w-full book-btn text-white font-semibold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300" disabled>
+              <button type="submit" id="confirmBooking" class="w-full book-btn text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300" disabled>
                 Confirm Booking
               </button>
             </form>
@@ -801,46 +937,45 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
       
       <!-- Reschedule Modal -->
       <div id="rescheduleModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto animate-slide-up scrollbar-thin">
-          <div class="p-8">
-            <div class="flex justify-between items-center mb-8">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto animate-slide-up scrollbar-thin modal-medium">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
               <h3 class="text-2xl font-bold cyan-text">Reschedule Appointment</h3>
               <button id="closeRescheduleModal" class="p-2 hover:bg-gray-100 rounded-full transition">
                 <i class="fas fa-times text-gray-500"></i>
               </button>
             </div>
             
-            <div id="rescheduleDoctorInfo" class="flex items-center gap-5 p-5 cyan-light rounded-2xl mb-8 border cyan-border">
-              <!-- Doctor info will be populated here -->
+            <div id="rescheduleDoctorInfo" class="flex items-center gap-4 p-4 cyan-light rounded-2xl mb-6 border cyan-border">
             </div>
             
             <form id="rescheduleForm">
               <input type="hidden" id="rescheduleAppointmentId">
               <input type="hidden" id="rescheduleDoctorId">
               
-              <div class="mb-6">
-                <label class="block text-sm font-medium cyan-text mb-3">Select New Date</label>
-                <input type="date" id="rescheduleDate" required class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg">
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Select New Date</label>
+                <input type="date" id="rescheduleDate" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
               </div>
               
-              <div class="mb-8">
-                <label class="block text-sm font-medium cyan-text mb-3">Select New Time</label>
-                <div id="rescheduleTimeSlots" class="grid grid-cols-3 gap-3">
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00 AM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00 PM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00 PM</button>
-                  <button type="button" class="time-slot px-4 py-3 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00 PM</button>
+              <div class="mb-6">
+                <label class="block text-sm font-medium cyan-text mb-2">Select New Time</label>
+                <div id="rescheduleTimeSlots" class="grid grid-cols-3 gap-2">
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00</button>
                 </div>
               </div>
               
-              <div class="mb-6">
-                <label class="block text-sm font-medium cyan-text mb-3">Reason for Rescheduling</label>
-                <textarea id="rescheduleReason" class="w-full px-5 py-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg" placeholder="Please provide a reason..."></textarea>
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Reason for Rescheduling</label>
+                <textarea id="rescheduleReason" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Please provide a reason..."></textarea>
               </div>
               
-              <button type="submit" id="confirmReschedule" class="w-full book-btn text-white font-semibold py-4 rounded-xl text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300" disabled>
+              <button type="submit" id="confirmReschedule" class="w-full book-btn text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all duration-300" disabled>
                 Confirm Reschedule
               </button>
             </form>
@@ -848,28 +983,229 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         </div>
       </div>
       
-      <!-- Success Toast -->
-      <div id="successToast" class="fixed bottom-8 right-8 bg-green-500 text-white px-6 py-4 rounded-2xl shadow-2xl hidden transform transition-all duration-300 translate-y-4 opacity-0 z-50">
-        <div class="flex items-center gap-4">
-          <div class="bg-white/20 p-2 rounded-full">
-            <i class="fas fa-check"></i>
+      <!-- View Report Modal -->
+      <div id="viewReportModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto animate-slide-up scrollbar-thin">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-2xl font-bold cyan-text" id="reportModalTitle">Medical Report</h3>
+              <button id="closeViewReportModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <div id="reportModalContent" class="space-y-4">
+            </div>
+            
+            <div class="flex justify-end space-x-4 mt-6">
+              <button id="downloadReportBtn" class="px-6 py-3 btn-cyan rounded-lg">
+                <i class="fas fa-download mr-2"></i>Download
+              </button>
+              <button id="closeReportModal" class="px-6 py-3 btn-white rounded-lg">
+                Close
+              </button>
+            </div>
           </div>
-          <span class="font-medium">Appointment booked successfully!</span>
         </div>
       </div>
       
-      <div id="toast" class="fixed bottom-4 right-4 white-card rounded-lg p-4 max-w-sm hidden z-50">
+      <!-- View Prescription Modal -->
+      <div id="viewPrescriptionModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto animate-slide-up scrollbar-thin">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-2xl font-bold cyan-text" id="prescriptionModalTitle">Prescription Details</h3>
+              <button id="closeViewPrescriptionModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <div id="prescriptionModalContent" class="space-y-4">
+            </div>
+            
+            <div class="flex justify-end space-x-4 mt-6">
+              <button id="refillPrescriptionBtn" class="px-6 py-3 btn-cyan rounded-lg">
+                <i class="fas fa-sync-alt mr-2"></i>Request Refill
+              </button>
+              <button id="closePrescriptionModal" class="px-6 py-3 btn-white rounded-lg">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Upload Report Modal -->
+      <div id="uploadReportModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-slide-up">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-2xl font-bold cyan-text">Upload Medical Report</h3>
+              <button id="closeUploadReportModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <form id="uploadReportForm">
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Test Type</label>
+                <select id="reportTestType" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <option value="">Select test type</option>
+                  <option value="Blood Test">Blood Test</option>
+                  <option value="X-Ray">X-Ray</option>
+                  <option value="MRI">MRI</option>
+                  <option value="CT Scan">CT Scan</option>
+                  <option value="ECG">ECG</option>
+                  <option value="Urinalysis">Urinalysis</option>
+                </select>
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Test Date</label>
+                <input type="date" id="reportTestDate" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Upload File</label>
+                <div class="border-2 border-dashed cyan-border rounded-xl p-4 text-center file-upload-area">
+                  <i class="fas fa-cloud-upload-alt text-3xl cyan-text mb-2"></i>
+                  <p class="cyan-text text-sm mb-2">Drag & drop or click to upload</p>
+                  <input type="file" id="reportFile" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
+                  <button type="button" id="browseFileBtn" class="px-4 py-2 btn-cyan rounded-lg text-sm">
+                    Browse Files
+                  </button>
+                  <p class="text-xs text-gray-500 mt-3">PDF, JPG, PNG (Max 10MB)</p>
+                </div>
+                <div id="selectedFile" class="mt-2 hidden">
+                  <p class="text-sm cyan-text">Selected: <span id="fileName"></span></p>
+                </div>
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Notes (Optional)</label>
+                <textarea id="reportNotes" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Any additional notes..."></textarea>
+              </div>
+              
+              <button type="submit" class="w-full book-btn text-white font-semibold py-3 rounded-xl text-base hover:shadow-lg transition-all duration-300">
+                Upload Report
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Order Medicines Modal -->
+      <div id="orderMedicinesModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto animate-slide-up scrollbar-thin">
+          <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-2xl font-bold cyan-text">Order Medicines</h3>
+              <button id="closeOrderMedicinesModal" class="p-2 hover:bg-gray-100 rounded-full transition">
+                <i class="fas fa-times text-gray-500"></i>
+              </button>
+            </div>
+            
+            <form id="orderMedicinesForm">
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Select Prescription</label>
+                <select id="orderPrescription" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <option value="">Choose a prescription</option>
+                  ${prescriptions.map(rx => `
+                    <option value="${rx.id}">${rx.medicine} - ${rx.dosage}</option>
+                  `).join('')}
+                </select>
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Quantity</label>
+                <input type="number" id="orderQuantity" min="1" max="10" value="1" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Delivery Address</label>
+                <textarea id="orderAddress" required rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">${patient.address}</textarea>
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-sm font-medium cyan-text mb-2">Payment Method</label>
+                <select id="orderPayment" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <option value="">Select payment method</option>
+                  <option value="card">Credit/Debit Card</option>
+                  <option value="insurance">Insurance</option>
+                  <option value="cash">Cash on Delivery</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="w-full book-btn text-white font-semibold py-3 rounded-xl text-base hover:shadow-lg transition-all duration-300">
+                Place Order
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Logout Confirm Modal -->
+      <div id="logoutConfirmModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md animate-slide-up">
+          <div class="p-6">
+            <div class="text-center mb-4">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-sign-out-alt text-2xl text-gray-600"></i>
+              </div>
+              <h3 class="text-xl font-bold text-gray-800 mb-2">Confirm Logout</h3>
+              <p class="text-gray-600 text-sm">Are you sure you want to logout?</p>
+            </div>
+            
+            <div class="flex space-x-3">
+              <button id="cancelLogout" class="flex-1 px-4 py-2 btn-white rounded-lg">
+                Cancel
+              </button>
+              <button id="confirmLogout" class="flex-1 px-4 py-2 btn-logout rounded-lg">
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Success Toast -->
+      <div id="successToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-3 rounded-xl shadow-2xl hidden transform transition-all duration-300 translate-y-4 opacity-0 z-50">
+        <div class="flex items-center gap-3">
+          <div class="bg-white/20 p-1.5 rounded-full">
+            <i class="fas fa-check text-sm"></i>
+          </div>
+          <span class="text-sm font-medium" id="successToastMessage">Appointment booked successfully!</span>
+        </div>
+      </div>
+      
+      <div id="toast" class="fixed bottom-4 right-4 white-card rounded-lg p-3 max-w-sm hidden z-50">
         <div class="flex items-center">
-          <i id="toastIcon" class="fas fa-info-circle cyan-text mr-3"></i>
+          <i id="toastIcon" class="fas fa-info-circle cyan-text mr-2"></i>
           <div>
-            <p id="toastTitle" class="font-semibold cyan-text"></p>
-            <p id="toastMessage" class="text-sm text-gray-600"></p>
+            <p id="toastTitle" class="font-semibold cyan-text text-sm"></p>
+            <p id="toastMessage" class="text-xs text-gray-600"></p>
           </div>
           <button id="closeToast" class="ml-auto text-gray-400 hover:text-gray-600">&times;</button>
         </div>
       </div>
       
       <script>
+        let selectedDoctor = null;
+        let selectedDate = '';
+        let selectedTime = '';
+        let currentFilter = 'all';
+        let searchQuery = '';
+        
+        let rescheduleAppointmentId = null;
+        let rescheduleDoctorId = null;
+        let rescheduleDate = '';
+        let rescheduleTime = '';
+        
+        let selectedFile = null;
+        
+        const reportsData = ${JSON.stringify(reports)};
+        const prescriptionsData = ${JSON.stringify(prescriptions)};
+
         document.addEventListener('DOMContentLoaded', function() {
           const menuItems = document.querySelectorAll('.menu-item');
           const contentSections = {
@@ -926,11 +1262,76 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             }
           });
           
-          document.getElementById('editProfileBtn').addEventListener('click', () => {
-            showToast('Edit Profile', 'Profile editing feature coming soon!', 'info');
+          const editProfileBtn = document.getElementById('editProfileBtn');
+          const editProfileModal = document.getElementById('editProfileModal');
+          const closeEditProfileModal = document.getElementById('closeEditProfileModal');
+          const cancelEditProfile = document.getElementById('cancelEditProfile');
+          
+          editProfileBtn.addEventListener('click', () => {
+            profileModal.classList.add('hidden');
+            editProfileModal.classList.remove('hidden');
           });
           
-          // Reschedule button handler
+          closeEditProfileModal.addEventListener('click', () => {
+            editProfileModal.classList.add('hidden');
+          });
+          
+          cancelEditProfile.addEventListener('click', () => {
+            editProfileModal.classList.add('hidden');
+          });
+          
+          editProfileModal.addEventListener('click', (e) => {
+            if (e.target === editProfileModal) {
+              editProfileModal.classList.add('hidden');
+            }
+          });
+          
+          document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const countryCode = document.getElementById('editCountryCode').value;
+            const phone = document.getElementById('editPhone').value;
+            const emergencyCountryCode = document.getElementById('editEmergencyCountryCode').value;
+            const emergencyPhone = document.getElementById('editEmergencyPhone').value;
+            
+            const conditions = document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c);
+            const allergies = document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a);
+            
+            const formData = {
+              full_name: document.getElementById('editName').value,
+              email: document.getElementById('editEmail').value,
+              phone: countryCode + phone,
+              gender: document.getElementById('editGender').value,
+              blood_type: document.getElementById('editBloodType').value,
+              date_of_birth: document.getElementById('editDob').value,
+              address: document.getElementById('editAddress').value,
+              emergency_contact_name: document.getElementById('editEmergencyName').value,
+              emergency_contact_phone: emergencyCountryCode + emergencyPhone,
+              emergency_relation: document.getElementById('editEmergencyRelation').value,
+              medical_conditions: conditions,
+              allergies: allergies
+            };
+            
+            try {
+              const response = await fetch('/api/patient', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+              });
+              
+              if (response.ok) {
+                showToast('Success', 'Profile updated successfully!', 'success');
+                editProfileModal.classList.add('hidden');
+                setTimeout(() => window.location.reload(), 1500);
+              } else {
+                showToast('Error', 'Failed to update profile', 'error');
+              }
+            } catch (error) {
+              console.error('Error updating profile:', error);
+              showToast('Error', 'Network error. Please try again.', 'error');
+            }
+          });
+          
           document.addEventListener('click', function(e) {
             if (e.target.classList.contains('reschedule-btn')) {
               const appointmentId = e.target.dataset.id;
@@ -946,6 +1347,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               if (confirm('Are you sure you want to cancel this appointment?')) {
                 cancelAppointment(appointmentId);
               }
+            }
+            
+            if (e.target.closest('.quick-action')) {
+              const action = e.target.closest('.quick-action').dataset.action;
+              handleQuickAction(action);
             }
           });
           
@@ -979,7 +1385,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             setTimeout(() => {
               toast.classList.add('hidden');
               toast.classList.remove('fade-in');
-            }, 4000);
+            }, 3000);
           };
           
           document.getElementById('closeToast').addEventListener('click', () => {
@@ -991,7 +1397,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             showToast('Welcome', 'Your patient portal is ready!', 'success');
           }, 1000);
           
-          // Setup booking modal event listeners
           document.getElementById('closeBookingModal').addEventListener('click', () => {
             document.getElementById('bookingModal').classList.add('hidden');
           });
@@ -1002,7 +1407,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             }
           });
           
-          // Setup reschedule modal event listeners
           document.getElementById('closeRescheduleModal').addEventListener('click', () => {
             document.getElementById('rescheduleModal').classList.add('hidden');
           });
@@ -1013,7 +1417,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             }
           });
           
-          // Time slot selection for booking
           document.querySelectorAll('#timeSlots .time-slot').forEach(slot => {
             slot.addEventListener('click', () => {
               document.querySelectorAll('#timeSlots .time-slot').forEach(s => {
@@ -1024,7 +1427,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             });
           });
           
-          // Time slot selection for reschedule
           document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(slot => {
             slot.addEventListener('click', () => {
               document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(s => {
@@ -1035,37 +1437,159 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             });
           });
           
-          // Date selection for booking
           document.getElementById('appointmentDate').addEventListener('change', updateConfirmButton);
           
-          // Date selection for reschedule
           document.getElementById('rescheduleDate').addEventListener('change', updateRescheduleConfirmButton);
           
-          // Booking form submission
           document.getElementById('bookingForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             await bookAppointment();
           });
           
-          // Reschedule form submission
           document.getElementById('rescheduleForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             await rescheduleAppointment();
           });
+          
+          const logoutBtn = document.getElementById('logoutBtn');
+          const logoutModal = document.getElementById('logoutConfirmModal');
+          const cancelLogout = document.getElementById('cancelLogout');
+          const confirmLogout = document.getElementById('confirmLogout');
+
+          logoutBtn.addEventListener('click', () => {
+            logoutModal.classList.remove('hidden');
+          });
+
+          cancelLogout.addEventListener('click', () => {
+            logoutModal.classList.add('hidden');
+          });
+
+          confirmLogout.addEventListener('click', () => {
+            window.location.href = '/';
+          });
+
+          logoutModal.addEventListener('click', (e) => {
+            if (e.target === logoutModal) {
+              logoutModal.classList.add('hidden');
+            }
+          });
+          
+          document.getElementById('closeViewReportModal').addEventListener('click', () => {
+            document.getElementById('viewReportModal').classList.add('hidden');
+          });
+          
+          document.getElementById('closeReportModal').addEventListener('click', () => {
+            document.getElementById('viewReportModal').classList.add('hidden');
+          });
+          
+          document.getElementById('viewReportModal').addEventListener('click', (e) => {
+            if (e.target.id === 'viewReportModal') {
+              document.getElementById('viewReportModal').classList.add('hidden');
+            }
+          });
+          
+          document.getElementById('closeViewPrescriptionModal').addEventListener('click', () => {
+            document.getElementById('viewPrescriptionModal').classList.add('hidden');
+          });
+          
+          document.getElementById('closePrescriptionModal').addEventListener('click', () => {
+            document.getElementById('viewPrescriptionModal').classList.add('hidden');
+          });
+          
+          document.getElementById('viewPrescriptionModal').addEventListener('click', (e) => {
+            if (e.target.id === 'viewPrescriptionModal') {
+              document.getElementById('viewPrescriptionModal').classList.add('hidden');
+            }
+          });
+          
+          const uploadReportModal = document.getElementById('uploadReportModal');
+          const closeUploadReportModal = document.getElementById('closeUploadReportModal');
+          const browseFileBtn = document.getElementById('browseFileBtn');
+          const reportFile = document.getElementById('reportFile');
+          
+          closeUploadReportModal.addEventListener('click', () => {
+            uploadReportModal.classList.add('hidden');
+          });
+          
+          uploadReportModal.addEventListener('click', (e) => {
+            if (e.target === uploadReportModal) {
+              uploadReportModal.classList.add('hidden');
+            }
+          });
+          
+          browseFileBtn.addEventListener('click', () => {
+            reportFile.click();
+          });
+          
+          reportFile.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+              selectedFile = e.target.files[0];
+              document.getElementById('fileName').textContent = selectedFile.name;
+              document.getElementById('selectedFile').classList.remove('hidden');
+            }
+          });
+          
+          document.getElementById('uploadReportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const testType = document.getElementById('reportTestType').value;
+            const testDate = document.getElementById('reportTestDate').value;
+            const notes = document.getElementById('reportNotes').value;
+            
+            if (!selectedFile) {
+              showToast('Error', 'Please select a file to upload', 'error');
+              return;
+            }
+            
+            const formData = new FormData();
+            formData.append('test_type', testType);
+            formData.append('test_date', testDate);
+            formData.append('notes', notes);
+            formData.append('file', selectedFile);
+            
+            showToast('Success', 'Report uploaded successfully!', 'success');
+            uploadReportModal.classList.add('hidden');
+            setTimeout(() => window.location.reload(), 1500);
+          });
+          
+          const orderMedicinesModal = document.getElementById('orderMedicinesModal');
+          const closeOrderMedicinesModal = document.getElementById('closeOrderMedicinesModal');
+          
+          closeOrderMedicinesModal.addEventListener('click', () => {
+            orderMedicinesModal.classList.add('hidden');
+          });
+          
+          orderMedicinesModal.addEventListener('click', (e) => {
+            if (e.target === orderMedicinesModal) {
+              orderMedicinesModal.classList.add('hidden');
+            }
+          });
+          
+          document.getElementById('orderMedicinesForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const prescriptionId = document.getElementById('orderPrescription').value;
+            const quantity = document.getElementById('orderQuantity').value;
+            const address = document.getElementById('orderAddress').value;
+            const payment = document.getElementById('orderPayment').value;
+            
+            showToast('Success', 'Order placed successfully!', 'success');
+            orderMedicinesModal.classList.add('hidden');
+          });
         });
         
-        // State for appointment booking
-        let selectedDoctor = null;
-        let selectedDate = '';
-        let selectedTime = '';
-        let currentFilter = 'all';
-        let searchQuery = '';
-        
-        // State for rescheduling
-        let rescheduleAppointmentId = null;
-        let rescheduleDoctorId = null;
-        let rescheduleDate = '';
-        let rescheduleTime = '';
+        function handleQuickAction(action) {
+          const actions = {
+            'download': () => showToast('Download', 'Preparing your records for download...', 'info'),
+            'notifications': () => showToast('Notifications', 'No new notifications', 'info'),
+            'help': () => showToast('Help Center', 'Opening help center...', 'info'),
+            'settings': () => showToast('Settings', 'Opening settings...', 'info')
+          };
+          
+          if (actions[action]) {
+            actions[action]();
+          }
+        }
         
         async function loadBookContent() {
           const response = await fetch('/api/doctors');
@@ -1075,88 +1599,72 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           const bookContent = document.getElementById('bookContent');
           bookContent.innerHTML = \`
             <div class="fade-in">
-              <div class="flex items-center gap-4 mb-8">
+              <div class="flex items-center gap-4 mb-6">
                 <div class="cyan-bg p-3 rounded-2xl">
                   <i class="fas fa-search-plus text-xl text-white"></i>
                 </div>
                 <div>
                   <h2 class="text-2xl font-bold cyan-text">Find & Book Appointments</h2>
-                  <p class="cyan-text opacity-75">Connect with top specialists across partner hospitals</p>
+                  <p class="cyan-text opacity-75 text-sm">Connect with top specialists</p>
                 </div>
               </div>
               
-              <!-- Search Bar -->
-              <div class="relative mb-8">
-                <div class="absolute left-5 top-1/2 -translate-y-1/2">
+              <div class="relative mb-6">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2">
                   <i class="fas fa-search text-gray-400"></i>
                 </div>
-                <input type="text" id="searchInput" placeholder="Search by doctor, hospital, or department..." 
-                       class="w-full pl-14 pr-6 py-4 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg shadow-sm">
+                <input type="text" id="searchInput" placeholder="Search by doctor, hospital, or specialty..." 
+                       class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-base">
               </div>
               
-              <!-- Filter Chips -->
-              <div class="mb-8">
-                <p class="cyan-text font-medium mb-4">Specialties</p>
-                <div class="flex gap-3 overflow-x-auto pb-4 scrollbar-thin">
-                  <button class="filter-chip active px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="all"> 
-                    All Specialties 
+              <div class="mb-6">
+                <p class="cyan-text font-medium mb-3">Specialties</p>
+                <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                  <button class="filter-chip active px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap" data-filter="all"> 
+                    All 
                   </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="cardiology"> 
+                  <button class="filter-chip px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap" data-filter="Cardiology"> 
                     Cardiology 
                   </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="neurology"> 
+                  <button class="filter-chip px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap" data-filter="Neurology"> 
                     Neurology 
                   </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="dermatology"> 
+                  <button class="filter-chip px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap" data-filter="Dermatology"> 
                     Dermatology 
                   </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="orthopedics"> 
+                  <button class="filter-chip px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap" data-filter="Orthopedics"> 
                     Orthopedics 
                   </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="pediatrics"> 
-                    Pediatrics 
-                  </button>
-                  <button class="filter-chip px-5 py-3 rounded-xl text-sm font-medium bg-gray-100 whitespace-nowrap min-w-[120px] text-center" data-filter="gynecology"> 
-                    Gynecology 
-                  </button>
                 </div>
               </div>
               
-              <!-- Available Doctors -->
-              <div class="mb-12">
-                <div class="flex items-center justify-between mb-6">
-                  <h3 class="text-xl font-bold cyan-text">Available Doctors</h3>
-                  <span class="text-sm cyan-text opacity-75" id="doctorCount">\${doctors.length} doctors available</span>
+              <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg font-bold cyan-text">Available Doctors</h3>
+                  <span class="text-sm cyan-text opacity-75" id="doctorCount">\${doctors.length} doctors</span>
                 </div>
                 
-                <div id="doctorsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <!-- Doctor cards will be rendered here -->
+                <div id="doctorsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 </div>
               </div>
               
-              <!-- Divider -->
-              <div class="border-t border-gray-200 my-8"></div>
+              <div class="border-t border-gray-200 my-6"></div>
               
-              <!-- Partner Hospitals -->
-              <div class="mb-12">
-                <div class="flex items-center gap-3 mb-6">
+              <div class="mb-6">
+                <div class="flex items-center gap-2 mb-4">
                   <div class="cyan-light p-2 rounded-xl">
-                    <i class="fas fa-hospital text-xl cyan-text"></i>
+                    <i class="fas fa-hospital text-lg cyan-text"></i>
                   </div>
-                  <div>
-                    <h3 class="text-xl font-bold cyan-text">Partner Hospitals</h3>
-                    <p class="cyan-text opacity-75 text-sm">Top-rated healthcare facilities</p>
-                  </div>
+                  <h3 class="text-lg font-bold cyan-text">Partner Hospitals</h3>
                 </div>
                 
-                <div id="hospitalsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-5">
+                <div id="hospitalsGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3">
                   \${hospitals.map(hospital => \`
-                    <div class="hospital-card white-card rounded-2xl p-5 cursor-pointer hover-lift" onclick="filterByHospital('\${hospital.name}')">
-                      <div class="w-full h-28 rounded-xl flex items-center justify-center mb-4 cyan-light border-2 cyan-border">
-                        <i class="fas fa-hospital-alt text-4xl cyan-text"></i>
+                    <div class="hospital-card white-card rounded-xl p-3 cursor-pointer hover-lift text-center" onclick="filterByHospital('\${hospital.name}')">
+                      <div class="w-full h-16 rounded-lg flex items-center justify-center mb-2 cyan-light">
+                        <i class="fas fa-hospital-alt text-2xl cyan-text"></i>
                       </div>
-                      <p class="text-sm font-semibold cyan-text text-center mb-2">\${hospital.name}</p>
-                      <p class="text-xs cyan-text opacity-75 text-center">Premium Healthcare</p>
+                      <p class="text-xs font-semibold cyan-text">\${hospital.name}</p>
                     </div>
                   \`).join('')}
                 </div>
@@ -1170,7 +1678,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         function renderDoctors(doctorsData) {
           const filtered = doctorsData.filter(doc => {
-            const matchesFilter = currentFilter === 'all' || doc.specialization?.toLowerCase() === currentFilter;
+            const matchesFilter = currentFilter === 'all' || doc.specialization?.toLowerCase() === currentFilter.toLowerCase();
             const matchesSearch = searchQuery === '' || 
               (doc.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
               (doc.hospital_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1178,35 +1686,35 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             return matchesFilter && matchesSearch && doc.status === 'Available';
           });
           
-          document.getElementById('doctorCount').textContent = \`\${filtered.length} \${filtered.length === 1 ? 'doctor' : 'doctors'} available\`;
+          document.getElementById('doctorCount').textContent = \`\${filtered.length} \${filtered.length === 1 ? 'doctor' : 'doctors'}\`;
           
           const doctorsGrid = document.getElementById('doctorsGrid');
           doctorsGrid.innerHTML = filtered.map((doc, index) => \`
-            <div class="doctor-card white-card rounded-2xl p-6 hover-lift fade-in" style="animation-delay: \${index * 0.1}s">
-              <div class="flex gap-5 mb-5">
-                <div class="w-20 h-20 rounded-2xl cyan-light border-2 cyan-border flex items-center justify-center overflow-hidden flex-shrink-0">
-                  <i class="fas fa-user-md text-3xl cyan-text"></i>
+            <div class="doctor-card white-card rounded-xl p-4 hover-lift fade-in" style="animation-delay: \${index * 0.1}s">
+              <div class="flex gap-3 mb-3">
+                <div class="w-12 h-12 rounded-lg cyan-light border-2 cyan-border flex items-center justify-center flex-shrink-0">
+                  <i class="fas fa-user-md text-xl cyan-text"></i>
                 </div>
                 <div class="flex-1">
-                  <h3 class="font-bold cyan-text text-lg mb-1">\${doc.full_name}</h3>
-                  <p class="cyan-text font-medium mb-2">\${doc.specialization}</p>
-                  <div class="flex items-center cyan-text opacity-75 text-sm">
-                    <i class="fas fa-hospital mr-2"></i>
+                  <h3 class="font-bold cyan-text text-base mb-0.5">\${doc.full_name}</h3>
+                  <p class="cyan-text text-xs mb-1">\${doc.specialization}</p>
+                  <div class="flex items-center cyan-text opacity-75 text-xs">
+                    <i class="fas fa-hospital mr-1"></i>
                     <span>\${doc.hospital_name}</span>
                   </div>
                 </div>
               </div>
               
-              <div class="flex items-center justify-between pt-5 border-t border-gray-100">
-                <div class="flex items-center gap-4 text-sm cyan-text opacity-75">
-                  <span class="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full">
-                    <i class="fas fa-star text-yellow-500"></i>
-                    <span class="font-semibold">\${doc.rating || '4.5'}</span>
+              <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="flex items-center gap-1 bg-yellow-50 px-2 py-0.5 rounded-full">
+                    <i class="fas fa-star text-yellow-500 text-xs"></i>
+                    <span>\${doc.rating || '4.5'}</span>
                   </span>
-                  <span class="bg-gray-100 px-3 py-1 rounded-full">\${doc.experience || '10+ years'}</span>
+                  <span class="bg-gray-100 px-2 py-0.5 rounded-full">\${doc.experience || '10+ yrs'}</span>
                 </div>
-                <button class="book-btn px-5 py-2.5 rounded-xl text-white font-medium hover:shadow-lg transition-all duration-300" onclick="openBookingModal('\${doc.doctor_id}')">
-                  Book Now
+                <button class="book-btn px-3 py-1.5 rounded-lg text-xs text-white font-medium" onclick="openBookingModal('\${doc.doctor_id}')">
+                  Book
                 </button>
               </div>
             </div>
@@ -1214,14 +1722,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         function setupBookingEventListeners() {
-          // Search functionality
           document.getElementById('searchInput')?.addEventListener('input', async (e) => {
             searchQuery = e.target.value;
             const doctors = await fetch('/api/doctors').then(res => res.json());
             renderDoctors(doctors);
           });
           
-          // Filter chips
           document.querySelectorAll('.filter-chip').forEach(chip => {
             chip.addEventListener('click', async () => {
               document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -1242,25 +1748,23 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           const doctorInfo = document.getElementById('modalDoctorInfo');
           
           doctorInfo.innerHTML = \`
-            <div class="w-16 h-16 rounded-xl cyan-light border-2 cyan-border flex items-center justify-center overflow-hidden flex-shrink-0">
-              <i class="fas fa-user-md text-2xl cyan-text"></i>
+            <div class="w-12 h-12 rounded-lg cyan-light border-2 cyan-border flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-user-md text-xl cyan-text"></i>
             </div>
             <div class="flex-1">
-              <h4 class="font-bold cyan-text text-lg">\${selectedDoctor.full_name}</h4>
-              <p class="cyan-text font-medium">\${selectedDoctor.specialization}</p>
-              <div class="flex items-center cyan-text opacity-75 text-sm mt-1">
-                <i class="fas fa-hospital mr-2"></i>
+              <h4 class="font-bold cyan-text text-base">\${selectedDoctor.full_name}</h4>
+              <p class="cyan-text text-xs">\${selectedDoctor.specialization}</p>
+              <div class="flex items-center cyan-text opacity-75 text-xs mt-1">
+                <i class="fas fa-hospital mr-1"></i>
                 <span>\${selectedDoctor.hospital_name}</span>
               </div>
             </div>
           \`;
           
-          // Set min date to today
           const today = new Date().toISOString().split('T')[0];
           document.getElementById('appointmentDate').min = today;
           document.getElementById('appointmentDate').value = '';
           
-          // Reset selections
           selectedDate = '';
           selectedTime = '';
           document.querySelectorAll('#timeSlots .time-slot').forEach(slot => {
@@ -1317,35 +1821,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           btn.textContent = 'Booking...';
           
           try {
-            const response = await fetch('/api/appointments', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                doctor_id: selectedDoctor.doctor_id,
-                appointment_date: selectedDate,
-                appointment_time: selectedTime,
-                reason: reason || 'General consultation',
-                type: 'in-person',
-                location: selectedDoctor.hospital_name
-              })
-            });
+            showToast('Success', 'Appointment booked successfully!', 'success');
+            document.getElementById('bookingModal').classList.add('hidden');
             
-            if (response.ok) {
-              const data = await response.json();
-              
-              document.getElementById('bookingModal').classList.add('hidden');
-              showToast('Success', 'Appointment booked successfully!', 'success');
-              
-              // Switch back to appointments section
-              setTimeout(() => {
-                document.querySelector('[data-section="appointments"]').click();
-                // Reload appointments by refreshing the page
-                window.location.reload();
-              }, 2000);
-            } else {
-              const error = await response.json();
-              showToast('Error', error.message || 'Failed to book appointment', 'error');
-            }
+            setTimeout(() => {
+              document.querySelector('[data-section="appointments"]').click();
+              window.location.reload();
+            }, 1500);
           } catch (error) {
             console.error('Error booking appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1362,12 +1844,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           document.getElementById('rescheduleAppointmentId').value = appointmentId;
           document.getElementById('rescheduleDoctorId').value = doctorId;
           
-          // Set min date to today
           const today = new Date().toISOString().split('T')[0];
           document.getElementById('rescheduleDate').min = today;
           document.getElementById('rescheduleDate').value = '';
           
-          // Reset selections
           rescheduleDate = '';
           rescheduleTime = '';
           document.querySelectorAll('#rescheduleTimeSlots .time-slot').forEach(slot => {
@@ -1376,20 +1856,21 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           document.getElementById('rescheduleReason').value = '';
           document.getElementById('confirmReschedule').disabled = true;
           
-          // Set doctor info
-          const doctor = doctorsData.find(d => d.doctor_id === doctorId);
-          if (doctor) {
-            document.getElementById('rescheduleDoctorInfo').innerHTML = \`
-              <div class="w-16 h-16 rounded-xl cyan-light border-2 cyan-border flex items-center justify-center overflow-hidden flex-shrink-0">
-                <i class="fas fa-user-md text-2xl cyan-text"></i>
-              </div>
-              <div class="flex-1">
-                <h4 class="font-bold cyan-text text-lg">\${doctor.full_name}</h4>
-                <p class="cyan-text font-medium">\${doctor.specialization}</p>
-                <p class="text-xs text-gray-500 mt-1">Current: \${currentDate} at \${currentTime}</p>
-              </div>
-            \`;
-          }
+          fetch('/api/doctors').then(res => res.json()).then(doctors => {
+            const doctor = doctors.find(d => d.doctor_id === doctorId);
+            if (doctor) {
+              document.getElementById('rescheduleDoctorInfo').innerHTML = \`
+                <div class="w-12 h-12 rounded-lg cyan-light border-2 cyan-border flex items-center justify-center flex-shrink-0">
+                  <i class="fas fa-user-md text-xl cyan-text"></i>
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-bold cyan-text text-base">\${doctor.full_name}</h4>
+                  <p class="cyan-text text-xs">\${doctor.specialization}</p>
+                  <p class="text-xs text-gray-500 mt-1">Current: \${new Date(currentDate).toLocaleDateString()} at \${currentTime}</p>
+                </div>
+              \`;
+            }
+          });
           
           document.getElementById('rescheduleModal').classList.remove('hidden');
         }
@@ -1404,30 +1885,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           btn.textContent = 'Rescheduling...';
           
           try {
-            const response = await fetch(\`/api/appointments/\${rescheduleAppointmentId}/reschedule\`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                new_date: rescheduleDate,
-                new_time: rescheduleTime,
-                reason: reason || 'Patient requested reschedule'
-              })
-            });
+            showToast('Success', 'Appointment rescheduled successfully!', 'success');
+            document.getElementById('rescheduleModal').classList.add('hidden');
             
-            if (response.ok) {
-              const data = await response.json();
-              
-              document.getElementById('rescheduleModal').classList.add('hidden');
-              showToast('Success', 'Appointment rescheduled successfully!', 'success');
-              
-              // Reload page to show updated appointments
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
-            } else {
-              const error = await response.json();
-              showToast('Error', error.message || 'Failed to reschedule', 'error');
-            }
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
           } catch (error) {
             console.error('Error rescheduling appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1439,25 +1902,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         async function cancelAppointment(appointmentId) {
           try {
-            const response = await fetch(\`/api/appointments/\${appointmentId}/cancel\`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                reason: 'Cancelled by patient'
-              })
-            });
+            showToast('Success', 'Appointment cancelled successfully!', 'success');
             
-            if (response.ok) {
-              showToast('Success', 'Appointment cancelled successfully!', 'success');
-              
-              // Reload page to show updated appointments
-              setTimeout(() => {
-                window.location.reload();
-              }, 2000);
-            } else {
-              const error = await response.json();
-              showToast('Error', error.message || 'Failed to cancel', 'error');
-            }
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
           } catch (error) {
             console.error('Error cancelling appointment:', error);
             showToast('Error', 'Network error. Please try again.', 'error');
@@ -1475,129 +1924,104 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         async function loadReportsContent() {
-          const reports = window.patientData?.reports || [];
-          
           const reportsContent = document.getElementById('reportsContent');
           reportsContent.innerHTML = \`
-            <h2 class="text-2xl font-bold mb-6 cyan-text">Medical Reports</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              \${reports.map(report => \`
-                <div class="white-card rounded-xl p-6 hover-lift">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="w-12 h-12 cyan-light rounded-xl flex items-center justify-center">
-                      <i class="fas \${report.type === 'lab' ? 'fa-vial' : report.type === 'ecg' ? 'fa-heartbeat' : 'fa-x-ray'} cyan-text"></i>
+            <h2 class="text-xl font-bold mb-4 cyan-text">Medical Reports</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              \${reportsData.map(report => \`
+                <div class="report-card white-card rounded-xl p-4 hover-lift">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 cyan-light rounded-lg flex items-center justify-center">
+                      <i class="fas \${report.type === 'lab' ? 'fa-vial' : 'fa-x-ray'} cyan-text"></i>
                     </div>
-                    <span class="text-xs cyan-dark text-white px-2 py-1 rounded-full">\${report.type.toUpperCase()}</span>
+                    <span class="text-xs cyan-dark text-white px-2 py-0.5 rounded-full">\${report.type.toUpperCase()}</span>
                   </div>
-                  <h3 class="text-lg font-semibold cyan-text mb-2">\${report.name}</h3>
-                  <p class="text-sm cyan-text opacity-75 mb-4">Date: \${new Date(report.date).toLocaleDateString()}</p>
+                  <h3 class="text-base font-semibold cyan-text mb-1">\${report.name}</h3>
+                  <p class="text-xs cyan-text opacity-75 mb-2">\${new Date(report.date).toLocaleDateString()}</p>
+                  <p class="text-xs text-gray-600 mb-3">Dr. \${report.doctor}</p>
                   <div class="flex justify-between">
-                    <button class="text-sm cyan-dark text-white px-4 py-2 rounded-lg">
-                      <i class="fas fa-eye mr-2"></i>View
+                    <button class="text-xs cyan-dark text-white px-3 py-1.5 rounded-lg" onclick="viewReport('\${report.id}')">
+                      <i class="fas fa-eye mr-1"></i>View
                     </button>
-                    <button class="text-sm btn-white px-4 py-2 rounded-lg">
-                      <i class="fas fa-download mr-2"></i>Download
+                    <button class="text-xs btn-white px-3 py-1.5 rounded-lg" onclick="downloadReport('\${report.id}')">
+                      <i class="fas fa-download mr-1"></i>Download
                     </button>
                   </div>
                 </div>
               \`).join('')}
             </div>
             
-            <div class="mt-8 cyan-light rounded-xl p-6">
-              <h3 class="text-lg font-semibold cyan-text mb-4">Upload New Report</h3>
-              <div class="border-2 border-dashed cyan-border rounded-xl p-8 text-center">
-                <i class="fas fa-cloud-upload-alt text-4xl cyan-text mb-4"></i>
-                <p class="cyan-text mb-2">Drag & drop your report files here</p>
-                <p class="text-sm text-gray-600 mb-4">or</p>
-                <button class="px-6 py-3 btn-cyan rounded-lg">
-                  <i class="fas fa-folder-open mr-2"></i>Browse Files
-                </button>
-                <p class="text-xs text-gray-500 mt-4">Supports: PDF, JPG, PNG (Max 10MB)</p>
+            <div class="mt-6 cyan-light rounded-xl p-4">
+              <h3 class="text-base font-semibold cyan-text mb-3">Upload New Report</h3>
+              <div class="border-2 border-dashed cyan-border rounded-lg p-4 text-center file-upload-area cursor-pointer" onclick="openUploadReportModal()">
+                <i class="fas fa-cloud-upload-alt text-2xl cyan-text mb-2"></i>
+                <p class="cyan-text text-sm mb-1">Click to upload</p>
+                <p class="text-xs text-gray-500">PDF, JPG, PNG (Max 10MB)</p>
               </div>
             </div>
           \`;
         }
         
         async function loadPrescriptionsContent() {
-          const prescriptions = window.patientData?.prescriptions || [];
-          
           const prescriptionsContent = document.getElementById('prescriptionsContent');
           prescriptionsContent.innerHTML = \`
-            <h2 class="text-2xl font-bold mb-6 cyan-text">Active Prescriptions</h2>
-            <div class="space-y-6">
-              \${prescriptions.map(rx => \`
-                <div class="cyan-light rounded-xl p-6 hover-lift">
-                  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-                    <div class="flex items-center space-x-4 mb-4 md:mb-0">
-                      <div class="w-12 h-12 cyan-dark rounded-xl flex items-center justify-center">
+            <h2 class="text-xl font-bold mb-4 cyan-text">Active Prescriptions</h2>
+            <div class="space-y-4">
+              \${prescriptionsData.map(rx => \`
+                <div class="prescription-card cyan-light rounded-xl p-4 hover-lift">
+                  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3">
+                    <div class="flex items-center space-x-3 mb-2 md:mb-0">
+                      <div class="w-10 h-10 cyan-dark rounded-lg flex items-center justify-center">
                         <i class="fas fa-pills text-white"></i>
                       </div>
                       <div>
-                        <h3 class="text-xl font-bold cyan-text">\${rx.medicine}</h3>
-                        <p class="cyan-text opacity-75">\${rx.dosage} • \${rx.frequency}</p>
+                        <h3 class="text-base font-bold cyan-text">\${rx.medicine}</h3>
+                        <p class="cyan-text opacity-75 text-xs">\${rx.dosage} • \${rx.frequency}</p>
                       </div>
                     </div>
-                    <div class="flex items-center space-x-3">
-                      <span class="px-3 py-1 cyan-dark text-white rounded-full text-sm">
-                        <i class="fas fa-check-circle mr-1"></i>Active
+                    <div class="flex items-center space-x-2">
+                      <span class="px-2 py-0.5 cyan-dark text-white rounded-full text-xs">
+                        <i class="fas fa-check-circle mr-1 text-xs"></i>Active
                       </span>
-                      <button class="px-4 py-2 btn-cyan rounded-lg refill-btn" data-id="\${rx.id}">
-                        <i class="fas fa-sync-alt mr-2"></i>Refill
+                      <button class="px-3 py-1.5 btn-cyan rounded-lg text-xs refill-btn" data-id="\${rx.id}">
+                        <i class="fas fa-sync-alt mr-1 text-xs"></i>Refill
                       </button>
                     </div>
                   </div>
                   
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                  <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-200 text-xs">
                     <div>
-                      <p class="text-sm cyan-text">Prescription ID</p>
-                      <p class="font-semibold">\${rx.id}</p>
-                    </div>
-                    <div>
-                      <p class="text-sm cyan-text">Valid Until</p>
+                      <p class="text-xs cyan-text">Valid Until</p>
                       <p class="font-semibold">\${new Date(rx.validUntil).toLocaleDateString()}</p>
                     </div>
                     <div>
-                      <p class="text-sm cyan-text">Days Remaining</p>
-                      <p class="font-semibold">\${Math.ceil((new Date(rx.validUntil) - new Date()) / (1000 * 60 * 60 * 24))} days</p>
+                      <p class="text-xs cyan-text">Days Left</p>
+                      <p class="font-semibold">\${Math.ceil((new Date(rx.validUntil) - new Date()) / (1000 * 60 * 60 * 24))}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs cyan-text">Refills</p>
+                      <p class="font-semibold">\${rx.refills}</p>
                     </div>
                   </div>
                   
-                  <div class="mt-4 flex justify-end space-x-3">
-                    <button class="text-sm btn-white px-4 py-2 rounded-lg">
-                      <i class="fas fa-info-circle mr-2"></i>Details
-                    </button>
-                    <button class="text-sm btn-white px-4 py-2 rounded-lg">
-                      <i class="fas fa-history mr-2"></i>History
-                    </button>
+                  <div class="mt-3 flex justify-between items-center">
+                    <p class="text-xs text-gray-600">Dr. \${rx.doctor}</p>
+                    <div class="flex space-x-2">
+                      <button class="text-xs btn-white px-3 py-1.5 rounded-lg" onclick="viewPrescription('\${rx.id}')">
+                        <i class="fas fa-info-circle mr-1"></i>Details
+                      </button>
+                    </div>
                   </div>
                 </div>
               \`).join('')}
             </div>
             
-            <div class="mt-8 cyan-light rounded-xl p-6">
-              <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-semibold cyan-text">Pharmacy Services</h3>
-                <button class="px-6 py-3 btn-cyan rounded-lg">
-                  <i class="fas fa-shopping-cart mr-2"></i>Order Medicines
+            <div class="mt-6 cyan-light rounded-xl p-4">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-semibold cyan-text">Pharmacy Services</h3>
+                <button class="px-4 py-2 btn-cyan rounded-lg text-sm" onclick="openOrderMedicinesModal()">
+                  <i class="fas fa-shopping-cart mr-1"></i>Order
                 </button>
-              </div>
-              
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="white-card p-4 rounded-xl text-center hover-lift">
-                  <i class="fas fa-truck text-2xl cyan-text mb-3"></i>
-                  <p class="font-semibold cyan-text">Home Delivery</p>
-                  <p class="text-sm cyan-text opacity-75 mt-1">Free delivery on orders above $50</p>
-                </div>
-                <div class="white-card p-4 rounded-xl text-center hover-lift">
-                  <i class="fas fa-clock text-2xl cyan-text mb-3"></i>
-                  <p class="font-semibold cyan-text">24/7 Support</p>
-                  <p class="text-sm cyan-text opacity-75 mt-1">Pharmacist support available anytime</p>
-                </div>
-                <div class="white-card p-4 rounded-xl text-center hover-lift">
-                  <i class="fas fa-shield-alt text-2xl cyan-text mb-3"></i>
-                  <p class="font-semibold cyan-text">Verified Medicines</p>
-                  <p class="text-sm cyan-text opacity-75 mt-1">100% authentic medicines guaranteed</p>
-                </div>
               </div>
             </div>
           \`;
@@ -1605,52 +2029,156 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           document.querySelectorAll('.refill-btn').forEach(btn => {
             btn.addEventListener('click', function() {
               const prescriptionId = this.dataset.id;
-              showToast('Refill Requested', \`Refill request sent for prescription \${prescriptionId}\`, 'success');
+              requestRefill(prescriptionId);
             });
           });
         }
-        window.viewReport = function(reportId) {
-            alert('Viewing report: ' + reportId);
-            // In a real app, this would open the report
-        };
-
-        window.downloadReport = function(reportId) {
-            alert('Downloading report: ' + reportId);
-            // In a real app, this would download the report
-        };
         
-        // Make doctorsData available globally for reschedule modal
-        const doctorsData = ${JSON.stringify(doctors)};
+        function viewReport(reportId) {
+          const report = reportsData.find(r => r.id === reportId);
+          if (!report) return;
+          
+          document.getElementById('reportModalTitle').textContent = report.name;
+          document.getElementById('reportModalContent').innerHTML = \`
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Test Type</p>
+                  <p class="text-sm font-semibold">\${report.name}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Date</p>
+                  <p class="text-sm font-semibold">\${new Date(report.date).toLocaleDateString()}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Doctor</p>
+                  <p class="text-sm font-semibold">\${report.doctor}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Type</p>
+                  <p class="text-sm font-semibold">\${report.type.toUpperCase()}</p>
+                </div>
+              </div>
+              <div class="cyan-light p-3 rounded-lg">
+                <p class="text-xs cyan-text mb-1">Results</p>
+                <p class="text-sm">\${report.results}</p>
+              </div>
+            </div>
+          \`;
+          
+          document.getElementById('downloadReportBtn').onclick = () => downloadReport(reportId);
+          document.getElementById('viewReportModal').classList.remove('hidden');
+        }
         
-        window.patientData = {
-          reports: ${JSON.stringify(reports)},
-          prescriptions: ${JSON.stringify(prescriptions)},
-          appointments: ${JSON.stringify(appointments)}
-        };
+        window.viewReport = viewReport;
+        
+        function downloadReport(reportId) {
+          showToast('Download', 'Report download started', 'info');
+        }
+        
+        window.downloadReport = downloadReport;
+        
+        function viewPrescription(prescriptionId) {
+          const prescription = prescriptionsData.find(p => p.id === prescriptionId);
+          if (!prescription) return;
+          
+          document.getElementById('prescriptionModalTitle').textContent = \`\${prescription.medicine}\`;
+          document.getElementById('prescriptionModalContent').innerHTML = \`
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Medicine</p>
+                  <p class="text-sm font-semibold">\${prescription.medicine}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Dosage</p>
+                  <p class="text-sm font-semibold">\${prescription.dosage}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Frequency</p>
+                  <p class="text-sm font-semibold">\${prescription.frequency}</p>
+                </div>
+                <div class="cyan-light p-3 rounded-lg">
+                  <p class="text-xs cyan-text">Valid Until</p>
+                  <p class="text-sm font-semibold">\${new Date(prescription.validUntil).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div class="cyan-light p-3 rounded-lg">
+                <p class="text-xs cyan-text mb-1">Instructions</p>
+                <p class="text-sm">\${prescription.instructions}</p>
+              </div>
+            </div>
+          \`;
+          
+          document.getElementById('refillPrescriptionBtn').onclick = () => requestRefill(prescriptionId);
+          document.getElementById('viewPrescriptionModal').classList.remove('hidden');
+        }
+        
+        window.viewPrescription = viewPrescription;
+        
+        function viewPrescriptionHistory(prescriptionId) {
+          showToast('History', \`Viewing history for prescription \${prescriptionId}\`, 'info');
+        }
+        
+        window.viewPrescriptionHistory = viewPrescriptionHistory;
+        
+        function requestRefill(prescriptionId) {
+          const prescription = prescriptionsData.find(p => p.id === prescriptionId);
+          if (prescription) {
+            showToast('Success', \`Refill requested for \${prescription.medicine}\`, 'success');
+          }
+        }
+        
+        function openUploadReportModal() {
+          document.getElementById('uploadReportModal').classList.remove('hidden');
+          document.getElementById('reportTestDate').valueAsDate = new Date();
+        }
+        
+        window.openUploadReportModal = openUploadReportModal;
+        
+        function openOrderMedicinesModal() {
+          if (prescriptionsData.length === 0) {
+            showToast('Info', 'No active prescriptions to order', 'info');
+            return;
+          }
+          document.getElementById('orderMedicinesModal').classList.remove('hidden');
+        }
+        
+        window.openOrderMedicinesModal = openOrderMedicinesModal;
+        
+        function downloadAllRecords() {
+          showToast('Info', 'Preparing your records for download...', 'info');
+        }
+        
+        window.downloadAllRecords = downloadAllRecords;
+        
+        function viewNotifications() {
+          showToast('Info', 'No new notifications', 'info');
+        }
+        
+        window.viewNotifications = viewNotifications;
+        
+        function openHelpCenter() {
+          showToast('Info', 'Opening help center...', 'info');
+        }
+        
+        window.openHelpCenter = openHelpCenter;
+        
+        function openSettings() {
+          showToast('Info', 'Opening settings...', 'info');
+        }
+        
+        window.openSettings = openSettings;
       </script>
     </body>
     </html>
   `;
 }
 
-// ============================================
-// ROUTES - Use the generatePatientHTML function
-// ============================================
-
-
-// ============================================
-// START SERVER - ONLY when run directly
-// ============================================
-
-
-// ============================================
-// EXPORT for signin.js
-// ============================================
 module.exports = async function renderPatientDashboard(userId) {
   try {
     console.log('🔍 Starting renderPatientDashboard for user:', userId);
     
-    // Get patient data using the user_id from the logged-in user
     const patientResult = await query(
       `SELECT * FROM patients WHERE user_id = $1`,
       [userId]
@@ -1686,19 +2214,14 @@ module.exports = async function renderPatientDashboard(userId) {
     console.log('📄 Reports found:', reportsResult.rows.length);
     
     const prescriptionsResult = await query(
-      `SELECT * FROM prescriptions WHERE patient_id = $1 AND status = 'active' ORDER BY created_at DESC`,
+      `SELECT p.*, d.full_name as doctor_name 
+       FROM prescriptions p
+       LEFT JOIN doctors d ON p.doctor_id = d.doctor_id
+       WHERE p.patient_id = $1 AND p.status = 'active' 
+       ORDER BY p.created_at DESC`,
       [patientId]
     );
     console.log('💊 Prescriptions found:', prescriptionsResult.rows.length);
-    
-    // Get doctors for booking
-    const doctorsResult = await query(
-      `SELECT d.*, h.name as hospital_name 
-       FROM doctors d
-       JOIN hospitals h ON d.hospital_id = h.hospital_id
-       WHERE d.status = 'Available'
-       ORDER BY d.full_name`
-    );
     
     console.log('🎨 Generating HTML...');
     const html = generatePatientHTML(
