@@ -308,7 +308,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
             </div>
             <div class="nav-item" onclick="openDoctorRegistration()">
                 <i class="fas fa-user-plus mr-3"></i>
-                Register Doctor
+                Add Details
             </div>
         </div>
         
