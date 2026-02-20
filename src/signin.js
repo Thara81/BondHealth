@@ -207,7 +207,7 @@ const SIGNIN_TEMPLATE = `<!doctype html>
           <form class="form-section" id="patientForm">
             <div class="form-group">
               <label class="form-label">Username</label>
-              <input type="text" class="form-input" id="patientUsername" placeholder="Enter your username" required>
+              <input type="text" class="form-input" id="patientUsername" placeholder="Enter your email" required>
             </div>
             <div class="form-group">
               <label class="form-label">Password</label>

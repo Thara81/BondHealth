@@ -445,14 +445,14 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="availableDoctorsList">
                         ${doctors.filter(d => d.status === 'Available').map(doctor => `
-                        <div class="doctor-card available p-6" onclick="showDoctorSchedule(${doctor.id})">
+                        <div class="doctor-card available p-6" onclick="showDoctorSchedule('${doctor.doctor_id}')">
                             <div class="flex items-center gap-4">
                                 <img src="${doctor.photo_url || ''}" 
-                                     alt="${doctor.name}" 
+                                     alt="${doctor.full_name}" 
                                      class="w-16 h-16 rounded-full object-cover border-2 border-cyan-200">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-gray-800">${doctor.name}</h4>
-                                    <p class="text-cyan-600 text-sm font-medium">${doctor.specialty}</p>
+                                    <h4 class="font-bold text-gray-800">${doctor.full_name}</h4>
+                                    <p class="text-cyan-600 text-sm font-medium">${doctor.specialization}</p>
                                     <div class="mt-2">
                                         <span class="status-badge status-available">Available</span>
                                     </div>
@@ -462,7 +462,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                                 <div class="flex justify-between items-center">
                                     <span class="text-gray-600 text-sm">
                                         <i class="fas fa-calendar-alt mr-1"></i>
-                                        ${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
+                                        ${todaysAppointments.filter(a => a.doctor_id === doctor.doctor_id).length} appointments
                                     </span>
                                     <button class="text-cyan-600 hover:text-cyan-700 text-sm font-medium">
                                         View Schedule →
@@ -495,8 +495,8 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                                              alt="${doctor.full_name}" 
                                              class="w-10 h-10 rounded-full object-cover">
                                         <div class="flex-1">
-                                            <p class="font-medium text-gray-800">${doctor.name}</p>
-                                            <p class="text-amber-600 text-sm">${doctor.leaveFrom} to ${doctor.leaveTo}</p>
+                                            <p class="font-medium text-gray-800">${doctor.full_name}</p>
+                                            <p class="text-amber-600 text-sm">${doctor.leaveFrom || 'N/A'} to ${doctor.leaveTo || 'N/A'}</p>
                                         </div>
                                         <span class="status-badge status-leave">On Leave</span>
                                     </div>
@@ -526,10 +526,10 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="allDoctorsList">
                     ${doctors.map(doctor => `
-                    <div class="doctor-card ${doctor.status === 'Available' ? 'available' : 'leave'} p-6" onclick="showDoctorSchedule(${doctor.id})">
+                    <div class="doctor-card ${doctor.status === 'Available' ? 'available' : 'leave'} p-6" onclick="showDoctorSchedule('${doctor.doctor_id}')">
                         <div class="flex items-center gap-4">
-                            <img src="${doctor.photo}" 
-                                 alt="${doctor.name}" 
+                            <img src="${doctor.photo_url || ''}" 
+                                 alt="${doctor.full_name}" 
                                  class="w-16 h-16 rounded-full object-cover border-2 ${doctor.status === 'Available' ? 'border-cyan-200' : 'border-amber-200'}">
                             <div class="flex-1">
                                 <h4 class="font-bold text-gray-800">${doctor.full_name}</h4>
@@ -552,7 +552,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                                 <div class="flex justify-between items-center mt-2">
                                     <span class="text-gray-600 text-sm">
                                         <i class="fas fa-calendar mr-1"></i>
-                                        ${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
+                                        ${todaysAppointments.filter(a => a.doctor_id === doctor.doctor_id).length} appointments
                                     </span>
                                     <button class="text-cyan-600 hover:text-cyan-700 text-sm font-medium">
                                         View Schedule →
@@ -581,7 +581,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                         </thead>
                         <tbody>
                             ${getAllAppointments().map(appt => `
-                            <tr onclick="showDoctorSchedule(${appt.doctorId})" style="cursor: pointer;">
+                            <tr onclick="showDoctorSchedule('${appt.doctorId}')" style="cursor: pointer;">
                                 <td class="font-medium">${appt.time}</td>
                                 <td>
                                     <div class="flex items-center gap-2">
@@ -645,7 +645,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                             <select id="leaveDoctor" class="w-full p-3 border border-gray-300 rounded-lg focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200" required>
                                 <option value="">Choose a doctor</option>
                                 ${doctors.map(doctor => `
-                                <option value="${doctor.id}">${doctor.name} - ${doctor.specialty}</option>
+                                <option value="${doctor.doctor_id}">${doctor.full_name} - ${doctor.specialization}</option>
                                 `).join('')}
                             </select>
                         </div>
@@ -688,6 +688,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         
         // Make doctors data available globally
         const doctorsData = ${JSON.stringify(doctors)};
+        const todaysAppointmentsData = ${JSON.stringify(todaysAppointments)};
         
         // Navigation
         function showSection(sectionId) {
@@ -753,39 +754,85 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         function logout() {
             console.log('Logging out...');
             
-            if (homePageTemplate) {
-                try {
-                    // Open home page in same window
-                    document.write(homePageTemplate);
-                    document.close();
-                    console.log('✅ Home page loaded');
-                } catch (error) {
-                    console.error('Error loading home page:', error);
-                    window.location.href = '/home';
+            // First call logout API to clear session
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(() => {
+                // Then redirect to home page
+                if (homePageTemplate) {
+                    try {
+                        document.write(homePageTemplate);
+                        document.close();
+                    } catch (error) {
+                        console.error('Error loading home page:', error);
+                        window.location.href = '/';
+                    }
+                } else {
+                    window.location.href = '/';
                 }
-            } else {
-                // Fallback to dedicated route
-                console.log('No template, redirecting to /home');
-                window.location.href = '/home';
-            }
+            })
+            .catch(() => {
+                window.location.href = '/';
+            });
         }
         
         // Show doctor schedule modal
         function showDoctorSchedule(doctorId) {
-            const doctor = doctorsData.find(d => d.id === doctorId);
+            const doctor = doctorsData.find(d => d.doctor_id === doctorId);
             if (!doctor) return;
             
-            document.getElementById('scheduleDoctorName').textContent = doctor.name + "'s Schedule";
+            document.getElementById('scheduleDoctorName').textContent = doctor.full_name + "'s Schedule";
+            
+            const doctorAppointments = todaysAppointmentsData.filter(a => a.doctor_id === doctorId);
+            
+            let appointmentsHtml = '';
+            if (doctorAppointments.length > 0) {
+                appointmentsHtml = \`
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left p-3 text-gray-600 font-medium">Time</th>
+                                    <th class="text-left p-3 text-gray-600 font-medium">Patient</th>
+                                    <th class="text-left p-3 text-gray-600 font-medium">Token</th>
+                                    <th class="text-left p-3 text-gray-600 font-medium">Condition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                \${doctorAppointments.map(appt => \`
+                                <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                    <td class="p-3 font-medium">\${appt.appointment_time}</td>
+                                    <td class="p-3">\${appt.patient_name}</td>
+                                    <td class="p-3">
+                                        <span class="token-badge">\${appt.token_number || 'N/A'}</span>
+                                    </td>
+                                    <td class="p-3 text-gray-600">\${appt.reason || 'General'}</td>
+                                </tr>
+                                \`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                \`;
+            } else {
+                appointmentsHtml = \`
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-calendar-times text-3xl mb-3 text-gray-300"></i>
+                        <p>No appointments scheduled for today</p>
+                    </div>
+                \`;
+            }
             
             const content = \`
                 <div class="space-y-6">
                     <div class="flex items-center gap-6 p-4 bg-cyan-50 rounded-lg">
-                        <img src="\${doctor.photo}" 
-                             alt="\${doctor.name}" 
+                        <img src="\${doctor.photo_url || ''}" 
+                             alt="\${doctor.full_name}" 
                              class="w-20 h-20 rounded-full object-cover border-4 \${doctor.status === 'Available' ? 'border-cyan-200' : 'border-amber-200'}">
                         <div>
-                            <h3 class="text-xl font-bold text-gray-800">\${doctor.name}</h3>
-                            <p class="text-cyan-600 font-medium">\${doctor.specialty}</p>
+                            <h3 class="text-xl font-bold text-gray-800">\${doctor.full_name}</h3>
+                            <p class="text-cyan-600 font-medium">\${doctor.specialization}</p>
                             <div class="mt-2">
                                 <span class="status-badge \${doctor.status === 'Available' ? 'status-available' : 'status-leave'}">
                                     \${doctor.status}
@@ -799,7 +846,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                         <h4 class="font-bold text-amber-800 mb-2">
                             <i class="fas fa-umbrella-beach mr-2"></i> On Leave
                         </h4>
-                        <p class="text-amber-700">From \${doctor.leaveFrom} to \${doctor.leaveTo}</p>
+                        <p class="text-amber-700">From \${doctor.leaveFrom || 'N/A'} to \${doctor.leaveTo || 'N/A'}</p>
                         <p class="text-amber-600 text-sm mt-1">\${doctor.leaveReason || 'Not specified'}</p>
                     </div>
                     \` : ''}
@@ -807,45 +854,15 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                     <div class="flex justify-between items-center mb-4">
                         <h4 class="font-bold text-gray-800">Today's Appointments Schedule</h4>
                         <span class="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-sm">
-                            \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length} appointments
+                            \${doctorAppointments.length} appointments
                         </span>
                     </div>
                     
-                    \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).length > 0 ? \`
-                    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="bg-gray-50">
-                                    <th class="text-left p-3 text-gray-600 font-medium">Time</th>
-                                    <th class="text-left p-3 text-gray-600 font-medium">Patient</th>
-                                    <th class="text-left p-3 text-gray-600 font-medium">Token</th>
-                                    <th class="text-left p-3 text-gray-600 font-medium">Condition</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${todaysAppointments.filter(a => a.doctorId === doctor.doctor_id).map(appt => \`
-                                <tr class="border-t border-gray-100 hover:bg-gray-50">
-                                    <td class="p-3 font-medium">\${appt.time}</td>
-                                    <td class="p-3">\${appt.patient}</td>
-                                    <td class="p-3">
-                                        <span class="token-badge">\${appt.token}</span>
-                                    </td>
-                                    <td class="p-3 text-gray-600">\${appt.condition}</td>
-                                </tr>
-                                \`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    \` : \`
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-calendar-times text-3xl mb-3 text-gray-300"></i>
-                        <p>No appointments scheduled for today</p>
-                    </div>
-                    \`}
+                    \${appointmentsHtml}
                     
                     <div class="pt-4 border-t border-gray-200">
                         <button class="bg-cyan-600 text-white w-full py-3 rounded-lg hover:bg-cyan-700 flex items-center justify-center gap-2" 
-                                onclick="showLeaveModalForDoctor(\${doctor.id})">
+                                onclick="showLeaveModalForDoctor('\${doctor.doctor_id}')">
                             <i class="fas fa-calendar-times"></i>
                             Update Leave Status
                         </button>
@@ -877,8 +894,8 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         function submitLeaveForm(event) {
             event.preventDefault();
             
-            const doctorId = parseInt(document.getElementById('leaveDoctor').value);
-            const doctor = doctorsData.find(d => d.id === doctorId);
+            const doctorId = document.getElementById('leaveDoctor').value;
+            const doctor = doctorsData.find(d => d.doctor_id === doctorId);
             
             if (!doctor) {
                 alert('Please select a doctor');
@@ -889,7 +906,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
             const toDate = document.getElementById('leaveToDate').value;
             const reason = document.getElementById('leaveReason').value;
             
-            // Send to server
+            // Send to server (home.js API)
             fetch(\`/api/doctors/\${doctorId}/leave\`, {
                 method: 'POST',
                 headers: {
@@ -904,17 +921,8 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update local data
-                    doctor.status = 'On Leave';
-                    doctor.leaveFrom = fromDate;
-                    doctor.leaveTo = toDate;
-                    doctor.leaveReason = reason;
-                    doctor.appointments = [];
-                    
-                    // Update UI
-                    updateDoctorsDisplay();
+                    showToast(\`Leave updated for \${doctor.full_name}\`);
                     closeModal('leaveModal');
-                    showToast(\`Leave updated for \${doctor.name}\`);
                     
                     // Reload page to reflect changes
                     setTimeout(() => {
@@ -928,12 +936,6 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 console.error('Error:', error);
                 alert('Failed to update leave. Please try again.');
             });
-        }
-        
-        // Update doctors display
-        function updateDoctorsDisplay() {
-            // This function will be called after server response
-            // The page reload handles the UI update
         }
         
         // Toast notification
@@ -1069,48 +1071,6 @@ app.get('/register-doctor', (req, res) => {
   }
 });
 
-// Keep your existing API routes (commented out for now)
-/*app.get('/api/doctors', (req, res) => {
-  res.json({
-    success: true,
-    count: doctors.length,
-    doctors: doctors
-  });
-});
-
-app.post('/api/doctors/:id/leave', (req, res) => {
-  try {
-    const doctorId = parseInt(req.params.id);
-    const { from, to, reason } = req.body;
-    
-    const doctor = doctors.find(d => d.id === doctorId);
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
-    }
-    
-    doctor.status = 'On Leave';
-    doctor.leaveFrom = from;
-    doctor.leaveTo = to;
-    doctor.leaveReason = reason;
-    doctor.appointments = [];
-    
-    res.json({
-      success: true,
-      message: 'Leave status updated successfully',
-      doctor
-    });
-  } catch (error) {
-    console.error('Update leave error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});*/
-
 // ============================================
 // THIS IS THE ONLY app.listen() - KEEP THIS ONE
 // ============================================
@@ -1149,7 +1109,7 @@ if (require.main === module) {
 }
 
 // ============================================
-// EXPORT for signin.js - THIS REPLACES the old module.exports
+// EXPORT for home.js - THIS REPLACES the old module.exports
 // ============================================
 module.exports = async function renderAdminDashboard(userId) {
   try {
