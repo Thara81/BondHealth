@@ -725,29 +725,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         // Function to open doctor registration page
         function openDoctorRegistration() {
             console.log('Opening doctor registration page...');
-            
-            if (hospitalRegisterTemplate) {
-                try {
-                    // Open in new tab with extracted HTML
-                    const registerWindow = window.open('', '_blank');
-                    if (registerWindow) {
-                        registerWindow.document.write(hospitalRegisterTemplate);
-                        registerWindow.document.close();
-                        console.log('✅ Doctor registration page opened in new tab');
-                    } else {
-                        // Popup blocked - try fallback
-                        console.log('Popup blocked, trying fallback...');
-                        window.location.href = '/register-doctor';
-                    }
-                } catch (error) {
-                    console.error('Error opening registration page:', error);
-                    window.location.href = '/register-doctor';
-                }
-            } else {
-                // Fallback to dedicated route
-                console.log('No template, redirecting to /register-doctor');
-                window.location.href = '/register-doctor';
-            }
+            window.location.href = '/register-doctor';
         }
         
         // Logout function - redirects to home page
@@ -1074,7 +1052,7 @@ app.get('/register-doctor', (req, res) => {
 // ============================================
 // THIS IS THE ONLY app.listen() - KEEP THIS ONE
 // ============================================
-if (require.main === module) {
+/*if (require.main === module) {
     app.listen(port, () => {
         console.log('\n🚀 ========================================');
         console.log(`   Hospital Admin Dashboard running at http://localhost:${port}`);
@@ -1107,7 +1085,7 @@ if (require.main === module) {
         console.log('========================================\n');
     });
 }
-
+*/
 // ============================================
 // EXPORT for home.js - THIS REPLACES the old module.exports
 // ============================================

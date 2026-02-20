@@ -186,6 +186,203 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Add these routes to home.js - near your other API routes
+
+// ============================================
+// HOSPITAL MANAGEMENT API ROUTES
+// ============================================
+
+// Get hospital data for dashboard
+app.get('/api/hospital/data', authenticate, async (req, res) => {
+  try {
+    // Get the hospital_id from the admin's hospital
+    const adminResult = await query(
+      'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    
+    const hospitalResult = await query('SELECT * FROM hospitals WHERE hospital_id = $1', [hospitalId]);
+    const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalId]);
+    const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalId]);
+    const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalId]);
+    
+    res.json({
+      hospitalName: hospitalResult.rows[0]?.name || 'City General Hospital',
+      hospitalId: hospitalResult.rows[0]?.hospital_uuid || 'HOS-12345',
+      doctors: doctorsResult.rows,
+      medicines: medicinesResult.rows,
+      labs: labsResult.rows,
+      specialities: [...new Set(doctorsResult.rows.map(d => d.specialization).filter(Boolean))]
+    });
+  } catch (error) {
+    console.error('Error fetching hospital data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add new doctor
+app.post('/api/hospital/add/doctor', authenticate, authorize('admin'), async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { name, speciality, phone, email, designation, dateOfBirth, education, 
+            medicalCouncil, registrationNumber, idType, idNumber, appointmentDate } = req.body;
+    
+    // Get hospital_id from the admin
+    const adminResult = await client.query(
+      'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+    
+    // Create username from email
+    const username = email ? email.split('@')[0] : `doctor_${Date.now()}`;
+    
+    // Create temporary password (you might want to generate a random one)
+    const salt = await bcrypt.genSalt(10);
+    const tempPassword = await bcrypt.hash('Welcome@123', salt);
+    
+    // Create user account for doctor
+    const userResult = await client.query(
+      `INSERT INTO users (username, email, password_hash, role, hospital_id) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
+      [username, email || `${username}@bondhealth.com`, tempPassword, 'doctor', hospitalId]
+    );
+    
+    const userId = userResult.rows[0].user_id;
+    
+    // Generate doctor_uuid
+    const doctorUuid = `DR-${Date.now()}`;
+    
+    // Add doctor to doctors table
+    const doctorResult = await client.query(
+      `INSERT INTO doctors (
+        user_id, hospital_id, doctor_uuid, full_name, specialization, 
+        phone, email, designation, qualification, status
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [
+        userId, hospitalId, doctorUuid, name, speciality, 
+        phone, email, designation || 'Consultant', education || 'MBBS', 'Available'
+      ]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Doctor registered successfully',
+      data: doctorResult.rows[0] 
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error adding doctor:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Add new medicine
+app.post('/api/hospital/add/medicine', authenticate, async (req, res) => {
+  try {
+    const adminResult = await query(
+      'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+    
+    const { name, quantity, price, expiry } = req.body;
+    
+    const result = await query(
+      `INSERT INTO medicines (hospital_id, name, quantity, price, expiry_date)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [hospitalId, name, quantity, price, expiry]
+    );
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error adding medicine:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Add new lab technician
+app.post('/api/hospital/add/lab', authenticate, async (req, res) => {
+  try {
+    const adminResult = await query(
+      'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+    
+    const labData = req.body;
+    
+    // Create user for lab technician
+    const salt = await bcrypt.genSalt(10);
+    const tempPassword = await bcrypt.hash('Welcome@123', salt);
+    
+    const userResult = await query(
+      `INSERT INTO users (username, email, password_hash, role, hospital_id) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
+      [labData.name.replace(/\s+/g, '').toLowerCase(), labData.email || `${labData.name}@bondhealth.com`, tempPassword, 'lab', hospitalId]
+    );
+    
+    const result = await query(
+      `INSERT INTO lab_technicians (user_id, hospital_id, full_name, employee_id, phone, email)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [userResult.rows[0].user_id, hospitalId, labData.name, labData.licenseNumber, labData.phone, labData.email]
+    );
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error adding lab:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Add this route in home.js - place it near your other dashboard routes
+app.get('/register-doctor', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        const hospitalHTML = Hospital.getAddDoctorHTML();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(hospitalHTML);
+    } catch (err) {
+        console.error('Error loading doctor registration:', err);
+        res.status(500).send(`
+            <h1>500 - Error</h1>
+            <p>Could not load doctor registration page.</p>
+            <a href="/admin-dashboard">← Back to Dashboard</a>
+        `);
+    }
+});
+
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {

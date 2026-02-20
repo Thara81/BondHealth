@@ -3173,7 +3173,7 @@ function getAddLabHTML() {
 </html>`;
 }
 
-app.get('/api/hospital/data', async (req, res) => {
+/*app.get('/api/hospital/data', async (req, res) => {
   try {
     // For now, get the first hospital (you'll need to pass hospital_id)
     const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
@@ -3259,24 +3259,43 @@ app.post('/api/hospital/add/lab', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+});*/
 
-module.exports = async function renderHospitalDashboard(data = null) {
-  try {
-    // Get hospital data from database
-    const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
-    const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-    const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-    const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-    
-    return getMainDashboardHTML(
-      hospitalResult.rows[0] || null,
-      doctorsResult.rows || [],
-      medicinesResult.rows || [],
-      labsResult.rows || []
-    );
-  } catch (error) {
-    console.error('Error loading hospital dashboard:', error);
-    return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+// At the bottom of Hospital.js, REPLACE the existing module.exports with:
+module.exports = {
+  renderHospitalDashboard: async function(data = null) {
+    try {
+      // Get hospital data from database
+      const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
+      const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+      const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+      const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+      
+      return getMainDashboardHTML(
+        hospitalResult.rows[0] || null,
+        doctorsResult.rows || [],
+        medicinesResult.rows || [],
+        labsResult.rows || []
+      );
+    } catch (error) {
+      console.error('Error loading hospital dashboard:', error);
+      return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+    }
+  },
+  
+  getAddDoctorHTML: function() {
+    return getAddDoctorHTML();
+  },
+  
+  getAddSpecialityHTML: function() {
+    return getAddSpecialityHTML();
+  },
+  
+  getAddMedicineHTML: function() {
+    return getAddMedicineHTML();
+  },
+  
+  getAddLabHTML: function() {
+    return getAddLabHTML();
   }
 };
