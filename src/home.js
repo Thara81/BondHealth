@@ -383,6 +383,87 @@ app.get('/register-doctor', requireAuth('admin'), async (req, res) => {
     }
 });
 
+// Add these routes to home.js (near your other routes)
+
+// Hospital Main Dashboard
+app.get('/hospital-dashboard', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        
+        // Get hospital data for this admin
+        const adminResult = await query(
+            'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
+            [req.user.id]
+        );
+        
+        const hospitalId = adminResult.rows[0]?.hospital_id;
+        
+        if (!hospitalId) {
+            return res.status(404).send('Hospital not found');
+        }
+        
+        // Pass data to render the main dashboard
+        const html = await Hospital.renderHospitalDashboard({ hospitalId });
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading hospital dashboard:', err);
+        res.status(500).send('Error loading dashboard');
+    }
+});
+
+// Add Speciality page
+app.get('/add-speciality', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        const html = Hospital.getAddSpecialityHTML();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading add speciality:', err);
+        res.status(500).send('Error loading page');
+    }
+});
+
+// Add Doctor page (what you currently have)
+app.get('/add-doctor', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        const html = Hospital.getAddDoctorHTML();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading add doctor:', err);
+        res.status(500).send('Error loading page');
+    }
+});
+
+// Add Medicine page
+app.get('/add-medicine', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        const html = Hospital.getAddMedicineHTML();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading add medicine:', err);
+        res.status(500).send('Error loading page');
+    }
+});
+
+// Add Lab page
+app.get('/add-lab', requireAuth('admin'), async (req, res) => {
+    try {
+        const Hospital = require('./Hospital.js');
+        const html = Hospital.getAddLabHTML();
+        res.setHeader('Content-Type', 'text/html');
+        res.send(html);
+    } catch (err) {
+        console.error('Error loading add lab:', err);
+        res.status(500).send('Error loading page');
+    }
+});
+
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {
