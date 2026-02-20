@@ -117,7 +117,6 @@ const requireAuth = (role) => {
 // ============================================
 
 // Register
-// Register
 app.post('/api/auth/register', async (req, res) => {
   console.log('📝 Registration attempt:', req.body);
   const client = await getClient();
@@ -482,6 +481,192 @@ app.post('/api/appointments', authenticate, authorize('patient'), async (req, re
     res.status(201).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// APPOINTMENT RESCHEDULE & CANCEL ROUTES (FIXED with type casting)
+// ============================================
+
+// Reschedule appointment
+app.put('/api/appointments/:id/reschedule', authenticate, async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { id } = req.params;
+    const { new_date, new_time, reason } = req.body;
+    
+    // Check if id is a UUID format or a string
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let appointment;
+    
+    if (isUUID) {
+      // It's a UUID, search by appointment_id
+      appointment = await client.query(
+        `SELECT a.*, p.user_id as patient_user_id, d.user_id as doctor_user_id 
+         FROM appointments a
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         WHERE a.appointment_id = $1::uuid`,
+        [id]
+      );
+    } else {
+      // It's a string like 'APT-001', search by appointment_uuid
+      appointment = await client.query(
+        `SELECT a.*, p.user_id as patient_user_id, d.user_id as doctor_user_id 
+         FROM appointments a
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         WHERE a.appointment_uuid = $1`,
+        [id]
+      );
+    }
+    
+    if (!appointment.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    
+    const apt = appointment.rows[0];
+    
+    // Check authorization (only patient or doctor can reschedule)
+    if (req.user.role === 'patient' && apt.patient_user_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    
+    if (req.user.role === 'doctor' && apt.doctor_user_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    
+    // Check if new slot is available - with explicit type casting
+    const slotCheck = await client.query(
+      `SELECT * FROM appointments 
+       WHERE doctor_id = $1::uuid 
+       AND appointment_date = $2::date 
+       AND appointment_time = $3::varchar 
+       AND status != 'cancelled'
+       AND appointment_id != $4::uuid`,
+      [apt.doctor_id, new_date, new_time, apt.appointment_id]
+    );
+    
+    if (slotCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.json({ success: false, message: 'Time slot not available' });
+    }
+    
+    // Update appointment - with explicit type casting
+    await client.query(
+      `UPDATE appointments 
+       SET appointment_date = $1::date, 
+           appointment_time = $2::varchar, 
+           notes = CASE WHEN $3::text IS NOT NULL AND $3::text != '' 
+                    THEN COALESCE(notes, '') || ' | Rescheduled: ' || $3::text
+                    ELSE notes
+                    END,
+           status = 'rescheduled'
+       WHERE appointment_id = $4::uuid`,
+      [new_date, new_time, reason, apt.appointment_id]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Appointment rescheduled successfully' 
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Reschedule error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Cancel appointment
+app.put('/api/appointments/:id/cancel', authenticate, async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    // Check if id is a UUID format or a string
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let appointment;
+    
+    if (isUUID) {
+      // It's a UUID, search by appointment_id
+      appointment = await client.query(
+        `SELECT a.*, p.user_id as patient_user_id, d.user_id as doctor_user_id 
+         FROM appointments a
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         WHERE a.appointment_id = $1::uuid`,
+        [id]
+      );
+    } else {
+      // It's a string like 'APT-001', search by appointment_uuid
+      appointment = await client.query(
+        `SELECT a.*, p.user_id as patient_user_id, d.user_id as doctor_user_id 
+         FROM appointments a
+         JOIN patients p ON a.patient_id = p.patient_id
+         JOIN doctors d ON a.doctor_id = d.doctor_id
+         WHERE a.appointment_uuid = $1`,
+        [id]
+      );
+    }
+    
+    if (!appointment.rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    
+    const apt = appointment.rows[0];
+    
+    // Check authorization
+    if (req.user.role === 'patient' && apt.patient_user_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    
+    if (req.user.role === 'doctor' && apt.doctor_user_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+    
+    // Update appointment status to cancelled - with explicit type casting
+    await client.query(
+      `UPDATE appointments 
+       SET status = 'cancelled',
+           notes = CASE WHEN $1::text IS NOT NULL AND $1::text != '' 
+                    THEN COALESCE(notes, '') || ' | Cancelled: ' || $1::text
+                    ELSE COALESCE(notes, '') || ' | Cancelled by patient'
+                    END
+       WHERE appointment_id = $2::uuid`,
+      [reason, apt.appointment_id]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Appointment cancelled successfully' 
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Cancel error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
   }
 });
 
