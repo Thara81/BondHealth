@@ -3263,25 +3263,54 @@ app.post('/api/hospital/add/lab', async (req, res) => {
 
 // At the bottom of Hospital.js, REPLACE the existing module.exports with:
 module.exports = {
-  renderHospitalDashboard: async function(data = null) {
-    try {
-      // Get hospital data from database
-      const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
-      const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-      const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-      const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
-      
-      return getMainDashboardHTML(
-        hospitalResult.rows[0] || null,
-        doctorsResult.rows || [],
-        medicinesResult.rows || [],
-        labsResult.rows || []
-      );
-    } catch (error) {
-      console.error('Error loading hospital dashboard:', error);
-      return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
-    }
-  },
+  // REPLACE the existing renderHospitalDashboard function with this:
+    renderHospitalDashboard: async function(data = null) {
+        try {
+            // If data is provided with hospital info, use it
+            if (data && data.hospital) {
+                // Get doctors for this hospital
+                const doctorsResult = await query(
+                    'SELECT * FROM doctors WHERE hospital_id = $1', 
+                    [data.hospital.hospital_id]
+                );
+                
+                // Get medicines for this hospital
+                const medicinesResult = await query(
+                    'SELECT * FROM medicines WHERE hospital_id = $1', 
+                    [data.hospital.hospital_id]
+                );
+                
+                // Get labs for this hospital
+                const labsResult = await query(
+                    'SELECT * FROM lab_technicians WHERE hospital_id = $1', 
+                    [data.hospital.hospital_id]
+                );
+                
+                return getMainDashboardHTML(
+                    data.hospital,
+                    doctorsResult.rows || [],
+                    medicinesResult.rows || [],
+                    labsResult.rows || []
+                );
+            }
+            
+            // Fallback: Get first hospital from database
+            const hospitalResult = await query('SELECT * FROM hospitals LIMIT 1');
+            const doctorsResult = await query('SELECT * FROM doctors WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+            const medicinesResult = await query('SELECT * FROM medicines WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+            const labsResult = await query('SELECT * FROM lab_technicians WHERE hospital_id = $1', [hospitalResult.rows[0]?.hospital_id]);
+            
+            return getMainDashboardHTML(
+                hospitalResult.rows[0] || null,
+                doctorsResult.rows || [],
+                medicinesResult.rows || [],
+                labsResult.rows || []
+            );
+        } catch (error) {
+            console.error('Error loading hospital dashboard:', error);
+            return '<h1>Error loading dashboard</h1><p>Please try again later.</p>';
+        }
+    },
   
   getAddDoctorHTML: function() {
     return getAddDoctorHTML();

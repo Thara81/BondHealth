@@ -385,32 +385,6 @@ app.get('/register-doctor', requireAuth('admin'), async (req, res) => {
 
 // Add these routes to home.js (near your other routes)
 
-// Hospital Main Dashboard
-app.get('/hospital-dashboard', requireAuth('admin'), async (req, res) => {
-    try {
-        const Hospital = require('./Hospital.js');
-        
-        // Get hospital data for this admin
-        const adminResult = await query(
-            'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
-            [req.user.id]
-        );
-        
-        const hospitalId = adminResult.rows[0]?.hospital_id;
-        
-        if (!hospitalId) {
-            return res.status(404).send('Hospital not found');
-        }
-        
-        // Pass data to render the main dashboard
-        const html = await Hospital.renderHospitalDashboard({ hospitalId });
-        res.setHeader('Content-Type', 'text/html');
-        res.send(html);
-    } catch (err) {
-        console.error('Error loading hospital dashboard:', err);
-        res.status(500).send('Error loading dashboard');
-    }
-});
 
 // Add Speciality page
 app.get('/add-speciality', requireAuth('admin'), async (req, res) => {
@@ -1126,10 +1100,10 @@ app.get('/hospital-dashboard', requireAuth('admin'), async (req, res) => {
         );
         
         // Require and render the dashboard
-        const renderHospitalDashboard = require('./Hospital.js');
+        const Hospital = require('./Hospital.js');
         
         // Pass data to the render function
-        const html = renderHospitalDashboard({
+        const html = await Hospital.renderHospitalDashboard({
             hospital: hospitalResult.rows[0] || null,
             stats: statsResult.rows[0] || {},
             recentActivity: recentResult.rows || []

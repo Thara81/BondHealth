@@ -724,8 +724,8 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         
         // Function to open doctor registration page
         function openDoctorRegistration() {
-            console.log('Opening doctor registration page...');
-            window.location.href = '/register-doctor';
+            console.log('Opening hospital management dashboard...');
+            window.location.href = '/hospital-dashboard';
         }
         
         // Logout function - redirects to home page
