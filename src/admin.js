@@ -364,7 +364,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <p id="pageSubtitle" class="text-gray-500">Today: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
             <div class="flex items-center gap-4">
-                <button class="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2" onclick="openDoctorRegistration()">
+                <button class="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition-colors flex items-center gap-2" onclick="openAddDoctorForm()">
                     <i class="fas fa-user-plus"></i>
                     Register Doctor
                 </button>
@@ -519,7 +519,7 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-lg font-bold text-gray-800">All Doctors</h3>
                     <button class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 flex items-center gap-2" 
-                            onclick="openDoctorRegistration()">
+                            onclick="openAddDoctorForm()">
                         <i class="fas fa-plus"></i>
                         Add New Doctor
                     </button>
@@ -724,32 +724,15 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
         
         // Function to open doctor registration page
         function openDoctorRegistration() {
-            console.log('Opening doctor registration page...');
-            
-            if (hospitalRegisterTemplate) {
-                try {
-                    // Open in new tab with extracted HTML
-                    const registerWindow = window.open('', '_blank');
-                    if (registerWindow) {
-                        registerWindow.document.write(hospitalRegisterTemplate);
-                        registerWindow.document.close();
-                        console.log('✅ Doctor registration page opened in new tab');
-                    } else {
-                        // Popup blocked - try fallback
-                        console.log('Popup blocked, trying fallback...');
-                        window.location.href = '/register-doctor';
-                    }
-                } catch (error) {
-                    console.error('Error opening registration page:', error);
-                    window.location.href = '/register-doctor';
-                }
-            } else {
-                // Fallback to dedicated route
-                console.log('No template, redirecting to /register-doctor');
-                window.location.href = '/register-doctor';
-            }
+            console.log('Opening hospital management dashboard...');
+            window.location.href = '/hospital-dashboard';
         }
         
+        function openAddDoctorForm() {
+            console.log('Opening add doctor form...');
+            window.location.href = '/add-doctor';  // Goes directly to add doctor form
+        }
+
         // Logout function - redirects to home page
         function logout() {
             console.log('Logging out...');
@@ -1074,7 +1057,7 @@ app.get('/register-doctor', (req, res) => {
 // ============================================
 // THIS IS THE ONLY app.listen() - KEEP THIS ONE
 // ============================================
-if (require.main === module) {
+/*if (require.main === module) {
     app.listen(port, () => {
         console.log('\n🚀 ========================================');
         console.log(`   Hospital Admin Dashboard running at http://localhost:${port}`);
@@ -1107,7 +1090,7 @@ if (require.main === module) {
         console.log('========================================\n');
     });
 }
-
+*/
 // ============================================
 // EXPORT for home.js - THIS REPLACES the old module.exports
 // ============================================
