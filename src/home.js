@@ -1,3 +1,4 @@
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -223,6 +224,486 @@ app.get('/api/hospital/data', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error fetching hospital data:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// REVIEWS API ROUTES - Complete Review System
+// ============================================
+
+// Get all approved reviews with sorting and filtering
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { 
+      sort = 'recent', 
+      rating, 
+      search, 
+      hospital, 
+      doctor,
+      page = 1, 
+      limit = 10 
+    } = req.query;
+    
+    let whereClause = 'WHERE is_approved = true';
+    const params = [];
+    let paramIndex = 1;
+    
+    // Filter by rating
+    if (rating) {
+      if (rating === 'positive') {
+        whereClause += ` AND rating >= 4`;
+      } else if (rating === 'negative') {
+        whereClause += ` AND rating <= 2`;
+      } else if (rating === 'neutral') {
+        whereClause += ` AND rating = 3`;
+      } else if (!isNaN(parseInt(rating))) {
+        whereClause += ` AND rating = $${paramIndex}`;
+        params.push(parseInt(rating));
+        paramIndex++;
+      }
+    }
+    
+    // Search in content or title
+    if (search) {
+      whereClause += ` AND (content ILIKE $${paramIndex} OR title ILIKE $${paramIndex} OR reviewer_name ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    // Filter by hospital
+    if (hospital) {
+      whereClause += ` AND hospital_name ILIKE $${paramIndex}`;
+      params.push(`%${hospital}%`);
+      paramIndex++;
+    }
+    
+    // Filter by doctor
+    if (doctor) {
+      whereClause += ` AND doctor_name ILIKE $${paramIndex}`;
+      params.push(`%${doctor}%`);
+      paramIndex++;
+    }
+    
+    // Determine sort order
+    let orderBy = 'created_at DESC';
+    if (sort === 'highest') {
+      orderBy = 'rating DESC, created_at DESC';
+    } else if (sort === 'lowest') {
+      orderBy = 'rating ASC, created_at DESC';
+    } else if (sort === 'helpful') {
+      orderBy = 'helpful_count DESC, created_at DESC';
+    }
+    
+    // Get total count for pagination
+    const countResult = await query(
+      `SELECT COUNT(*) FROM reviews ${whereClause}`,
+      params
+    );
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Add pagination
+    const offset = (page - 1) * limit;
+    const paginatedParams = [...params, limit, offset];
+    
+    const result = await query(
+      `SELECT 
+        review_id,
+        reviewer_name,
+        rating,
+        title,
+        content,
+        hospital_name,
+        doctor_name,
+        is_verified,
+        helpful_count,
+        created_at,
+        updated_at,
+        CASE 
+          WHEN created_at >= CURRENT_DATE THEN 'Today'
+          WHEN created_at >= CURRENT_DATE - INTERVAL '1 day' THEN 'Yesterday'
+          ELSE TO_CHAR(created_at, 'Mon DD, YYYY')
+        END as formatted_date
+       FROM reviews 
+       ${whereClause}
+       ORDER BY ${orderBy}
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      paginatedParams
+    );
+    
+    // Get rating statistics
+    const statsResult = await query(
+      `SELECT 
+        COUNT(*) as total_reviews,
+        COALESCE(AVG(rating), 0) as average_rating,
+        COUNT(CASE WHEN rating = 5 THEN 1 END) as five_star,
+        COUNT(CASE WHEN rating = 4 THEN 1 END) as four_star,
+        COUNT(CASE WHEN rating = 3 THEN 1 END) as three_star,
+        COUNT(CASE WHEN rating = 2 THEN 1 END) as two_star,
+        COUNT(CASE WHEN rating = 1 THEN 1 END) as one_star
+       FROM reviews 
+       WHERE is_approved = true`
+    );
+    
+    res.json({
+      success: true,
+      reviews: result.rows,
+      stats: statsResult.rows[0],
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        limit: parseInt(limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Submit a new review (authenticated users only)
+app.post('/api/reviews', authenticate, async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { rating, title, content, hospital_name, doctor_name } = req.body;
+    
+    // Validate input
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
+    
+    if (!content || content.trim().length < 10) {
+      return res.status(400).json({ success: false, message: 'Review content must be at least 10 characters' });
+    }
+    
+    // Get patient info if user is a patient
+    let patientId = null;
+    let reviewerName = req.user.username;
+    let reviewerEmail = null;
+    
+    if (req.user.role === 'patient') {
+      const patientResult = await client.query(
+        'SELECT patient_id, full_name, email FROM patients WHERE user_id = $1',
+        [req.user.id]
+      );
+      if (patientResult.rows.length > 0) {
+        patientId = patientResult.rows[0].patient_id;
+        reviewerName = patientResult.rows[0].full_name || reviewerName;
+        reviewerEmail = patientResult.rows[0].email;
+      }
+    }
+    
+    // Insert review
+    const result = await client.query(
+      `INSERT INTO reviews (
+        user_id, patient_id, reviewer_name, reviewer_email, 
+        rating, title, content, hospital_name, doctor_name,
+        is_verified, is_approved, helpful_count
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0)
+      RETURNING *`,
+      [
+        req.user.id,
+        patientId,
+        reviewerName,
+        reviewerEmail,
+        rating,
+        title || null,
+        content,
+        hospital_name || null,
+        doctor_name || null,
+        req.user.role === 'patient', // Verified if they're a patient
+        true, // Auto-approve for now (change to false if you want moderation)
+      ]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.status(201).json({
+      success: true,
+      message: 'Review submitted successfully',
+      review: result.rows[0]
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error submitting review:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Mark a review as helpful
+app.post('/api/reviews/:id/helpful', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await query(
+      `UPDATE reviews 
+       SET helpful_count = helpful_count + 1 
+       WHERE review_id = $1::uuid 
+       RETURNING helpful_count`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Review not found' });
+    }
+    
+    res.json({
+      success: true,
+      helpful_count: result.rows[0].helpful_count
+    });
+    
+  } catch (error) {
+    console.error('Error updating helpful count:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get unique hospitals and doctors for filters
+app.get('/api/reviews/filters', async (req, res) => {
+  try {
+    const hospitalsResult = await query(
+      `SELECT DISTINCT hospital_name 
+       FROM reviews 
+       WHERE hospital_name IS NOT NULL AND is_approved = true
+       ORDER BY hospital_name
+       LIMIT 50`
+    );
+    
+    const doctorsResult = await query(
+      `SELECT DISTINCT doctor_name 
+       FROM reviews 
+       WHERE doctor_name IS NOT NULL AND is_approved = true
+       ORDER BY doctor_name
+       LIMIT 50`
+    );
+    
+    res.json({
+      success: true,
+      hospitals: hospitalsResult.rows.map(r => r.hospital_name),
+      doctors: doctorsResult.rows.map(r => r.doctor_name)
+    });
+    
+  } catch (error) {
+    console.error('Error fetching filters:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+//UPDATE LEAVE
+app.post('/api/doctors/:doctorId/leave', authenticate, authorize('admin'), async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { doctorId } = req.params;
+    const { from, to, reason } = req.body;
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(doctorId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Invalid doctor ID format' });
+    }
+    
+    // Get hospital_id from the admin
+    const adminResult = await client.query(
+      `SELECT hospital_id FROM hospital_admins WHERE user_id = $1`,
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Hospital not found for this admin' });
+    }
+    
+    // Verify the doctor belongs to this admin's hospital
+    const doctorCheck = await client.query(
+      `SELECT * FROM doctors WHERE doctor_id = $1::uuid AND hospital_id = $2::uuid`,
+      [doctorId, hospitalId]
+    );
+    
+    if (doctorCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Doctor not found in your hospital' });
+    }
+    
+    // Insert leave record into doctor_leave table
+    const leaveResult = await client.query(
+      `INSERT INTO doctor_leave (doctor_id, from_date, to_date, reason, status)
+       VALUES ($1::uuid, $2::date, $3::date, $4, 'Approved')
+       RETURNING *`,
+      [doctorId, from, to, reason]
+    );
+    
+    // Update doctor status to 'On Leave'
+    await client.query(
+      `UPDATE doctors SET status = 'On Leave' WHERE doctor_id = $1::uuid`,
+      [doctorId]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Leave updated successfully',
+      data: leaveResult.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating leave:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get all leave records for a specific doctor
+app.get('/api/doctors/:doctorId/leave', authenticate, authorize('admin', 'doctor'), async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(doctorId)) {
+      return res.status(400).json({ success: false, message: 'Invalid doctor ID format' });
+    }
+    
+    // Check authorization
+    if (req.user.role === 'doctor') {
+      // Verify the doctor is viewing their own leave records
+      const doctorCheck = await query(
+        `SELECT doctor_id FROM doctors WHERE user_id = $1::uuid`,
+        [req.user.id]
+      );
+      
+      if (doctorCheck.rows.length === 0 || doctorCheck.rows[0].doctor_id !== doctorId) {
+        return res.status(403).json({ success: false, message: 'You can only view your own leave records' });
+      }
+    }
+    
+    const result = await query(
+      `SELECT * FROM doctor_leave 
+       WHERE doctor_id = $1::uuid 
+       ORDER BY created_at DESC`,
+      [doctorId]
+    );
+    
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching leave records:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get all doctors on leave (for admin dashboard)
+app.get('/api/doctors/on-leave', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    // Get hospital_id from the admin
+    const adminResult = await query(
+      `SELECT hospital_id FROM hospital_admins WHERE user_id = $1`,
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
+    
+    const result = await query(
+      `SELECT d.*, dl.from_date, dl.to_date, dl.reason, dl.leave_id
+       FROM doctors d
+       JOIN doctor_leave dl ON d.doctor_id = dl.doctor_id
+       WHERE d.hospital_id = $1::uuid 
+         AND d.status = 'On Leave'
+         AND dl.status = 'Approved'
+         AND dl.from_date <= CURRENT_DATE 
+         AND dl.to_date >= CURRENT_DATE
+       ORDER BY d.full_name`,
+      [hospitalId]
+    );
+    
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching doctors on leave:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Remove/end leave (when doctor returns)
+app.delete('/api/doctors/:doctorId/leave', authenticate, authorize('admin'), async (req, res) => {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    
+    const { doctorId } = req.params;
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(doctorId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Invalid doctor ID format' });
+    }
+    
+    // Get hospital_id from the admin
+    const adminResult = await client.query(
+      `SELECT hospital_id FROM hospital_admins WHERE user_id = $1`,
+      [req.user.id]
+    );
+    
+    const hospitalId = adminResult.rows[0]?.hospital_id;
+    
+    if (!hospitalId) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
+    
+    // Update doctor status back to 'Available'
+    const doctorUpdate = await client.query(
+      `UPDATE doctors SET status = 'Available' 
+       WHERE doctor_id = $1::uuid AND hospital_id = $2::uuid 
+       RETURNING *`,
+      [doctorId, hospitalId]
+    );
+    
+    if (doctorUpdate.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Doctor not found in your hospital' });
+    }
+    
+    // Mark the most recent active leave as completed
+    await client.query(
+      `UPDATE doctor_leave 
+       SET status = 'Completed' 
+       WHERE doctor_id = $1::uuid 
+         AND status = 'Approved' 
+         AND to_date >= CURRENT_DATE
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [doctorId]
+    );
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Leave removed, doctor is now available',
+      data: doctorUpdate.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error removing leave:', error);
+    res.status(500).json({ success: false, message: error.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -1197,7 +1678,6 @@ app.put('/api/appointments/:id', authenticate, authorize('doctor', 'admin'), asy
   }
 });
 
-
 // API endpoint for feedback submission
 app.post('/api/feedback', async (req, res) => {
   try {
@@ -1325,16 +1805,12 @@ function generateHTML() {
     
     .review-bubble {
       position: relative;
+      transition: all 0.3s ease;
     }
     
-    .review-bubble::after {
-      content: '';
-      position: absolute;
-      bottom: -10px;
-      left: 30px;
-      border-width: 10px;
-      border-style: solid;
-      border-color: white transparent transparent transparent;
+    .review-bubble:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 86, 179, 0.15);
     }
     
     .gradient-text {
@@ -1379,10 +1855,11 @@ function generateHTML() {
     }
     
     .reviews-container {
-      max-height: 400px;
+      max-height: 600px;
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: #0056b3 #e6f2ff;
+      padding-right: 8px;
     }
     
     .reviews-container::-webkit-scrollbar {
@@ -1398,17 +1875,51 @@ function generateHTML() {
       background: #0056b3;
       border-radius: 3px;
     }
+    
+    .rating-stars {
+      display: inline-flex;
+      gap: 2px;
+    }
+    
+    .rating-stars .star {
+      color: #d1d5db;
+      transition: color 0.2s;
+    }
+    
+    .rating-stars .star.filled {
+      color: #fbbf24;
+    }
+    
+    .filter-btn.active {
+      background: linear-gradient(135deg, #0088cc, #00aadd);
+      color: white;
+      border-color: transparent;
+    }
+    
+    .loading-spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0088cc;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
  <body class="h-full bg-white">
-  <div id="app-wrapper" class="w-full h-full overflow-auto"><!-- Header -->
+  <div id="app-wrapper" class="w-full h-full overflow-auto">
+   <!-- Header -->
    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
      <div class="flex justify-between items-center py-4">
       <div class="flex items-center gap-2">
-       <!-- Changed circle colors from #00c8ff to darker #0088cc for better contrast -->
        <svg class="w-10 h-10" viewbox="0 0 50 50" fill="none">
         <circle cx="25" cy="25" r="23" fill="#0088cc" opacity="0.2" />
         <path d="M25 8C15.6 8 8 15.6 8 25s7.6 17 17 17 17-7.6 17-17S34.4 8 25 8z" stroke="#0088cc" stroke-width="2" fill="none" />
@@ -1423,13 +1934,13 @@ function generateHTML() {
         <a href="#hospitals" class="text-gray-600 hover:text-[#00c8ff] transition-all font-medium hover:scale-110">Hospitals</a>
         <a href="#reviews" class="text-gray-600 hover:text-[#00c8ff] transition-all font-medium hover:scale-110">Reviews</a>
       </nav>
-      <!-- Sign In button now links to signin.html -->
       <button onclick="window.location.href='/signin'" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-6 py-2.5 rounded-full font-medium transition-all hover:shadow-lg hover:shadow-cyan-300 hover:scale-105"> Sign In </button>
      </div>
     </div>
-   </header><!-- Hero Section -->
+   </header>
+
+   <!-- Hero Section -->
    <section class="hero-gradient py-20 lg:py-28 relative overflow-hidden">
-    <!-- Changed floating shape colors for better contrast -->
     <div class="floating-shape top-20 right-10 w-64 h-64 bg-[#0088cc]" style="animation-delay: 0s;"></div>
     <div class="floating-shape bottom-10 left-10 w-96 h-96 bg-[#00aadd]" style="animation-delay: 2s;"></div>
     <div class="floating-shape top-40 left-1/4 w-48 h-48 bg-[#0099cc]" style="animation-delay: 4s;"></div>
@@ -1440,29 +1951,22 @@ function generateHTML() {
        <h1 id="tagline" class="text-4xl md:text-5xl lg:text-6xl font-bold text-[#006d77] leading-tight mb-6 animate-slide-up">Unifying Care,<br><span class="gradient-text">Strengthening Lives.</span></h1>
        <p id="about-text" class="text-lg text-gray-600 mb-8 leading-relaxed max-w-xl">BondHealth is a state-wide digital ecosystem that bridges the gap between you and your medical providers. We securely centralize your health records, ensuring that your medical history, appointments, and lab results are accessible at every hospital you visit.</p>
        <div class="flex flex-wrap gap-4">
-         <!-- Get Started button now links to signin.html -->
          <button onclick="window.location.href='/signin'" class="bg-gradient-to-r from-[#00c8ff] to-[#00ffff] hover:from-[#00b0e0] hover:to-[#00e0e0] text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:shadow-xl hover:shadow-cyan-300 animate-pulse-glow hover:scale-105"> Get Started Free </button>
-         <button class="border-2 border-[#00c8ff] text-[#00c8ff] hover:bg-[#00c8ff] hover:text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:scale-105 hover:shadow-lg"> Learn More </button>
+         <button onclick="window.location.href='/signin'" class="border-2 border-[#00c8ff] text-[#00c8ff] hover:bg-[#00c8ff] hover:text-white px-8 py-3.5 rounded-full font-semibold transition-all hover:scale-105 hover:shadow-lg"> Learn More </button>
        </div>
       </div>
       <div class="relative hidden lg:block">
-       <!-- Changed SVG circle colors for better contrast -->
        <svg class="w-full max-w-lg mx-auto" viewbox="0 0 400 350" fill="none">
-        <!-- Central hub with rotating ring - changed colors -->
         <circle class="rotating-ring" cx="200" cy="175" r="60" fill="#0088cc" opacity="0.1" />
         <circle cx="200" cy="175" r="45" fill="#0088cc" opacity="0.2" style="animation: pulse-glow 3s ease-in-out infinite;" />
         <circle cx="200" cy="175" r="30" fill="url(#cyan-gradient)" />
         <path d="M200 155v40M180 175h40" stroke="white" stroke-width="4" stroke-linecap="round" />
-        
-        <!-- Gradient definition -->
         <defs>
           <lineargradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" style="stop-color:#0088cc;stop-opacity:1" />
             <stop offset="100%" style="stop-color:#00aadd;stop-opacity:1" />
           </lineargradient>
         </defs>
-        
-        <!-- Connected nodes with animation - changed colors -->
         <circle cx="80" cy="100" r="25" fill="#0088cc" opacity="0.9" style="animation: bounce-subtle 2s ease-in-out infinite;">
           <animate attributename="r" values="25;28;25" dur="2s" repeatcount="indefinite" />
         </circle>
@@ -1470,7 +1974,6 @@ function generateHTML() {
         <line x1="105" y1="115" x2="160" y2="155" stroke="#0088cc" stroke-width="2" stroke-dasharray="5,5" opacity="0.6">
           <animate attributename="stroke-dashoffset" values="0;-10" dur="1s" repeatcount="indefinite" />
         </line>
-        
         <circle cx="320" cy="100" r="25" fill="#0099cc" opacity="0.9" style="animation: bounce-subtle 2s ease-in-out infinite; animation-delay: 0.5s;">
           <animate attributename="r" values="25;28;25" dur="2s" repeatcount="indefinite" begin="0.5s" />
         </circle>
@@ -1478,7 +1981,6 @@ function generateHTML() {
         <line x1="295" y1="115" x2="240" y2="155" stroke="#0099cc" stroke-width="2" stroke-dasharray="5,5" opacity="0.6">
           <animate attributename="stroke-dashoffset" values="0;-10" dur="1s" repeatcount="indefinite" />
         </line>
-        
         <circle cx="80" cy="250" r="25" fill="#00aadd" opacity="0.9" style="animation: bounce-subtle 2s ease-in-out infinite; animation-delay: 1s;">
           <animate attributename="r" values="25;28;25" dur="2s" repeatcount="indefinite" begin="1s" />
         </circle>
@@ -1486,7 +1988,6 @@ function generateHTML() {
         <line x1="105" y1="235" x2="160" y2="195" stroke="#00aadd" stroke-width="2" stroke-dasharray="5,5" opacity="0.6">
           <animate attributename="stroke-dashoffset" values="0;-10" dur="1s" repeatcount="indefinite" />
         </line>
-        
         <circle cx="320" cy="250" r="25" fill="#66ccff" opacity="0.9" style="animation: bounce-subtle 2s ease-in-out infinite; animation-delay: 1.5s;">
           <animate attributename="r" values="25;28;25" dur="2s" repeatcount="indefinite" begin="1.5s" />
         </circle>
@@ -1498,7 +1999,9 @@ function generateHTML() {
       </div>
      </div>
     </div>
-   </section><!-- Impact Slider Section -->
+   </section>
+
+   <!-- Impact Slider Section -->
    <section id="network" class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
      <div class="text-center mb-12">
@@ -1506,7 +2009,6 @@ function generateHTML() {
       <p class="text-gray-600 max-w-2xl mx-auto">Our growing ecosystem connects healthcare providers across the state</p>
      </div>
      <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
-      <!-- Changed stat card colors for better contrast -->
       <div class="stat-card bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-lg border border-blue-100 card-hover text-center hover:shadow-blue-200">
        <div class="text-4xl mb-3 animate-bounce-subtle" style="animation-duration: 3s;">🏥</div>
        <div class="text-3xl md:text-4xl font-bold text-[#0088cc] mb-1" data-count="120">120+</div>
@@ -1533,7 +2035,9 @@ function generateHTML() {
       </div>
      </div>
     </div>
-   </section><!-- Hospitals Gallery -->
+   </section>
+
+   <!-- Hospitals Gallery -->
    <section id="hospitals" class="py-20 bg-gradient-to-b from-gray-50 to-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
      <div class="text-center mb-12">
@@ -1541,7 +2045,6 @@ function generateHTML() {
       <p class="text-gray-600 max-w-2xl mx-auto">Find and book appointments at our partner facilities</p>
      </div>
      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <!-- Changed hospital card gradient colors -->
       <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover hover:shadow-blue-200">
        <div class="aspect-video bg-gradient-to-br from-[#0088cc] to-[#00aadd] flex items-center justify-center relative overflow-hidden">
         <div class="absolute inset-0 bg-white opacity-20" style="animation: drift 10s infinite ease-in-out;"></div>
@@ -1588,71 +2091,186 @@ function generateHTML() {
       </div>
      </div>
     </div>
-   </section><!-- Reviews Section -->
+   </section>
+
+   <!-- Reviews Section - Dynamic -->
    <section id="reviews" class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-     <div class="text-center mb-12">
+     <div class="text-center mb-8">
       <h2 class="text-3xl md:text-4xl font-bold text-[#1a365d] mb-4">What Our Users Say</h2>
       <p class="text-gray-600 max-w-2xl mx-auto">Real experiences from patients across the state</p>
      </div>
-     <div class="reviews-container space-y-6 pr-2">
-      <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-       <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#0056b3] to-[#0088cc] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">SJ</div>
-        <div class="flex-1">
-         <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">Sarah Johnson</span><div class="flex text-yellow-400 text-sm">★★★★★</div></div>
-         <p class="text-gray-600 text-sm leading-relaxed">"BondHealth made my hospital transfers seamless. All my records were instantly available when I switched to a new specialist. No more carrying folders of paperwork!"</p><span class="text-xs text-gray-400 mt-2 block">2 days ago</span>
-        </div>
+     
+     <!-- Rating Summary -->
+     <div id="rating-summary" class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-lg border border-blue-100 mb-8">
+       <div class="flex flex-col md:flex-row items-center gap-8">
+         <div class="text-center">
+           <div id="average-rating" class="text-5xl font-bold text-[#0088cc]">4.8</div>
+           <div class="rating-stars text-2xl mt-2" id="average-stars">★★★★★</div>
+           <div id="total-reviews" class="text-sm text-gray-600 mt-1">Based on 0 reviews</div>
+         </div>
+         <div class="flex-1 grid grid-cols-1 sm:grid-cols-5 gap-2 w-full">
+           <div class="col-span-1 flex items-center gap-2">
+             <span class="text-sm font-medium w-12">5 ★</span>
+             <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+               <div id="five-star-bar" class="h-full bg-green-500" style="width: 0%"></div>
+             </div>
+             <span id="five-star-count" class="text-sm text-gray-600 w-10">0</span>
+           </div>
+           <div class="col-span-1 flex items-center gap-2">
+             <span class="text-sm font-medium w-12">4 ★</span>
+             <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+               <div id="four-star-bar" class="h-full bg-green-400" style="width: 0%"></div>
+             </div>
+             <span id="four-star-count" class="text-sm text-gray-600 w-10">0</span>
+           </div>
+           <div class="col-span-1 flex items-center gap-2">
+             <span class="text-sm font-medium w-12">3 ★</span>
+             <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+               <div id="three-star-bar" class="h-full bg-yellow-400" style="width: 0%"></div>
+             </div>
+             <span id="three-star-count" class="text-sm text-gray-600 w-10">0</span>
+           </div>
+           <div class="col-span-1 flex items-center gap-2">
+             <span class="text-sm font-medium w-12">2 ★</span>
+             <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+               <div id="two-star-bar" class="h-full bg-orange-400" style="width: 0%"></div>
+             </div>
+             <span id="two-star-count" class="text-sm text-gray-600 w-10">0</span>
+           </div>
+           <div class="col-span-1 flex items-center gap-2">
+             <span class="text-sm font-medium w-12">1 ★</span>
+             <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+               <div id="one-star-bar" class="h-full bg-red-500" style="width: 0%"></div>
+             </div>
+             <span id="one-star-count" class="text-sm text-gray-600 w-10">0</span>
+           </div>
+         </div>
        </div>
-      </div>
-      <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-       <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#14b8a6] to-[#0099cc] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">MR</div>
-        <div class="flex-1">
-         <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">Michael Rodriguez</span><div class="flex text-yellow-400 text-sm">★★★★★</div></div>
-         <p class="text-gray-600 text-sm leading-relaxed">"As someone with chronic conditions, having all my lab results and prescriptions in one place is a game-changer. My doctors can now collaborate effectively."</p><span class="text-xs text-gray-400 mt-2 block">1 week ago</span>
-        </div>
+     </div>
+     
+     <!-- Filters and Sorting -->
+     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+       <div class="flex flex-wrap gap-2">
+         <button class="filter-btn active px-4 py-2 rounded-full border border-gray-300 text-sm font-medium transition-all" data-filter="all">All Reviews</button>
+         <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium transition-all" data-filter="positive">Positive (4-5★)</button>
+         <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium transition-all" data-filter="neutral">Neutral (3★)</button>
+         <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium transition-all" data-filter="negative">Negative (1-2★)</button>
        </div>
-      </div>
-      <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-       <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#4f46e5] to-[#00aadd] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">EP</div>
-        <div class="flex-1">
-         <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">Emily Patel</span><div class="flex text-yellow-400 text-sm">★★★★☆</div></div>
-         <p class="text-gray-600 text-sm leading-relaxed">"The appointment booking feature saved me hours of phone calls. I can now see availability across multiple hospitals and choose what works for me."</p><span class="text-xs text-gray-400 mt-2 block">2 weeks ago</span>
-        </div>
+       
+       <div class="flex items-center gap-2 w-full md:w-auto">
+         <select id="sort-select" class="px-4 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none">
+           <option value="recent">Most Recent</option>
+           <option value="highest">Highest Rated</option>
+           <option value="lowest">Lowest Rated</option>
+           <option value="helpful">Most Helpful</option>
+         </select>
+         
+         <button id="write-review-btn" class="bg-gradient-to-r from-[#0088cc] to-[#00aadd] text-white px-4 py-2 rounded-lg text-sm font-medium hover:shadow-lg transition-all whitespace-nowrap">
+           Write a Review
+         </button>
        </div>
-      </div>
-      <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-       <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#f59e0b] to-[#66ccff] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">DW</div>
-        <div class="flex-1">
-         <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">David Williams</span><div class="flex text-yellow-400 text-sm">★★★★★</div></div>
-         <p class="text-gray-600 text-sm leading-relaxed">"Emergency room visits used to be stressful with all the paperwork. Now they have my complete history instantly. It literally saved my life during my last visit."</p><span class="text-xs text-gray-400 mt-2 block">3 weeks ago</span>
-        </div>
+     </div>
+     
+     <!-- Search Bar -->
+     <div class="relative mb-6">
+       <input type="text" id="search-input" placeholder="Search reviews..." class="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none">
+       <svg class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+       </svg>
+     </div>
+     
+     <!-- Reviews Container -->
+     <div id="reviews-loading" class="flex justify-center py-12 hidden">
+       <div class="loading-spinner"></div>
+     </div>
+     
+     <div id="reviews-container" class="reviews-container space-y-6 pr-2">
+       <!-- Reviews will be loaded here dynamically -->
+       <div class="text-center py-12 text-gray-500">
+         Loading reviews...
        </div>
-      </div>
-      <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-       <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#ec4899] to-[#99ddff] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">LT</div>
-        <div class="flex-1">
-         <div class="flex items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">Lisa Thompson</span><div class="flex text-yellow-400 text-sm">★★★★★</div></div>
-         <p class="text-gray-600 text-sm leading-relaxed">"Managing my elderly parents' healthcare has never been easier. I can track their appointments, medications, and test results all from my phone."</p><span class="text-xs text-gray-400 mt-2 block">1 month ago</span>
-        </div>
-       </div>
-      </div>
+     </div>
+     
+     <!-- Pagination -->
+     <div id="pagination" class="flex justify-center gap-2 mt-8">
+       <!-- Pagination will be loaded here -->
      </div>
     </div>
-   </section><!-- Footer -->
+   </section>
+
+   <!-- Write Review Modal -->
+   <div id="review-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 transform transition-all max-h-[90vh] overflow-y-auto">
+     <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-bold text-[#1a365d]">Write a Review</h3>
+      <button id="close-review-modal" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+     </div>
+     
+     <form id="review-form" class="space-y-4">
+      <!-- Rating -->
+      <div>
+       <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating *</label>
+       <div class="flex gap-2 text-3xl" id="rating-stars">
+        <span class="star cursor-pointer hover:scale-110 transition" data-rating="1">☆</span>
+        <span class="star cursor-pointer hover:scale-110 transition" data-rating="2">☆</span>
+        <span class="star cursor-pointer hover:scale-110 transition" data-rating="3">☆</span>
+        <span class="star cursor-pointer hover:scale-110 transition" data-rating="4">☆</span>
+        <span class="star cursor-pointer hover:scale-110 transition" data-rating="5">☆</span>
+       </div>
+       <input type="hidden" id="review-rating" name="rating" required>
+      </div>
+      
+      <!-- Title -->
+      <div>
+       <label for="review-title" class="block text-sm font-medium text-gray-700 mb-1">Review Title</label>
+       <input type="text" id="review-title" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none" placeholder="Summarize your experience">
+      </div>
+      
+      <!-- Content -->
+      <div>
+       <label for="review-content" class="block text-sm font-medium text-gray-700 mb-1">Your Review *</label>
+       <textarea id="review-content" rows="4" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none resize-none" placeholder="Tell us about your experience..." required></textarea>
+       <p class="text-xs text-gray-500 mt-1">Minimum 10 characters</p>
+      </div>
+      
+      <!-- Hospital (Optional) -->
+      <div>
+       <label for="review-hospital" class="block text-sm font-medium text-gray-700 mb-1">Hospital (Optional)</label>
+       <input type="text" id="review-hospital" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none" placeholder="e.g., City General Hospital">
+      </div>
+      
+      <!-- Doctor (Optional) -->
+      <div>
+       <label for="review-doctor" class="block text-sm font-medium text-gray-700 mb-1">Doctor (Optional)</label>
+       <input type="text" id="review-doctor" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0088cc] focus:border-transparent outline-none" placeholder="e.g., Dr. Sarah Johnson">
+      </div>
+      
+      <div class="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg">
+        <span class="font-semibold">Note:</span> Your review will be public and help others make informed decisions.
+      </div>
+      
+      <button type="submit" class="w-full bg-gradient-to-r from-[#0088cc] to-[#00aadd] hover:from-[#0077bb] hover:to-[#0099cc] text-white py-3 rounded-lg font-semibold transition-all hover:shadow-lg">
+       Submit Review
+      </button>
+     </form>
+     
+     <div id="review-success" class="hidden text-center py-8">
+      <div class="text-5xl mb-4">✅</div>
+      <h4 class="text-xl font-bold text-[#1a365d] mb-2">Thank You!</h4>
+      <p class="text-gray-600">Your review has been submitted and will be visible shortly.</p>
+     </div>
+    </div>
+   </div>
+
+   <!-- Footer -->
    <footer class="bg-gradient-to-br from-[#006d77] to-[#004d55] text-white py-16 relative overflow-hidden">
-    <!-- Changed footer floating shape colors -->
     <div class="floating-shape top-10 right-20 w-64 h-64 bg-[#0088cc]" style="animation-delay: 0s; opacity: 0.1;"></div>
     <div class="floating-shape bottom-10 left-20 w-80 h-80 bg-[#00aadd]" style="animation-delay: 3s; opacity: 0.1;"></div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
      <div class="grid md:grid-cols-4 gap-10">
       <div class="md:col-span-2">
        <div class="flex items-center gap-2 mb-4">
-        <!-- Changed footer logo colors -->
         <svg class="w-10 h-10" viewbox="0 0 50 50" fill="none">
           <circle cx="25" cy="25" r="23" fill="#0088cc" opacity="0.2" />
           <path d="M25 8C15.6 8 8 15.6 8 25s7.6 17 17 17 17-7.6 17-17S34.4 8 25 8z" stroke="#00aadd" stroke-width="2" fill="none" />
@@ -1669,7 +2287,6 @@ function generateHTML() {
       <div>
        <h4 class="font-semibold text-lg mb-4">Quick Links</h4>
        <ul class="space-y-3">
-        
         <li><a href="#" class="text-cyan-100 hover:text-[#00aadd] transition-all hover:translate-x-1 inline-block">Patient Privacy Rights</a></li>
         <li><a href="#" class="text-cyan-100 hover:text-[#00aadd] transition-all hover:translate-x-1 inline-block">Terms of Service</a></li>
         <li><a href="#" class="text-cyan-100 hover:text-[#00aadd] transition-all hover:translate-x-1 inline-block">Help Center</a></li>
@@ -1694,7 +2311,9 @@ function generateHTML() {
       <p>© 2024 BondHealth. All rights reserved. | HIPAA Compliant | SOC 2 Certified</p>
      </div>
     </div>
-   </footer><!-- Floating Feedback Button -->
+   </footer>
+   
+   <!-- Floating Feedback Button -->
    <button id="feedback-btn" class="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-[#0088cc] to-[#00aadd] hover:from-[#0077bb] hover:to-[#0099cc] text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-2xl animate-pulse-glow hover:scale-110 z-50"> 💬 </button>
    
    <!-- Feedback Modal -->
@@ -1718,6 +2337,7 @@ function generateHTML() {
     </div>
    </div>
   </div>
+
   <script>
     const defaultConfig = {
       tagline: "Unifying Care, Strengthening Lives.",
@@ -1850,6 +2470,345 @@ function generateHTML() {
       });
     }
 
+    // Review System JavaScript
+    let currentFilter = 'all';
+    let currentSort = 'recent';
+    let currentSearch = '';
+    let currentPage = 1;
+    
+    // Load reviews on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadReviews();
+      
+      // Setup filter buttons
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentFilter = this.dataset.filter;
+          currentPage = 1;
+          loadReviews();
+        });
+      });
+      
+      // Setup sort select
+      document.getElementById('sort-select').addEventListener('change', function() {
+        currentSort = this.value;
+        currentPage = 1;
+        loadReviews();
+      });
+      
+      // Setup search with debounce
+      let searchTimeout;
+      document.getElementById('search-input').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          currentSearch = this.value;
+          currentPage = 1;
+          loadReviews();
+        }, 500);
+      });
+      
+      // Setup review modal
+      setupReviewModal();
+    });
+    
+    function loadReviews() {
+      const loadingEl = document.getElementById('reviews-loading');
+      const reviewsContainer = document.getElementById('reviews-container');
+      
+      loadingEl.classList.remove('hidden');
+      reviewsContainer.innerHTML = '';
+      
+      let url = \`/api/reviews?sort=\${currentSort}&page=\${currentPage}&limit=10\`;
+      
+      if (currentFilter !== 'all') {
+        url += \`&rating=\${currentFilter}\`;
+      }
+      
+      if (currentSearch) {
+        url += \`&search=\${encodeURIComponent(currentSearch)}\`;
+      }
+      
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          loadingEl.classList.add('hidden');
+          
+          if (data.success) {
+            displayReviews(data.reviews);
+            updateRatingStats(data.stats);
+            updatePagination(data.pagination);
+          } else {
+            reviewsContainer.innerHTML = '<div class="text-center py-12 text-gray-500">Failed to load reviews.</div>';
+          }
+        })
+        .catch(err => {
+          console.error('Error loading reviews:', err);
+          loadingEl.classList.add('hidden');
+          reviewsContainer.innerHTML = '<div class="text-center py-12 text-gray-500">Error loading reviews.</div>';
+        });
+    }
+    
+    function displayReviews(reviews) {
+      const container = document.getElementById('reviews-container');
+      
+      if (!reviews || reviews.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 text-gray-500">No reviews found. Be the first to write a review!</div>';
+        return;
+      }
+      
+      let html = '';
+      
+      reviews.forEach(review => {
+        const initials = review.reviewer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+        const verifiedBadge = review.is_verified ? '<span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Verified Patient</span>' : '';
+        
+        html += \`
+          <div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#0056b3] to-[#0088cc] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">\${initials}</div>
+              <div class="flex-1">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <span class="font-semibold text-[#1a365d]">\${review.reviewer_name}</span>
+                  \${verifiedBadge}
+                  <div class="flex text-yellow-400 text-sm ml-auto">\${stars}</div>
+                </div>
+                \${review.title ? '<h4 class="font-semibold text-gray-800 mb-2">' + review.title + '</h4>' : ''}
+                <p class="text-gray-600 text-sm leading-relaxed">"\${review.content}"</p>
+                <div class="flex flex-wrap items-center justify-between mt-3">
+                  <div class="flex items-center gap-4">
+                    <span class="text-xs text-gray-400">\${review.formatted_date}</span>
+                    \${review.hospital_name ? '<span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">' + review.hospital_name + '</span>' : ''}
+                    \${review.doctor_name ? '<span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">' + review.doctor_name + '</span>' : ''}
+                  </div>
+                  <button class="helpful-btn text-xs text-gray-500 hover:text-[#0088cc] transition-colors" data-id="\${review.review_id}">
+                    👍 Helpful (\${review.helpful_count})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        \`;
+      });
+      
+      container.innerHTML = html;
+      
+      // Add helpful button listeners
+      document.querySelectorAll('.helpful-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const reviewId = this.dataset.id;
+          fetch(\`/api/reviews/\${reviewId}/helpful\`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                this.innerHTML = \`👍 Helpful (\${data.helpful_count})\`;
+              }
+            });
+        });
+      });
+    }
+    
+    function updateRatingStats(stats) {
+      if (!stats) return;
+      
+      document.getElementById('average-rating').textContent = parseFloat(stats.average_rating).toFixed(1);
+      document.getElementById('total-reviews').textContent = \`Based on \${stats.total_reviews} reviews\`;
+      
+      const total = parseInt(stats.total_reviews) || 1;
+      document.getElementById('five-star-bar').style.width = (stats.five_star / total * 100) + '%';
+      document.getElementById('four-star-bar').style.width = (stats.four_star / total * 100) + '%';
+      document.getElementById('three-star-bar').style.width = (stats.three_star / total * 100) + '%';
+      document.getElementById('two-star-bar').style.width = (stats.two_star / total * 100) + '%';
+      document.getElementById('one-star-bar').style.width = (stats.one_star / total * 100) + '%';
+      
+      document.getElementById('five-star-count').textContent = stats.five_star;
+      document.getElementById('four-star-count').textContent = stats.four_star;
+      document.getElementById('three-star-count').textContent = stats.three_star;
+      document.getElementById('two-star-count').textContent = stats.two_star;
+      document.getElementById('one-star-count').textContent = stats.one_star;
+    }
+    
+    function updatePagination(pagination) {
+      const paginationEl = document.getElementById('pagination');
+      
+      if (!pagination || pagination.totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+      }
+      
+      let html = '';
+      
+      // Previous button
+      html += \`
+        <button class="px-4 py-2 rounded-lg border \${pagination.currentPage === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-[#0088cc] border-[#0088cc] hover:bg-[#0088cc] hover:text-white'} transition-all" 
+          \${pagination.currentPage === 1 ? 'disabled' : 'onclick="goToPage(' + (pagination.currentPage - 1) + ')"'}>
+          Previous
+        </button>
+      \`;
+      
+      // Page numbers
+      for (let i = 1; i <= pagination.totalPages; i++) {
+        if (i === pagination.currentPage || 
+            i === 1 || 
+            i === pagination.totalPages || 
+            Math.abs(i - pagination.currentPage) <= 2) {
+          html += \`
+            <button class="px-4 py-2 rounded-lg border \${i === pagination.currentPage ? 'bg-[#0088cc] text-white border-[#0088cc]' : 'text-gray-600 border-gray-300 hover:bg-gray-100'} transition-all" 
+              onclick="goToPage(\${i})">
+              \${i}
+            </button>
+          \`;
+        } else if (i === pagination.currentPage - 3 || i === pagination.currentPage + 3) {
+          html += '<span class="px-2">...</span>';
+        }
+      }
+      
+      // Next button
+      html += \`
+        <button class="px-4 py-2 rounded-lg border \${pagination.currentPage === pagination.totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-[#0088cc] border-[#0088cc] hover:bg-[#0088cc] hover:text-white'} transition-all"
+          \${pagination.currentPage === pagination.totalPages ? 'disabled' : 'onclick="goToPage(' + (pagination.currentPage + 1) + ')"'}>
+          Next
+        </button>
+      \`;
+      
+      paginationEl.innerHTML = html;
+    }
+    
+    window.goToPage = function(page) {
+      currentPage = page;
+      loadReviews();
+      document.getElementById('reviews').scrollIntoView({ behavior: 'smooth' });
+    };
+    
+    function setupReviewModal() {
+      const modal = document.getElementById('review-modal');
+      const openBtn = document.getElementById('write-review-btn');
+      const closeBtn = document.getElementById('close-review-modal');
+      const stars = document.querySelectorAll('#rating-stars .star');
+      const ratingInput = document.getElementById('review-rating');
+      const form = document.getElementById('review-form');
+      const successEl = document.getElementById('review-success');
+      
+      let selectedRating = 0;
+      
+      openBtn.addEventListener('click', () => {
+        // Check if user is logged in
+        fetch('/api/auth/me')
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              modal.classList.remove('hidden');
+            } else {
+              alert('Please sign in to write a review');
+              window.location.href = '/signin';
+            }
+          })
+          .catch(() => {
+            alert('Please sign in to write a review');
+            window.location.href = '/signin';
+          });
+      });
+      
+      closeBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        resetReviewForm();
+      });
+      
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+          resetReviewForm();
+        }
+      });
+      
+      // Rating stars
+      stars.forEach(star => {
+        star.addEventListener('mouseover', function() {
+          const rating = parseInt(this.dataset.rating);
+          stars.forEach((s, i) => {
+            s.textContent = i < rating ? '★' : '☆';
+          });
+        });
+        
+        star.addEventListener('mouseout', function() {
+          stars.forEach((s, i) => {
+            s.textContent = i < selectedRating ? '★' : '☆';
+          });
+        });
+        
+        star.addEventListener('click', function() {
+          selectedRating = parseInt(this.dataset.rating);
+          ratingInput.value = selectedRating;
+          stars.forEach((s, i) => {
+            s.textContent = i < selectedRating ? '★' : '☆';
+          });
+        });
+      });
+      
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!selectedRating) {
+          alert('Please select a rating');
+          return;
+        }
+        
+        const content = document.getElementById('review-content').value;
+        if (content.length < 10) {
+          alert('Review content must be at least 10 characters');
+          return;
+        }
+        
+        const formData = {
+          rating: selectedRating,
+          title: document.getElementById('review-title').value,
+          content: content,
+          hospital_name: document.getElementById('review-hospital').value || null,
+          doctor_name: document.getElementById('review-doctor').value || null
+        };
+        
+        try {
+          const response = await fetch('/api/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            form.classList.add('hidden');
+            successEl.classList.remove('hidden');
+            setTimeout(() => {
+              modal.classList.add('hidden');
+              resetReviewForm();
+              loadReviews(); // Reload reviews to show the new one
+            }, 2000);
+          } else {
+            alert(data.message || 'Failed to submit review');
+          }
+        } catch (error) {
+          console.error('Error submitting review:', error);
+          alert('Network error. Please try again.');
+        }
+      });
+    }
+    
+    function resetReviewForm() {
+      const form = document.getElementById('review-form');
+      const successEl = document.getElementById('review-success');
+      const stars = document.querySelectorAll('#rating-stars .star');
+      
+      form.classList.remove('hidden');
+      successEl.classList.add('hidden');
+      form.reset();
+      
+      stars.forEach(s => s.textContent = '☆');
+      document.getElementById('review-rating').value = '';
+    }
+
     // Feedback modal functionality
     const feedbackBtn = document.getElementById('feedback-btn');
     const feedbackModal = document.getElementById('feedback-modal');
@@ -1883,8 +2842,7 @@ function generateHTML() {
       const formData = {
         name: document.getElementById('feedback-name').value,
         email: document.getElementById('feedback-email').value,
-        message: document.getElementById('feedback-message').value,
-        timestamp: new Date().toISOString()
+        message: document.getElementById('feedback-message').value
       };
       
       try {

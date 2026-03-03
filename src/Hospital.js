@@ -1436,7 +1436,7 @@ function getAddSpecialityHTML() {
 </head>
 <body>
     <div class="form-container">
-        <a href="/" class="back-btn">
+        <a href="/admin-dashboard" class="back-btn">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
         
@@ -1732,7 +1732,7 @@ function getAddSpecialityHTML() {
                 
                 if (saveResponse.ok) {
                     alert('Department created successfully!');
-                    window.location.href = '/';
+                    window.location.href = '/admin-dashboard';
                 } else {
                     alert('Failed to create department');
                 }
@@ -2123,7 +2123,7 @@ function getAddDoctorHTML() {
 </head>
 <body>
     <div class="form-container">
-        <a href="/" class="back-btn">
+        <a href="/admin-dashboard" class="back-btn">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
         
@@ -2476,7 +2476,7 @@ function getAddDoctorHTML() {
                     });
                     
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/admin-dashboard';
                     }, 2000);
                 } else {
                     alert('Failed to register doctor. Please try again.');
@@ -2676,7 +2676,7 @@ function getAddMedicineHTML() {
 </head>
 <body>
     <div class="form-container">
-        <a href="/" class="back-btn">
+        <a href="/admin-dashboard" class="back-btn">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
         
@@ -2737,7 +2737,7 @@ function getAddMedicineHTML() {
                 
                 if (response.ok) {
                     alert('Medicine added successfully!');
-                    window.location.href = '/';
+                    window.location.href = '/admin-dashboard';
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -2934,7 +2934,7 @@ function getAddLabHTML() {
 </head>
 <body>
     <div class="form-container">
-        <a href="/" class="back-btn">
+        <a href="/admin-dashboard" class="back-btn">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
         
@@ -3156,7 +3156,7 @@ function getAddLabHTML() {
                 
                 if (response.ok) {
                     alert('Laboratory added successfully!');
-                    window.location.href = '/';
+                    window.location.href = '/admin-dashboard';
                 } else {
                     alert('Failed to add laboratory');
                 }

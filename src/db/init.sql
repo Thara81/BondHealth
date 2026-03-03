@@ -209,6 +209,43 @@ CREATE TABLE IF NOT EXISTS hospital_admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 15. FEEDBACK TABLE (with is_read field - combine both feedback tables)
+DROP TABLE IF EXISTS feedback CASCADE;
+CREATE TABLE IF NOT EXISTS feedback (
+    feedback_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID REFERENCES patients(patient_id),
+    name VARCHAR(255),
+    email VARCHAR(255),
+    message TEXT,
+    rating INTEGER,
+    is_read BOOLEAN DEFAULT false,  -- Track if you've read it
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. REVIEWS TABLE (Public - like Google reviews)
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    patient_id UUID REFERENCES patients(patient_id) ON DELETE SET NULL,
+    reviewer_name VARCHAR(255) NOT NULL,
+    reviewer_email VARCHAR(255),
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    title VARCHAR(255),
+    content TEXT NOT NULL,
+    hospital_name VARCHAR(255),  -- Optional: which hospital they're reviewing
+    doctor_name VARCHAR(255),     -- Optional: which doctor they're reviewing
+    is_verified BOOLEAN DEFAULT false,  -- Verified patient?
+    is_approved BOOLEAN DEFAULT true,   -- Auto-approve or moderate
+    helpful_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for reviews
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reviews_approved ON reviews(is_approved);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
