@@ -2,7 +2,6 @@
 
 % Packages
 \usepackage[utf8]{inputenc}
-\usepackage{ragged2e}
 \usepackage{graphicx}
 \usepackage{geometry}
 \usepackage{setspace}
@@ -15,10 +14,13 @@
 \usepackage{xcolor}
 \usepackage{amsmath}
 \usepackage{cite}
-
 \usepackage{fancyhdr}  % For header and footer
-\usepackage{ragged2e}
+\usepackage{enumitem}
+\usepackage{xspace}
+\usepackage{microtype}
+\usepackage{ragged2e}  % Better text justification
 
+\setlength{\headheight}{14.5pt}
 % Page layout - REDUCED MARGINS
 \geometry{
     a4paper,
@@ -97,7 +99,7 @@
 \begin{document}
 
 \pagenumbering{roman}
-\pagestyle{plain}
+
 % Include title page
 \include{title}
 
