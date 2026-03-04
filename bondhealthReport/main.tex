@@ -19,7 +19,18 @@
 \usepackage{xspace}
 \usepackage{microtype}
 \usepackage{ragged2e}  % Better text justification
-
+% Additional packages needed for chapter4
+\usepackage{longtable}     % For tables that span multiple pages
+\usepackage{array}         % For better table column formatting
+\usepackage{booktabs}      % For professional tables
+\usepackage{verbatim}      % For code blocks with \begin{verbatim}
+\usepackage{float}  % For [H] placement
+\usepackage{tabularx}  % For auto-width tables
+\usepackage{needspace}
+\setlength{\emergencystretch}{3em}
+\tolerance=1000
+\hyphenpenalty=50
+\exhyphenpenalty=50
 \setlength{\headheight}{14.5pt}
 % Page layout - REDUCED MARGINS
 \geometry{
@@ -60,6 +71,10 @@
 % Table of contents depth
 \setcounter{tocdepth}{3}
 \setcounter{secnumdepth}{3}
+
+\hbadness=10000
+\vfuzz=30pt
+\hfuzz=30pt
 
 % ============ HEADER AND FOOTER CONFIGURATION ============
 % Clear default fancy style
