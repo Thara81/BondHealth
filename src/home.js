@@ -124,11 +124,11 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { name, email, password, gender, phone, address, dob, ...rest } = req.body;
+    const { name, email, password, gender,blood_type, phone, address, dob, ...rest } = req.body;
     const role = 'patient';
     const username = email.split('@')[0]; // Create username from email
     
-    console.log('Extracted data:', { name, email, username, gender, phone, address, dob });
+    console.log('Extracted data:', { name, email, username, gender,blood_type, phone, address, dob });
     
     // Check if user exists
     const existing = await client.query(

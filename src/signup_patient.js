@@ -1,4 +1,4 @@
-// signup-handler.js
+// signup_patient.js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -107,7 +107,7 @@ function handleFormSubmission(formData) {
   };
 }
 
-// Generate Sign Up HTML page
+// Generate Sign Up HTML page - ONLY CHANGES MADE HERE AS REQUESTED
 function generateSignUpHTML() {
   return `
 <!doctype html>
@@ -183,12 +183,6 @@ function generateSignUpHTML() {
         <input type="date" id="dob" name="dob" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200">
        </div>
        
-       <!-- Email -->
-       <div>
-        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-        <input type="email" id="email" name="email" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="you@example.com">
-       </div>
-       
        <!-- Gender -->
        <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
@@ -208,10 +202,34 @@ function generateSignUpHTML() {
         </div>
        </div>
        
-       <!-- Phone Number -->
+       <!-- Blood Group Dropdown (ADDED) -->
+       <div>
+        <label for="blood_type" class="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
+        <select id="blood_type" name="blood_type" class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200">
+         <option value="">Select Blood Group</option>
+         <option value="A+">A+</option>
+         <option value="A-">A-</option>
+         <option value="B+">B+</option>
+         <option value="B-">B-</option>
+         <option value="AB+">AB+</option>
+         <option value="AB-">AB-</option>
+         <option value="O+">O+</option>
+         <option value="O-">O-</option>
+         <option value="unknown">Unknown</option>
+        </select>
+       </div>
+       
+       <!-- Email (MOVED to after gender) -->
+       <div>
+        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+        <input type="email" id="email" name="email" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="you@example.com">
+       </div>
+       
+       <!-- Phone Number (MODIFIED for Indian format) -->
        <div>
         <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-        <input type="tel" id="phone" name="phone" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="+1 (555) 000-0000">
+        <input type="tel" id="phone" name="phone" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="+91 98765 43210" pattern="[+][9][1][0-9]{10}" title="Please enter +91 followed by 10 digits">
+        <p class="text-xs text-gray-500 mt-1">Indian format: +91 followed by 10 digits</p>
        </div>
        
        <!-- Address -->
@@ -287,11 +305,22 @@ function generateSignUpHTML() {
   ${togglePassword()}
   
   <script>
+    // Simple phone number formatting for Indian numbers (ADDED)
+    document.getElementById('phone').addEventListener('input', function(e) {
+      let value = this.value.replace(/\\D/g, '');
+      if (value.length > 0 && !this.value.startsWith('+')) {
+        if (value.length <= 10) {
+          this.value = '+91' + value;
+        }
+      }
+    });
+
     document.getElementById('signup-form').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const password = document.getElementById('password').value;
       const confirmPassword = document.getElementById('confirm-password').value;
+      const phone = document.getElementById('phone').value;
       const errorEl = document.getElementById('password-error');
       
       if (password !== confirmPassword) {
@@ -302,6 +331,14 @@ function generateSignUpHTML() {
       
       if (password.length < 8) {
         errorEl.textContent = 'Password must be at least 8 characters';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      
+      // Indian phone number validation (ADDED)
+      const phoneRegex = /^\\+91[0-9]{10}$/;
+      if (!phoneRegex.test(phone)) {
+        errorEl.textContent = 'Phone number must be +91 followed by 10 digits';
         errorEl.classList.remove('hidden');
         return;
       }
@@ -317,8 +354,9 @@ function generateSignUpHTML() {
       const formData = {
         name: document.getElementById('name').value,
         dob: document.getElementById('dob').value,
-        email: document.getElementById('email').value,
         gender: document.querySelector('input[name="gender"]:checked')?.value || '',
+        blood_type: document.getElementById('blood_type').value, // ADDED
+        email: document.getElementById('email').value,
         phone: document.getElementById('phone').value,
         address: document.getElementById('address').value,
         password: document.getElementById('password').value,
