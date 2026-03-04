@@ -124,11 +124,11 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { name, email, password, gender, phone, address, dob, ...rest } = req.body;
+    const { name, email, password, gender,blood_type, phone, address, dob, ...rest } = req.body;
     const role = 'patient';
     const username = email.split('@')[0]; // Create username from email
     
-    console.log('Extracted data:', { name, email, username, gender, phone, address, dob });
+    console.log('Extracted data:', { name, email, username, gender,blood_type, phone, address, dob });
     
     // Check if user exists
     const existing = await client.query(
@@ -157,10 +157,10 @@ app.post('/api/auth/register', async (req, res) => {
     // Insert patient profile (without emergency contact fields since they're not in the form)
     await client.query(
       `INSERT INTO patients (
-        user_id, full_name, email, phone, address, date_of_birth, gender
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        user_id, full_name, email, phone, address, date_of_birth, gender,blood_type
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
-        user.user_id, name, email, phone, address, dob, gender
+        user.user_id, name, email, phone, address, dob, gender, blood_type
       ]
     );
     console.log('✅ Patient profile created');
