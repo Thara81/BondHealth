@@ -1,11 +1,14 @@
 % chapter4_system_design.tex
 % BondHealth Healthcare Platform - System Design Chapter
-% COMPLETELY SELF-CONTAINED - REFERENCES 3 IMAGES
-% Follows formatting: 14pt headings, 12pt body, Times New Roman, 1.15 line spacing, justified
 
 \chapter{System Design}
 
-This chapter presents the comprehensive system design of the BondHealth healthcare platform, detailing the architectural decisions, data flow, database schema, API design, and module specifications. The system design follows industry best practices for healthcare applications, ensuring scalability, security, maintainability, and seamless connectivity between patients, doctors, hospital administrators, and laboratory technicians.
+\justifying
+This chapter presents the comprehensive system design of the BondHealth healthcare platform,
+detailing the architectural decisions, data flow, database schema, API design, and module
+specifications. The system design follows industry best practices for healthcare applications,
+ensuring scalability, security, maintainability, and seamless connectivity between patients,
+doctors, hospital administrators, and laboratory technicians.
 
 % =============================================================================
 % 4.1 SYSTEM ARCHITECTURE OVERVIEW
@@ -13,69 +16,116 @@ This chapter presents the comprehensive system design of the BondHealth healthca
 
 \section{System Architecture Overview}
 
-The BondHealth platform is built on a robust three-tier architecture that ensures scalability, maintainability, and security while providing seamless connectivity between all stakeholders. The architecture follows industry best practices for healthcare applications, with clear separation of concerns between presentation, business logic, and data persistence layers.
+\justifying
+The BondHealth platform is built on a robust three-tier architecture that ensures
+scalability, maintainability, and security while providing seamless connectivity between
+all stakeholders. The architecture follows industry best practices for healthcare
+applications, with clear separation of concerns between presentation, business logic,
+and data persistence layers.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.9\textwidth]{images/chapter4/architecture.png}
     \caption{Three-Tier System Architecture of BondHealth Platform}
-    \label{fig:architecture}
+    \label{fig:ch4-architecture}
 \end{figure}
 
 \subsection{Presentation Layer (Client Tier)}
 
-The presentation layer serves as the user interface through which all stakeholders interact with the BondHealth platform. It utilizes server-side rendered HTML with Tailwind CSS framework to deliver responsive, mobile-first design across all devices. The server-side rendering approach offers several critical advantages for healthcare applications:
+\justifying
+The presentation layer serves as the user interface through which all stakeholders interact
+with the BondHealth platform. It utilizes server-side rendered HTML with Tailwind CSS
+framework to deliver responsive, mobile-first design across all devices. The server-side
+rendering approach offers several critical advantages for healthcare applications:
 
 \begin{itemize}
-    \item \textbf{Fast Initial Page Loads}: HTML is generated on the server and sent to the client, reducing client-side processing and improving time-to-interactive metrics, which is crucial for emergency healthcare scenarios.
-    
-    \item \textbf{Improved SEO Capabilities}: Search engines can easily crawl and index server-rendered content, making healthcare services more discoverable.
-    
-    \item \textbf{Enhanced Security}: Business logic remains on the server, minimizing client-side exposure of sensitive healthcare algorithms.
-    
-    \item \textbf{Consistent User Experience}: The interface adapts seamlessly to different screen sizes and devices, ensuring healthcare professionals can access patient data from any location.
+    \item \textbf{Fast Initial Page Loads}: HTML is generated on the server and sent to the
+    client, reducing client-side processing and improving time-to-interactive metrics, which
+    is crucial for emergency healthcare scenarios.
+
+    \item \textbf{Improved SEO Capabilities}: Search engines can easily crawl and index
+    server-rendered content, making healthcare services more discoverable.
+
+    \item \textbf{Enhanced Security}: Business logic remains on the server, minimizing
+    client-side exposure of sensitive healthcare algorithms.
+
+    \item \textbf{Consistent User Experience}: The interface adapts seamlessly to different
+    screen sizes and devices, ensuring healthcare professionals can access patient data from
+    any location.
 \end{itemize}
 
-The user interface is organized into role-specific dashboards: patient dashboards focus on appointment management and medical record access, doctor dashboards prioritize clinical workflow efficiency, admin dashboards provide comprehensive hospital management capabilities, and lab technician dashboards streamline test processing and result reporting.
+\justifying
+The user interface is organized into role-specific dashboards: patient dashboards focus on
+appointment management and medical record access, doctor dashboards prioritize clinical
+workflow efficiency, admin dashboards provide comprehensive hospital management capabilities,
+and lab technician dashboards streamline test processing and result reporting.
 
 \subsection{Application Layer (Business Tier)}
 
-The application layer forms the core of the BondHealth platform, implementing all business logic, validation rules, workflow orchestration, and security controls. It is built using Node.js with the Express framework, providing a lightweight, event-driven architecture ideal for handling concurrent healthcare transactions.
+\justifying
+The application layer forms the core of the BondHealth platform, implementing all business
+logic, validation rules, workflow orchestration, and security controls. It is built using
+Node.js with the Express framework, providing a lightweight, event-driven architecture ideal
+for handling concurrent healthcare transactions.
 
 \textbf{Key Components of the Application Layer:}
 
 \begin{enumerate}
-    \item \textbf{RESTful API Endpoints}: Well-defined endpoints following REST conventions handle all client requests, with appropriate HTTP methods and status codes ensuring predictable interactions.
-    
-    \item \textbf{Authentication Middleware}: JWT-based authentication verifies user identity for every protected request, with middleware functions that extract tokens from HTTP-only cookies and validate them against the active sessions store.
-    
-    \item \textbf{Role-Based Access Control (RBAC)}: Middleware functions check user roles against required permissions for each endpoint, ensuring patients cannot access doctor functions and administrators can manage hospital operations.
-    
-    \item \textbf{Request Validation Layer}: All incoming data is validated against predefined schemas, preventing malformed or malicious data from reaching the database.
-    
-    \item \textbf{Error Handling Middleware}: Centralized error handling captures, logs, and appropriately responds to exceptions, providing meaningful error messages to clients.
-    
-    \item \textbf{Request Rate Limiting}: Protection against denial-of-service attacks through configurable rate limiting per IP address and per user account.
+    \item \textbf{RESTful API Endpoints}: Well-defined endpoints following REST conventions
+    handle all client requests, with appropriate HTTP methods and status codes ensuring
+    predictable interactions.
+
+    \item \textbf{Authentication Middleware}: JWT-based authentication verifies user identity
+    for every protected request, with middleware functions that extract tokens from HTTP-only
+    cookies and validate them against the active sessions store.
+
+    \item \textbf{Role-Based Access Control (RBAC)}: Middleware functions check user roles
+    against required permissions for each endpoint, ensuring patients cannot access doctor
+    functions and administrators can manage hospital operations.
+
+    \item \textbf{Request Validation Layer}: All incoming data is validated against predefined
+    schemas, preventing malformed or malicious data from reaching the database.
+
+    \item \textbf{Error Handling Middleware}: Centralized error handling captures, logs, and
+    appropriately responds to exceptions, providing meaningful error messages to clients.
+
+    \item \textbf{Request Rate Limiting}: Protection against denial-of-service attacks
+    through configurable rate limiting per IP address and per user account.
 \end{enumerate}
 
 \subsection{Data Layer (Database Tier)}
 
-The data layer manages all persistent storage for the BondHealth platform, implementing robust data modeling, access patterns, and security controls. Neon PostgreSQL serves as the primary database, leveraging serverless architecture for automatic scaling based on demand.
+\justifying
+The data layer manages all persistent storage for the BondHealth platform, implementing
+robust data modeling, access patterns, and security controls. Neon PostgreSQL serves as
+the primary database, leveraging serverless architecture for automatic scaling based on
+demand.
 
 \textbf{Database Technology Stack Features:}
 
 \begin{itemize}
-    \item \textbf{Neon PostgreSQL}: Serverless PostgreSQL offering with built-in connection pooling, automatic failover, and point-in-time recovery capabilities. The serverless architecture scales to zero during low activity periods and instantly scales up during peak loads.
-    
-    \item \textbf{Connection Pooling}: Implemented through the \texttt{@neondatabase/serverless} package, maintaining a configurable pool of database connections that are reused across requests.
-    
-    \item \textbf{UUID Primary Keys}: All tables use UUID v4 as primary keys, providing distributed uniqueness, preventing enumeration attacks, and enabling offline record creation.
-    
-    \item \textbf{PostgreSQL Array Data Types}: Multi-value fields such as medical conditions, allergies, and doctor availability days are stored as native PostgreSQL arrays.
-    
-    \item \textbf{Foreign Key Constraints}: Referential integrity is enforced through foreign key relationships between all related tables.
-    
-    \item \textbf{SSL Encryption}: All database connections require SSL/TLS encryption, ensuring sensitive patient data cannot be intercepted in transit.
+    \item \textbf{Neon PostgreSQL}: Serverless PostgreSQL offering with built-in connection
+    pooling, automatic failover, and point-in-time recovery capabilities. The serverless
+    architecture scales to zero during low activity periods and instantly scales up during
+    peak loads.
+
+    \item \textbf{Connection Pooling}: Implemented through the
+    \texttt{@neondatabase/serverless} package, maintaining a configurable pool of database
+    connections that are reused across requests.
+
+    \item \textbf{UUID Primary Keys}: All tables use UUID v4 as primary keys, providing
+    distributed uniqueness, preventing enumeration attacks, and enabling offline record
+    creation.
+
+    \item \textbf{PostgreSQL Array Data Types}: Multi-value fields such as medical
+    conditions, allergies, and doctor availability days are stored as native PostgreSQL
+    arrays.
+
+    \item \textbf{Foreign Key Constraints}: Referential integrity is enforced through
+    foreign key relationships between all related tables.
+
+    \item \textbf{SSL Encryption}: All database connections require SSL/TLS encryption,
+    ensuring sensitive patient data cannot be intercepted in transit.
 \end{itemize}
 
 % =============================================================================
@@ -84,81 +134,141 @@ The data layer manages all persistent storage for the BondHealth platform, imple
 
 \section{Data Flow Diagrams}
 
-Data Flow Diagrams (DFDs) provide a graphical representation of how information moves through the BondHealth platform. This section describes the three most critical workflows in the system.
+\justifying
+Data Flow Diagrams (DFDs) provide a graphical representation of how information moves
+through the BondHealth platform. This section describes the three most critical workflows
+in the system.
 
 \subsection{Appointment Booking Data Flow}
 
-The appointment booking process enables patients to schedule consultations with doctors based on real-time availability. Figure \ref{fig:appointment-flow.png} illustrates this workflow.
+\justifying
+The appointment booking process enables patients to schedule consultations with doctors
+based on real-time availability. Figure~\ref{fig:chapter4-appointment-flow} illustrates this
+workflow.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=0.95\textwidth]{images/chapter4/appointment-flow.png}
     \caption{Appointment Booking Data Flow Diagram}
-    \label{fig:appointment-flow}
+    \label{fig:chapter4-appointment-flow}
 \end{figure}
 
 \textbf{Detailed Process Description:}
 
 \begin{enumerate}
-    \item \textbf{Patient Authentication}: The patient provides login credentials through the login form. The system validates these credentials against the Users data store, comparing the provided password with the stored bcrypt hash. Upon successful authentication, the system generates a JWT token containing user identity and role information.
-    
-    \item \textbf{Doctor Search and Filtering}: The authenticated patient accesses the doctor search interface and applies filters such as specialization, hospital location, and availability date. The system queries the Doctors data store, applying the specified filters and returning matching doctor profiles.
-    
-    \item \textbf{Real-time Availability Check}: When the patient selects a specific doctor and date, the system queries the Appointments data store to retrieve all existing appointments for that doctor on the selected date. It also checks the Doctor Leave data store to verify the doctor is not on leave.
-    
-    \item \textbf{Slot Selection and Booking}: The patient selects an available time slot. The system validates that the slot remains available (preventing double-booking through database transactions), creates a new appointment record with status set to 'pending', and generates a unique appointment UUID.
-    
-    \item \textbf{Payment Processing}: For paid consultations, the system initiates the payment workflow, creating a payment record with status 'pending' and redirecting to the payment gateway. Upon successful payment confirmation, the appointment status is updated to 'confirmed'.
-    
-    \item \textbf{Notification Generation}: The system triggers the Notification Module to send confirmation messages through email, SMS, and in-app notifications.
-    
-    \item \textbf{Dashboard Updates}: The patient's dashboard is updated to display the new appointment in the "Upcoming Appointments" section. The doctor's dashboard is updated to show the new booking in their schedule.
+    \item \textbf{Patient Authentication}: The patient provides login credentials through
+    the login form. The system validates these credentials against the Users data store,
+    comparing the provided password with the stored bcrypt hash. Upon successful
+    authentication, the system generates a JWT token containing user identity and role
+    information.
+
+    \item \textbf{Doctor Search and Filtering}: The authenticated patient accesses the
+    doctor search interface and applies filters such as specialization, hospital location,
+    and availability date. The system queries the Doctors data store, applying the specified
+    filters and returning matching doctor profiles.
+
+    \item \textbf{Real-time Availability Check}: When the patient selects a specific doctor
+    and date, the system queries the Appointments data store to retrieve all existing
+    appointments for that doctor on the selected date. It also checks the Doctor Leave data
+    store to verify the doctor is not on leave.
+
+    \item \textbf{Slot Selection and Booking}: The patient selects an available time slot.
+    The system validates that the slot remains available (preventing double-booking through
+    database transactions), creates a new appointment record with status set to
+    \texttt{pending}, and generates a unique appointment UUID.
+
+    \item \textbf{Payment Processing}: For paid consultations, the system initiates the
+    payment workflow, creating a payment record with status \texttt{pending} and redirecting
+    to the payment gateway. Upon successful payment confirmation, the appointment status is
+    updated to \texttt{confirmed}.
+
+    \item \textbf{Notification Generation}: The system triggers the Notification Module to
+    send confirmation messages through email, SMS, and in-app notifications.
+
+    \item \textbf{Dashboard Updates}: The patient's dashboard is updated to display the
+    new appointment in the ``Upcoming Appointments'' section. The doctor's dashboard is
+    updated to show the new booking in their schedule.
 \end{enumerate}
 
 \subsection{Lab Report Processing Data Flow}
 
-Laboratory technicians use this workflow to process patient test requests, enter results, upload supporting documents, and share reports with doctors and patients according to configured privacy preferences. The workflow ensures that test results are accurately recorded and securely delivered to authorized recipients.
+\justifying
+Laboratory technicians use this workflow to process patient test requests, enter results,
+upload supporting documents, and share reports with doctors and patients according to
+configured privacy preferences. The workflow ensures that test results are accurately
+recorded and securely delivered to authorized recipients.
 
 \textbf{Detailed Process Description:}
 
 \begin{enumerate}
-    \item \textbf{Technician Authentication}: Lab technicians log into the system using their credentials. The authentication middleware verifies the user's role as 'lab' and grants access to lab-specific features.
-    
-    \item \textbf{Patient Selection}: The technician accesses the patient search interface, which provides multiple lookup methods including search by patient UUID, name with fuzzy matching, or scanning QR code from patient identification band.
-    
-    \item \textbf{Test Information Entry}: The technician selects the test type from a predefined list of laboratory tests, each with associated normal ranges, units, and required input fields.
-    
-    \item \textbf{Result Entry and Validation}: The technician enters test results with real-time validation including range checking against normal values, unit consistency verification, and critical value alerts.
-    
-    \item \textbf{Priority Assignment}: The technician sets the report priority level (normal, urgent, critical), which determines notification urgency and dashboard highlighting.
-    
-    \item \textbf{File Upload}: Supporting documents can be attached to the report. The system validates file types, enforces size limits, and performs virus scanning before storage.
-    
-    \item \textbf{Sharing Preferences Configuration}: The technician specifies who can access the report (doctor only, patient only, or both).
-    
-    \item \textbf{Report Submission and Storage}: Upon submission, the system creates a new record in the Lab Reports data store, generates a unique report UUID, and triggers the notification workflow based on priority level.
+    \item \textbf{Technician Authentication}: Lab technicians log into the system using
+    their credentials. The authentication middleware verifies the user's role as
+    \texttt{lab} and grants access to lab-specific features.
+
+    \item \textbf{Patient Selection}: The technician accesses the patient search interface,
+    which provides multiple lookup methods including search by patient UUID, name with fuzzy
+    matching, or scanning QR code from patient identification band.
+
+    \item \textbf{Test Information Entry}: The technician selects the test type from a
+    predefined list of laboratory tests, each with associated normal ranges, units, and
+    required input fields.
+
+    \item \textbf{Result Entry and Validation}: The technician enters test results with
+    real-time validation including range checking against normal values, unit consistency
+    verification, and critical value alerts.
+
+    \item \textbf{Priority Assignment}: The technician sets the report priority level
+    (normal, urgent, critical), which determines notification urgency and dashboard
+    highlighting.
+
+    \item \textbf{File Upload}: Supporting documents can be attached to the report. The
+    system validates file types, enforces size limits, and performs virus scanning before
+    storage.
+
+    \item \textbf{Sharing Preferences Configuration}: The technician specifies who can
+    access the report (doctor only, patient only, or both).
+
+    \item \textbf{Report Submission and Storage}: Upon submission, the system creates a
+    new record in the Lab Reports data store, generates a unique report UUID, and triggers
+    the notification workflow based on priority level.
 \end{enumerate}
 
 \subsection{Payment Processing Data Flow}
 
-The payment processing workflow handles all financial transactions within the BondHealth platform, integrating with external payment gateways while maintaining comprehensive internal records for reconciliation and audit purposes.
+\justifying
+The payment processing workflow handles all financial transactions within the BondHealth
+platform, integrating with external payment gateways while maintaining comprehensive
+internal records for reconciliation and audit purposes.
 
 \textbf{Detailed Process Description:}
 
 \begin{enumerate}
-    \item \textbf{Payment Initiation}: The payment workflow is triggered when a patient books an appointment requiring upfront payment or completes a consultation with post-paid billing.
-    
-    \item \textbf{Amount Calculation}: The system calculates the total amount due including base consultation fee, applicable taxes, and any discounts or insurance adjustments.
-    
-    \item \textbf{Payment Method Selection}: The patient selects from available payment methods including credit/debit card, insurance billing, digital wallets, or UPI/bank transfer.
-    
-    \item \textbf{Payment Gateway Integration}: For card and digital wallet payments, the system creates a payment intent with the gateway, receives a client secret for front-end tokenization, and implements 3D Secure authentication if required.
-    
-    \item \textbf{Transaction Processing}: The gateway processes the payment and returns success, failure, or pending status. The system updates the payment record with the transaction ID and current status.
-    
-    \item \textbf{Post-Payment Processing}: Upon successful payment, appointment status is updated to 'confirmed', invoice PDF is generated and stored, receipt is emailed to the patient, and accounting records are updated.
-    
-    \item \textbf{Webhook Handling}: The system implements webhook endpoints for asynchronous gateway notifications, updating internal payment records when payments succeed, fail, or when disputes occur.
+    \item \textbf{Payment Initiation}: The payment workflow is triggered when a patient
+    books an appointment requiring upfront payment or completes a consultation with
+    post-paid billing.
+
+    \item \textbf{Amount Calculation}: The system calculates the total amount due including
+    base consultation fee, applicable taxes, and any discounts or insurance adjustments.
+
+    \item \textbf{Payment Method Selection}: The patient selects from available payment
+    methods including credit/debit card, insurance billing, digital wallets, or UPI/bank
+    transfer.
+
+    \item \textbf{Payment Gateway Integration}: For card and digital wallet payments, the
+    system creates a payment intent with the gateway, receives a client secret for
+    front-end tokenization, and implements 3D Secure authentication if required.
+
+    \item \textbf{Transaction Processing}: The gateway processes the payment and returns
+    success, failure, or pending status. The system updates the payment record with the
+    transaction ID and current status.
+
+    \item \textbf{Post-Payment Processing}: Upon successful payment, appointment status is
+    updated to \texttt{confirmed}, invoice PDF is generated and stored, receipt is emailed
+    to the patient, and accounting records are updated.
+
+    \item \textbf{Webhook Handling}: The system implements webhook endpoints for
+    asynchronous gateway notifications, updating internal payment records when payments
+    succeed, fail, or when disputes occur.
 \end{enumerate}
 
 % =============================================================================
@@ -167,9 +277,14 @@ The payment processing workflow handles all financial transactions within the Bo
 
 \section{Database Schema Design (Neon PostgreSQL)}
 
-The BondHealth platform utilizes Neon PostgreSQL, a serverless PostgreSQL solution that provides automatic scaling, high availability, and connection pooling. The database design implements healthcare industry best practices including UUID primary keys for distributed uniqueness, array data types for efficient multi-value storage, and comprehensive foreign key constraints for referential integrity.
+\justifying
+The BondHealth platform utilizes Neon PostgreSQL, a serverless PostgreSQL solution that
+provides automatic scaling, high availability, and connection pooling. The database design
+implements healthcare industry best practices including UUID primary keys for distributed
+uniqueness, array data types for efficient multi-value storage, and comprehensive foreign
+key constraints for referential integrity.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
     \includegraphics[width=\textwidth]{images/chapter4/schema.png}
     \caption{Database Entity-Relationship Diagram}
@@ -179,76 +294,92 @@ The BondHealth platform utilizes Neon PostgreSQL, a serverless PostgreSQL soluti
 \textbf{Database Design Principles:}
 
 \begin{itemize}
-    \item \textbf{Normalization}: The schema follows third normal form (3NF) to eliminate data redundancy while maintaining efficient query performance through strategic indexing.
-    
-    \item \textbf{Data Integrity}: Foreign key constraints with appropriate cascade rules ensure that related data remains consistent across all tables.
-    
-    \item \textbf{Audit Capabilities}: \texttt{created\_at} and \texttt{updated\_at} timestamps on all tables provide audit trails for regulatory compliance.
-    
-    \item \textbf{Performance Optimization}: Strategic indexes on frequently queried columns ensure rapid data retrieval even as the database scales to millions of records.
+    \item \textbf{Normalization}: The schema follows third normal form (3NF) to eliminate
+    data redundancy while maintaining efficient query performance through strategic indexing.
+
+    \item \textbf{Data Integrity}: Foreign key constraints with appropriate cascade rules
+    ensure that related data remains consistent across all tables.
+
+    \item \textbf{Audit Capabilities}: \texttt{created\_at} and \texttt{updated\_at}
+    timestamps on all tables provide audit trails for regulatory compliance.
+
+    \item \textbf{Performance Optimization}: Strategic indexes on frequently queried columns
+    ensure rapid data retrieval even as the database scales to millions of records.
 \end{itemize}
 
-% TABLE 4.1 - PART 1
 \begin{table}[H]
-    \centering
     \small
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.6cm}|>{\raggedright\arraybackslash}p{6.3cm}|>{\raggedright\arraybackslash}p{4.7cm}|}
+        \hline
+        \textbf{Table Name} & \textbf{Description} & \textbf{Primary Fields} \\
+        \hline
+        users
+            & Authentication credentials for all system users.
+            & user\_id (UUID), username, email, password\_hash, role \\
+        \hline
+        hospitals
+            & Healthcare facility information.
+            & hospital\_id (UUID), name, type, city, phone \\
+        \hline
+        patients
+            & Patient medical info and emergency contacts.
+            & patient\_id (UUID), user\_id, full\_name, blood\_type, conditions[] \\
+        \hline
+        doctors
+            & Professional details and availability.
+            & doctor\_id (UUID), user\_id, hospital\_id, specialization, fee \\
+        \hline
+        appointments
+            & Patient-doctor appointment records.
+            & appointment\_id (UUID), patient\_id, doctor\_id, date, time, status \\
+        \hline
+        lab\_reports
+            & Laboratory test results with file attachments.
+            & report\_id (UUID), patient\_id, doctor\_id, test\_type, results \\
+        \hline
+        prescriptions
+            & Medication prescriptions and refill info.
+            & prescription\_id (UUID), patient\_id, doctor\_id, medicine\_name \\
+        \hline
+        doctor\_leave
+            & Doctor leave applications and approvals.
+            & leave\_id (UUID), doctor\_id, from\_date, to\_date, reason \\
+        \hline
+        medicines
+            & Pharmacy inventory with stock levels.
+            & medicine\_id (UUID), hospital\_id, name, quantity, price \\
+        \hline
+        payments
+            & Financial transactions and gateway references.
+            & payment\_id (UUID), appointment\_id, patient\_id, amount, status \\
+        \hline
+    \end{tabular}
     \caption{Core Database Tables Schema}
-    \label{tab:database-schema-1}
-    \begin{tabularx}{\textwidth}{|p{2.2cm}|X|p{3cm}|}
-        \hline
-        \textbf{Table Name} & \textbf{Description} & \textbf{Primary Fields} \\
-        \hline
-        users & Authentication credentials for all system users. & user\_id (UUID), username, email, password\_hash, role \\
-        \hline
-        hospitals & Healthcare facility information. & hospital\_id (UUID), name, type, city, phone \\
-        \hline
-        patients & Patient medical info and emergency contacts. & patient\_id (UUID), user\_id, full\_name, blood\_type, conditions[] \\
-        \hline
-        doctors & Professional details and availability. & doctor\_id (UUID), user\_id, hospital\_id, specialization, fee \\
-        \hline
-        appointments & Patient-doctor appointment records. & appointment\_id (UUID), patient\_id, doctor\_id, date, time, status \\
-        \hline
-    \end{tabularx}
+    \label{tab:database-schema}
 \end{table}
 
-
-% TABLE 4.1 - PART 2
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Core Database Tables Schema (Continued)}
-    \label{tab:database-schema-2}
-    \begin{tabularx}{\textwidth}{|p{2.2cm}|X|p{3cm}|}
-        \hline
-        \textbf{Table Name} & \textbf{Description} & \textbf{Primary Fields} \\
-        \hline
-        lab\_reports & Laboratory test results with file attachments. & report\_id (UUID), patient\_id, doctor\_id, test\_type, results \\
-        \hline
-        prescriptions & Medication prescriptions and refill info. & prescription\_id (UUID), patient\_id, doctor\_id, medicine\_name \\
-        \hline
-        doctor\_leave & Doctor leave applications and approvals. & leave\_id (UUID), doctor\_id, from\_date, to\_date, reason \\
-        \hline
-        medicines & Pharmacy inventory with stock levels. & medicine\_id (UUID), hospital\_id, name, quantity, price \\
-        \hline
-        payments & Financial transactions and gateway references. & payment\_id (UUID), appointment\_id, patient\_id, amount, status \\
-        \hline
-    \end{tabularx}
-\end{table}
-
-
-
-\vspace{0.5cm}
+\vspace{0.3cm}
 \textbf{Database Indexes for Performance Optimization:}
 
 \begin{itemize}
-    \item \texttt{CREATE INDEX idx\_users\_email ON users(email);} - Accelerates login and user lookup by email
-    \item \texttt{CREATE INDEX idx\_users\_username ON users(username);} - Speeds up login by username
-    \item \texttt{CREATE INDEX idx\_patients\_user\_id ON patients(user\_id);} - Fast patient profile access from user ID
-    \item \texttt{CREATE INDEX idx\_doctors\_hospital\_id ON doctors(hospital\_id);} - Quick doctor lookup by hospital
-    \item \texttt{CREATE INDEX idx\_doctors\_specialization ON doctors(specialization);} - Enables fast doctor filtering by specialty
-    \item \texttt{CREATE INDEX idx\_appointments\_patient\_id ON appointments(patient\_id);} - Rapid retrieval of patient appointment history
-    \item \texttt{CREATE INDEX idx\_appointments\_doctor\_id ON appointments(doctor\_id);} - Fast doctor schedule access
-    \item \texttt{CREATE INDEX idx\_appointments\_date ON appointments(appointment\_date);} - Optimizes date-based queries
+    \item \texttt{CREATE INDEX idx\_users\_email ON users(email);} -- Accelerates login
+    and user lookup by email.
+    \item \texttt{CREATE INDEX idx\_users\_username ON users(username);} -- Speeds up
+    login by username.
+    \item \texttt{CREATE INDEX idx\_patients\_user\_id ON patients(user\_id);} -- Fast
+    patient profile access from user ID.
+    \item \texttt{CREATE INDEX idx\_doctors\_hospital\_id ON doctors(hospital\_id);} --
+    Quick doctor lookup by hospital.
+    \item \texttt{CREATE INDEX idx\_doctors\_specialization ON doctors(specialization);} --
+    Enables fast doctor filtering by specialty.
+    \item \texttt{CREATE INDEX idx\_appointments\_patient\_id ON appointments(patient\_id);}
+    -- Rapid retrieval of patient appointment history.
+    \item \texttt{CREATE INDEX idx\_appointments\_doctor\_id ON appointments(doctor\_id);}
+    -- Fast doctor schedule access.
+    \item \texttt{CREATE INDEX idx\_appointments\_date ON appointments(appointment\_date);}
+    -- Optimizes date-based queries.
 \end{itemize}
 
 % =============================================================================
@@ -257,26 +388,33 @@ The BondHealth platform utilizes Neon PostgreSQL, a serverless PostgreSQL soluti
 
 \section{API Design (RESTful Endpoints)}
 
-The BondHealth platform implements a comprehensive RESTful API architecture that follows industry best practices for web service design. All endpoints adhere to REST conventions with appropriate HTTP methods, consistent resource naming, and standardized response formats.
+\justifying
+The BondHealth platform implements a comprehensive RESTful API architecture that follows
+industry best practices for web service design. All endpoints adhere to REST conventions
+with appropriate HTTP methods, consistent resource naming, and standardized response formats.
 
 \textbf{API Design Principles:}
 
 \begin{itemize}
-    \item \textbf{Resource-Oriented}: Endpoints are organized around resources (patients, doctors, appointments) rather than actions.
-    \item \textbf{Consistent Naming}: Plural nouns for collections and singular for specific resources.
-    \item \textbf{HTTP Methods}: GET for retrieval, POST for creation, PUT for updates, DELETE for removal.
-    \item \textbf{Status Codes}: Appropriate HTTP status codes provide clear feedback about operation outcomes.
-    \item \textbf{Versioning}: API versioning through URL path (/api/v1/...) supports future changes.
-    \item \textbf{Authentication}: JWT tokens in HTTP-only cookies for all protected endpoints.
+    \item \textbf{Resource-Oriented}: Endpoints are organized around resources (patients,
+    doctors, appointments) rather than actions.
+    \item \textbf{Consistent Naming}: Plural nouns for collections and singular for specific
+    resources.
+    \item \textbf{HTTP Methods}: GET for retrieval, POST for creation, PUT for updates,
+    DELETE for removal.
+    \item \textbf{Status Codes}: Appropriate HTTP status codes provide clear feedback about
+    operation outcomes.
+    \item \textbf{Versioning}: API versioning through URL path (/api/v1/\ldots) supports
+    future changes.
+    \item \textbf{Authentication}: JWT tokens in HTTP-only cookies for all protected
+    endpoints.
 \end{itemize}
 
-% TABLE 4.2 - PART 1
 \begin{table}[H]
-    \centering
     \small
-    \caption{Core API Endpoints}
-    \label{tab:api-endpoints-1}
-    \begin{tabularx}{\textwidth}{|p{1.8cm}|p{3cm}|X|p{2cm}|}
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{1.6cm}|>{\raggedright\arraybackslash}p{5.1cm}|>{\raggedright\arraybackslash}p{4.2cm}|>{\raggedright\arraybackslash}p{2.9cm}|}
         \hline
         \textbf{Method} & \textbf{Endpoint} & \textbf{Description} & \textbf{Access} \\
         \hline
@@ -286,57 +424,45 @@ The BondHealth platform implements a comprehensive RESTful API architecture that
         \hline
         POST & /api/auth/logout & End user session & Auth \\
         \hline
-        GET & /api/auth/me & Current user profile & Auth \\
+        GET  & /api/auth/me & Current user profile & Auth \\
         \hline
-        GET & /api/patient & Patient profile data & Patient \\
+        GET  & /api/patient & Patient profile data & Patient \\
         \hline
-        GET & /api/appointments & List user appointments & Patient/Doctor \\
+        GET  & /api/appointments & List user appointments & Patient/\allowbreak{}Doctor \\
         \hline
         POST & /api/appointments & Create new appointment & Patient \\
         \hline
-        PUT & /api/appointments/:id/reschedule & Change appointment time & Patient/Doctor \\
+        PUT  & /api/appointments/\allowbreak:id/\allowbreak reschedule & Change appointment time & Patient/\allowbreak{}Doctor \\
         \hline
-        PUT & /api/appointments/:id/cancel & Cancel appointment & Patient/Doctor \\
+        PUT  & /api/appointments/\allowbreak:id/\allowbreak cancel & Cancel appointment & Patient/\allowbreak{}Doctor \\
         \hline
-        GET & /api/doctors & Search available doctors & Patient \\
+        GET  & /api/doctors & Search available doctors & Patient \\
         \hline
-        GET & /api/doctors/:id/availability & Doctor's free slots & Patient \\
+        GET  & /api/doctors/\allowbreak:id/\allowbreak availability & Doctor's free slots & Patient \\
         \hline
-    \end{tabularx}
-\end{table}
-
-
-% TABLE 4.2 - PART 2
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Core API Endpoints (Continued)}
-    \label{tab:api-endpoints-2}
-    \begin{tabularx}{\textwidth}{|p{1.8cm}|p{3cm}|X|p{2cm}|}
+        GET  & /api/doctor & Doctor profile & Doctor \\
         \hline
-        \textbf{Method} & \textbf{Endpoint} & \textbf{Description} & \textbf{Access} \\
+        GET  & /api/appointments/today & Today's schedule & Doctor \\
         \hline
-        GET & /api/doctor & Doctor profile & Doctor \\
-        \hline
-        GET & /api/appointments/today & Today's schedule & Doctor \\
-        \hline
-        GET & /api/lab-reports & Pending lab reports & Doctor \\
+        GET  & /api/lab-reports & Pending lab reports & Doctor \\
         \hline
         POST & /api/lab-reports & Create lab report & Lab \\
         \hline
-        GET & /api/hospital/data & Hospital statistics & Admin \\
+        GET  & /api/hospital/data & Hospital statistics & Admin \\
         \hline
-        POST & /api/hospital/add/doctor & Register new doctor & Admin \\
+        POST & /api/hospital/\allowbreak add/doctor & Register new doctor & Admin \\
         \hline
-        POST & /api/hospital/add/medicine & Add to inventory & Admin \\
+        POST & /api/hospital/\allowbreak add/medicine & Add to inventory & Admin \\
         \hline
-        POST & /api/payments/create-intent & Payment initialization & Patient \\
+        POST & /api/payments/\allowbreak create-intent & Payment initialization & Patient \\
         \hline
-        GET & /api/messages/conversations & Chat history & Patient/Doctor \\
+        GET  & /api/messages/\allowbreak conversations & Chat history & Patient/\allowbreak{}Doctor \\
         \hline
-        POST & /api/messages & Send message & Patient/Doctor \\
+        POST & /api/messages & Send message & Patient/\allowbreak{}Doctor \\
         \hline
-    \end{tabularx}
+    \end{tabular}
+    \caption{Core API Endpoints}
+    \label{tab:api-endpoints}
 \end{table}
 
 % =============================================================================
@@ -345,222 +471,286 @@ The BondHealth platform implements a comprehensive RESTful API architecture that
 
 \section{Module-wise Detailed Design}
 
-This section provides comprehensive design specifications for each major module of the BondHealth platform, describing their internal architecture, component structure, and interactions with other modules.
+\justifying
+This section provides comprehensive design specifications for each major module of the
+BondHealth platform, describing their internal architecture, component structure, and
+interactions with other modules.
 
 \subsection{Authentication Module}
 
-The authentication module is the security gateway for the BondHealth platform, responsible for verifying user identities, managing sessions, and enforcing access controls.
+\justifying
+The authentication module is the security gateway for the BondHealth platform, responsible
+for verifying user identities, managing sessions, and enforcing access controls.
 
 \textbf{Core Components:}
 
 \begin{enumerate}
-    \item \textbf{JWT Token Service}: Generates and validates JSON Web Tokens with user ID, username, role, and session ID in the payload. Tokens are signed with HS256 algorithm and expire after 7 days.
-    
-    \item \textbf{HTTP-Only Cookie Management}: Tokens are stored in HTTP-only cookies with \texttt{HttpOnly}, \texttt{Secure}, and \texttt{SameSite=Strict} flags, preventing XSS and CSRF attacks.
-    
-    \item \textbf{Server-Side Session Store}: Maintains active sessions in memory with Redis backing for distributed deployments, enabling forced logout of specific sessions.
-    
-    \item \textbf{Password Hashing Service}: Implements bcrypt with 10 salt rounds, providing secure password storage with constant-time comparison to prevent timing attacks.
-    
-    \item \textbf{Role-Based Access Control (RBAC) Middleware}: Checks user roles against required permissions for each endpoint, implementing the principle of least privilege.
+    \item \textbf{JWT Token Service}: Generates and validates JSON Web Tokens with user ID,
+    username, role, and session ID in the payload. Tokens are signed with HS256 algorithm
+    and expire after 7 days.
+
+    \item \textbf{HTTP-Only Cookie Management}: Tokens are stored in HTTP-only cookies with
+    \texttt{HttpOnly}, \texttt{Secure}, and \texttt{SameSite=Strict} flags, preventing XSS
+    and CSRF attacks.
+
+    \item \textbf{Server-Side Session Store}: Maintains active sessions in memory with Redis
+    backing for distributed deployments, enabling forced logout of specific sessions.
+
+    \item \textbf{Password Hashing Service}: Implements bcrypt with 10 salt rounds,
+    providing secure password storage with constant-time comparison to prevent timing
+    attacks.
+
+    \item \textbf{Role-Based Access Control (RBAC) Middleware}: Checks user roles against
+    required permissions for each endpoint, implementing the principle of least privilege.
 \end{enumerate}
 
 \subsection{Patient Dashboard Module}
 
-The patient dashboard provides a comprehensive, intuitive interface for patients to manage all aspects of their healthcare journey, aggregating information from multiple modules.
+\justifying
+The patient dashboard provides a comprehensive, intuitive interface for patients to manage
+all aspects of their healthcare journey, aggregating information from multiple modules.
 
 \textbf{Component Architecture:}
 
 \begin{itemize}
-    \item \textbf{Profile Summary Card}: Displays patient name, blood type, age, emergency contact information, and insurance summary with quick edit functionality.
-    
-    \item \textbf{Upcoming Appointments Section}: Lists upcoming appointments with date, time, doctor name, and action buttons for rescheduling or cancellation.
-    
-    \item \textbf{Past Appointments Section}: Paginated list of completed appointments with expandable details and option to book follow-up appointments.
-    
-    \item \textbf{Medical Records Section}: Tabbed interface for lab reports, prescriptions, imaging, and vaccinations with search and filter capabilities.
-    
-    \item \textbf{Prescription Management Area}: Active prescriptions with medicine details, refill status, and one-click refill requests.
-    
-    \item \textbf{Quick Action Buttons}: Book New Appointment, Message My Doctor, View Lab Reports, Pay Outstanding Bills.
-    
-    \item \textbf{Notification Center}: Recent notifications with read/unread status, appointment reminders, and lab report alerts.
+    \item \textbf{Profile Summary Card}: Displays patient name, blood type, age, emergency
+    contact information, and insurance summary with quick edit functionality.
+
+    \item \textbf{Upcoming Appointments Section}: Lists upcoming appointments with date,
+    time, doctor name, and action buttons for rescheduling or cancellation.
+
+    \item \textbf{Past Appointments Section}: Paginated list of completed appointments with
+    expandable details and option to book follow-up appointments.
+
+    \item \textbf{Medical Records Section}: Tabbed interface for lab reports, prescriptions,
+    imaging, and vaccinations with search and filter capabilities.
+
+    \item \textbf{Prescription Management Area}: Active prescriptions with medicine details,
+    refill status, and one-click refill requests.
+
+    \item \textbf{Quick Action Buttons}: Book New Appointment, Message My Doctor, View Lab
+    Reports, Pay Outstanding Bills.
+
+    \item \textbf{Notification Center}: Recent notifications with read/unread status,
+    appointment reminders, and lab report alerts.
 \end{itemize}
 
 \subsection{Doctor Dashboard Module}
 
-The doctor dashboard is designed for clinical workflow efficiency, providing quick access to today's schedule, patient information, and pending tasks.
+\justifying
+The doctor dashboard is designed for clinical workflow efficiency, providing quick access
+to today's schedule, patient information, and pending tasks.
 
 \textbf{Component Architecture:}
 
 \begin{itemize}
-    \item \textbf{Dashboard Header}: Welcome message with doctor name, current date/time, quick stats, and status toggle.
-    
-    \item \textbf{Today's Schedule Component}: Chronological list of today's appointments with patient information, status indicators, and action buttons (Start Consultation, View History, Message Patient).
-    
-    \item \textbf{Patient List Sidebar}: Searchable list of all patients under doctor's care with quick filters for recent, frequent, and new patients.
-    
-    \item \textbf{Lab Reports Queue}: Priority-based organization of pending lab reports with critical, urgent, and normal categories.
-    
-    \item \textbf{Prescription Writing Interface}: Medicine search with auto-complete, dosage templates, frequency picker, and drug interaction checker.
-    
-    \item \textbf{Leave Management Widget}: Upcoming leave summary, leave application form, and approval status tracking.
+    \item \textbf{Dashboard Header}: Welcome message with doctor name, current date/time,
+    quick stats, and status toggle.
+
+    \item \textbf{Today's Schedule Component}: Chronological list of today's appointments
+    with patient information, status indicators, and action buttons (Start Consultation,
+    View History, Message Patient).
+
+    \item \textbf{Patient List Sidebar}: Searchable list of all patients under the doctor's
+    care with quick filters for recent, frequent, and new patients.
+
+    \item \textbf{Lab Reports Queue}: Priority-based organization of pending lab reports
+    with critical, urgent, and normal categories.
+
+    \item \textbf{Prescription Writing Interface}: Medicine search with auto-complete,
+    dosage templates, frequency picker, and drug interaction checker.
+
+    \item \textbf{Leave Management Widget}: Upcoming leave summary, leave application form,
+    and approval status tracking.
 \end{itemize}
 
 \subsection{Admin Dashboard Module}
 
-The admin dashboard provides hospital administrators with comprehensive tools for managing the entire healthcare facility operations.
+\justifying
+The admin dashboard provides hospital administrators with comprehensive tools for managing
+the entire healthcare facility operations.
 
 \textbf{Component Architecture:}
 
 \begin{itemize}
-    \item \textbf{Statistics Cards Row}: Displays total doctors, today's appointments, pending approvals, inventory status, and revenue metrics.
-    
-    \item \textbf{Quick Action Cards Grid}: Add New Doctor, Add Medicine to Inventory, Add Lab Technician, View All Appointments, Generate Reports.
-    
-    \item \textbf{Doctor Management Interface}: Searchable table of all doctors with inline editing for status, department, and fees, plus credential verification workflow.
-    
-    \item \textbf{Medicine Inventory Management}: Real-time stock levels with low stock alerts, expiry tracking, and batch management.
-    
-    \item \textbf{Lab Technician Management}: List of all lab technicians with roles, certifications, and workload distribution.
-    
-    \item \textbf{Leave Approval Workflow}: Calendar view showing all leave requests with quick approve/reject buttons and coverage analysis.
-    
-    \item \textbf{Appointment Overview}: Daily/weekly/monthly appointment volumes, utilization rates, no-show rates, and wait time metrics.
+    \item \textbf{Statistics Cards Row}: Displays total doctors, today's appointments,
+    pending approvals, inventory status, and revenue metrics.
+
+    \item \textbf{Quick Action Cards Grid}: Add New Doctor, Add Medicine to Inventory, Add
+    Lab Technician, View All Appointments, Generate Reports.
+
+    \item \textbf{Doctor Management Interface}: Searchable table of all doctors with inline
+    editing for status, department, and fees, plus credential verification workflow.
+
+    \item \textbf{Medicine Inventory Management}: Real-time stock levels with low stock
+    alerts, expiry tracking, and batch management.
+
+    \item \textbf{Lab Technician Management}: List of all lab technicians with roles,
+    certifications, and workload distribution.
+
+    \item \textbf{Leave Approval Workflow}: Calendar view showing all leave requests with
+    quick approve/reject buttons and coverage analysis.
+
+    \item \textbf{Appointment Overview}: Daily/weekly/monthly appointment volumes,
+    utilization rates, no-show rates, and wait time metrics.
 \end{itemize}
 
 \subsection{Lab Technician Module}
 
-The laboratory technician module streamlines the complete workflow of test processing, from patient identification through result entry to report submission.
+\justifying
+The laboratory technician module streamlines the complete workflow of test processing,
+from patient identification through result entry to report submission.
 
 \textbf{Component Architecture:}
 
 \begin{itemize}
-    \item \textbf{Send Report Form}: Multi-step form with patient selection, test information entry, result validation, file upload, and sharing preferences configuration.
-    
-    \item \textbf{Patient History Table}: Searchable table of patients with recent tests, showing test type, date, status, and previous results for comparison.
-    
-    \item \textbf{Statistics Dashboard}: Today's tests count, pending reports, completed today, urgent cases, and average turnaround time.
-    
-    \item \textbf{Quality Control Panel}: Control results entry, equipment status tracking, and reagent lot management.
+    \item \textbf{Send Report Form}: Multi-step form with patient selection, test
+    information entry, result validation, file upload, and sharing preferences
+    configuration.
+
+    \item \textbf{Patient History Table}: Searchable table of patients with recent tests,
+    showing test type, date, status, and previous results for comparison.
+
+    \item \textbf{Statistics Dashboard}: Today's tests count, pending reports, completed
+    today, urgent cases, and average turnaround time.
+
+    \item \textbf{Quality Control Panel}: Control results entry, equipment status tracking,
+    and reagent lot management.
 \end{itemize}
 
 \subsection{Appointment Booking Module}
 
-The appointment booking module provides patients with an intuitive interface for finding and scheduling appointments with doctors.
+\justifying
+The appointment booking module provides patients with an intuitive interface for finding
+and scheduling appointments with doctors.
 
 \textbf{Component Architecture:}
 
 \begin{itemize}
-    \item \textbf{Doctor Search Interface}: Search bar with autocomplete and advanced filters for specialization, hospital, availability, rating, and consultation fee.
-    
-    \item \textbf{Doctor Profile View}: Detailed information organized in tabs showing qualifications, experience, fees, location, reviews, and availability calendar.
-    
-    \item \textbf{Availability Calendar}: Monthly/weekly/day view options with color-coded availability indicators for available, limited, and fully booked slots.
-    
-    \item \textbf{Time Slot Selection}: Grid of available time slots with real-time availability and slot locking during selection.
-    
-    \item \textbf{Booking Form}: Reason for visit, symptoms description, appointment type selector, and insurance information selection.
-    
-    \item \textbf{Confirmation Modal}: Appointment summary with calendar integration buttons and payment processing.
+    \item \textbf{Doctor Search Interface}: Search bar with autocomplete and advanced
+    filters for specialization, hospital, availability, rating, and consultation fee.
+
+    \item \textbf{Doctor Profile View}: Detailed information organized in tabs showing
+    qualifications, experience, fees, location, reviews, and availability calendar.
+
+    \item \textbf{Availability Calendar}: Monthly/weekly/day view options with color-coded
+    availability indicators for available, limited, and fully booked slots.
+
+    \item \textbf{Time Slot Selection}: Grid of available time slots with real-time
+    availability and slot locking during selection.
+
+    \item \textbf{Booking Form}: Reason for visit, symptoms description, appointment type
+    selector, and insurance information selection.
+
+    \item \textbf{Confirmation Modal}: Appointment summary with calendar integration buttons
+    and payment processing.
 \end{itemize}
 
 % =============================================================================
 % 4.6 SECURITY ARCHITECTURE
 % =============================================================================
-
+\clearpage
 \section{Security Architecture}
 
-The BondHealth platform implements a comprehensive, defense-in-depth security architecture to protect sensitive healthcare data and ensure regulatory compliance.
+\justifying
+The BondHealth platform implements a comprehensive, defense-in-depth security architecture
+to protect sensitive healthcare data and ensure regulatory compliance.
 
 \textbf{Security Principles:}
 
 \begin{itemize}
-    \item \textbf{Defense in Depth}: Multiple layers of security controls ensure that if one layer fails, others continue to provide protection.
-    \item \textbf{Least Privilege}: Users and services have only the minimum permissions necessary to perform their functions.
-    \item \textbf{Secure by Default}: Default configurations are secure, requiring explicit actions to reduce security.
-    \item \textbf{Complete Mediation}: Every access attempt is checked for authorization, not just the first.
+    \item \textbf{Defense in Depth}: Multiple layers of security controls ensure that if
+    one layer fails, others continue to provide protection.
+    \item \textbf{Least Privilege}: Users and services have only the minimum permissions
+    necessary to perform their functions.
+    \item \textbf{Secure by Default}: Default configurations are secure, requiring explicit
+    actions to reduce security.
+    \item \textbf{Complete Mediation}: Every access attempt is checked for authorization,
+    not just the first.
 \end{itemize}
 
-% TABLE 4.3 - PART 1
 \begin{table}[H]
-    \centering
     \small
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{3.8cm}|>{\raggedright\arraybackslash}p{6.8cm}|}
+        \hline
+        \textbf{Security Layer} & \textbf{Implementation} & \textbf{Description} \\
+        \hline
+        Authentication
+            & JWT + HTTP-only cookies
+            & Tokens with HttpOnly, Secure flags. 7-day expiry. \\
+        \hline
+        Password Security
+            & Bcrypt (10 rounds)
+            & Salted hashes. Rate limiting: 5 attempts then lockout. \\
+        \hline
+        Database Security
+            & SSL/TLS + Neon PostgreSQL
+            & TLS 1.2+ encryption. Credentials in environment variables. \\
+        \hline
+        Session Management
+            & Redis server-side store
+            & Auto expiration. Max 5 concurrent sessions. \\
+        \hline
+        Role-Based Access
+            & RBAC middleware
+            & Permission inheritance. Hospital-scoped isolation. \\
+        \hline
+        Data Encryption
+            & HTTPS/TLS 1.3
+            & HSTS headers. Perfect forward secrecy. \\
+        \hline
+        Input Validation
+            & JSON schema validation
+            & SQL injection prevention via parameterized queries. \\
+        \hline
+        Audit Logging
+            & DB triggers
+            & 7-year retention. Logs auth attempts and data access. \\
+        \hline
+        File Security
+            & ClamAV scanning
+            & Type validation by magic numbers. Size limits enforced. \\
+        \hline
+    \end{tabular}
     \caption{Security Features Summary}
-    \label{tab:security-1}
-    \begin{tabularx}{\textwidth}{|p{3.2cm}|p{3.5cm}|X|}
-        \hline
-        \textbf{Security Layer} & \textbf{Implementation} & \textbf{Description} \\
-        \hline
-        Authentication & JWT + HTTP-only cookies & Tokens with HttpOnly, Secure flags. 7-day expiry. \\
-        \hline
-        Password Security & Bcrypt (10 rounds) & Salted hashes. Rate limiting: 5 attempts then lockout. \\
-        \hline
-        Database Security & SSL/TLS + Neon PostgreSQL & TLS 1.2+ encryption. Credentials in environment vars. \\
-        \hline
-        Session Management & Redis server-side store & Auto expiration. Max 5 concurrent sessions. \\
-        \hline
-        Role-Based Access & RBAC middleware & Permission inheritance. Hospital-scoped isolation. \\
-        \hline
-    \end{tabularx}
+    \label{tab:ch4-security}
 \end{table}
-
-
-% TABLE 4.3 - PART 2
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Security Features Summary (Continued)}
-    \label{tab:security-2}
-    \begin{tabularx}{\textwidth}{|p{3.2cm}|p{3.5cm}|X|}
-        \hline
-        \textbf{Security Layer} & \textbf{Implementation} & \textbf{Description} \\
-        \hline
-        Data Encryption & HTTPS/TLS 1.3 & HSTS headers. Perfect forward secrecy. \\
-        \hline
-        Input Validation & JSON schema validation & SQL injection prevention via parameterized queries. \\
-        \hline
-        Audit Logging & DB triggers & 7-year retention. Logs auth attempts and data access. \\
-        \hline
-        File Security & ClamAV scanning & Type validation by magic numbers. Size limits. \\
-        \hline
-    \end{tabularx}
-\end{table}
-
-
 
 \subsection{Data Encryption}
 
 \textbf{Encryption at Rest:}
 \begin{itemize}
-    \item Database: Transparent Data Encryption (TDE) at storage level with AES-256
-    \item Sensitive fields (PII, medical data): Application-level encryption with AES-256-GCM
-    \item File storage: Server-side encryption with AWS KMS/Azure Key Vault
+    \item Database: Transparent Data Encryption (TDE) at storage level with AES-256.
+    \item Sensitive fields (PII, medical data): Application-level encryption with
+    AES-256-GCM.
+    \item File storage: Server-side encryption with AWS KMS/Azure Key Vault.
 \end{itemize}
 
 \textbf{Encryption in Transit:}
 \begin{itemize}
-    \item TLS 1.3 minimum for all external communications
-    \item Database connections: TLS with certificate validation
-    \item API endpoints: HSTS preload with perfect forward secrecy
+    \item TLS 1.3 minimum for all external communications.
+    \item Database connections: TLS with certificate validation.
+    \item API endpoints: HSTS preload with perfect forward secrecy.
 \end{itemize}
 
 \subsection{Compliance and Audit}
 
 \textbf{HIPAA Compliance:}
 \begin{itemize}
-    \item Access controls and audit trails for all PHI
-    \item Encryption of PHI at rest and in transit
-    \item Breach notification procedures within 72 hours
-    \item Automatic logout after 15 minutes of inactivity
+    \item Access controls and audit trails for all PHI.
+    \item Encryption of PHI at rest and in transit.
+    \item Breach notification procedures within 72 hours.
+    \item Automatic logout after 15 minutes of inactivity.
 \end{itemize}
 
 \textbf{Audit Logging:}
 \begin{itemize}
-    \item Log all authentication attempts with IP and user agent
-    \item Log all access to PHI with patient ID and record type
-    \item Log all data modifications with before/after values
-    \item 7-year log retention for compliance
+    \item Log all authentication attempts with IP and user agent.
+    \item Log all access to PHI with patient ID and record type.
+    \item Log all data modifications with before/after values.
+    \item 7-year log retention for compliance.
 \end{itemize}
 
 % =============================================================================
@@ -569,39 +759,45 @@ The BondHealth platform implements a comprehensive, defense-in-depth security ar
 
 \section{Database Connection Design (Neon PostgreSQL)}
 
-The database connection architecture is designed for optimal performance, reliability, and security when connecting the Node.js application layer to Neon PostgreSQL.
+\justifying
+The database connection architecture is designed for optimal performance, reliability,
+and security when connecting the Node.js application layer to Neon PostgreSQL.
 
 \subsection{Connection Pooling Architecture}
 
-Connection pooling maintains a cache of database connections that can be reused across multiple client requests, eliminating the overhead of establishing a new connection for each database operation.
+\justifying
+Connection pooling maintains a cache of database connections that can be reused across
+multiple client requests, eliminating the overhead of establishing a new connection for
+each database operation.
 
 \textbf{Pool Configuration:}
 \begin{itemize}
-    \item \textbf{Min Pool Size}: 5 connections to handle sudden spikes
-    \item \textbf{Max Pool Size}: 20 connections to limit database load
-    \item \textbf{Connection Timeout}: 10 seconds to wait for a connection
-    \item \textbf{Idle Timeout}: 30 seconds to close idle connections
-    \item \textbf{Max Lifetime}: 30 minutes to recycle stale connections
+    \item \textbf{Min Pool Size}: 5 connections to handle sudden spikes.
+    \item \textbf{Max Pool Size}: 20 connections to limit database load.
+    \item \textbf{Connection Timeout}: 10 seconds to wait for a connection.
+    \item \textbf{Idle Timeout}: 30 seconds to close idle connections.
+    \item \textbf{Max Lifetime}: 30 minutes to recycle stale connections.
 \end{itemize}
 
 \textbf{Pool Benefits:}
 \begin{itemize}
-    \item Reduced latency (no connection setup overhead)
-    \item Better resource utilization (controlled number of connections)
-    \item Automatic recovery (replaces failed connections)
-    \item Load smoothing (handles traffic spikes gracefully)
+    \item Reduced latency (no connection setup overhead).
+    \item Better resource utilization (controlled number of connections).
+    \item Automatic recovery (replaces failed connections).
+    \item Load smoothing (handles traffic spikes gracefully).
 \end{itemize}
 
-\begin{verbatim}
-// config/database.js - Database connection configuration
+\begin{lstlisting}[language=JavaScript,
+    caption={Database Connection Configuration (config/database.js)},
+    label={lst:dbconfig},
+    breaklines=true,
+    columns=flexible,
+    keepspaces=true]
 const { Pool } = require('@neondatabase/serverless');
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        require: true,
-        rejectUnauthorized: true
-    },
+    ssl: { require: true, rejectUnauthorized: true },
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
@@ -612,33 +808,31 @@ const query = async (text, params) => {
     try {
         const res = await pool.query(text, params);
         const duration = Date.now() - start;
-        
         if (duration > 100) {
             console.warn('Slow query detected:', { text, duration });
         }
-        
         return res;
     } catch (error) {
         console.error('Database query error:', error);
         throw error;
     }
 };
-\end{verbatim}
+\end{lstlisting}
 
 \subsection{Connection Security}
 
 \textbf{SSL/TLS Configuration:}
 \begin{itemize}
-    \item SSL mode: \texttt{require} (enforces encryption)
-    \item Certificate validation: Enabled (prevents MITM attacks)
-    \item Minimum TLS version: TLSv1.2
+    \item SSL mode: \texttt{require} (enforces encryption).
+    \item Certificate validation: Enabled (prevents MITM attacks).
+    \item Minimum TLS version: TLSv1.2.
 \end{itemize}
 
 \textbf{Credential Management:}
 \begin{itemize}
-    \item Connection string stored in environment variables
-    \item Never committed to version control
-    \item Rotated quarterly or after any security incident
+    \item Connection string stored in environment variables.
+    \item Never committed to version control.
+    \item Rotated quarterly or after any security incident.
 \end{itemize}
 
 % =============================================================================
@@ -647,55 +841,54 @@ const query = async (text, params) => {
 
 \section{Third-party Integrations}
 
-The BondHealth platform integrates with multiple external services to extend functionality and leverage specialized capabilities while maintaining focus on core healthcare features.
+\justifying
+The BondHealth platform integrates with multiple external services to extend functionality
+and leverage specialized capabilities while maintaining focus on core healthcare features.
 
-% TABLE 4.4 - PART 1
 \begin{table}[H]
-    \centering
     \small
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{3.0cm}|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{7.6cm}|}
+        \hline
+        \textbf{Integration} & \textbf{Purpose} & \textbf{Implementation} \\
+        \hline
+        Stripe/\allowbreak Razorpay
+            & Payment gateway
+            & Webhooks for async notifications. PCI DSS Level 1 compliant. \\
+        \hline
+        Twilio/\allowbreak MessageBird
+            & SMS alerts
+            & Templates for reminders. Delivery tracking enabled. \\
+        \hline
+        SendGrid/\allowbreak NodeMailer
+            & Email service
+            & Transactional emails. DKIM/SPF configured. \\
+        \hline
+        AWS S3/\allowbreak Azure Blob
+            & File storage
+            & AES-256 encryption. Signed URLs (5-min expiry). \\
+        \hline
+        Socket.io
+            & Real-time chat
+            & Redis adapter for scaling. Room-based messaging. \\
+        \hline
+        Google Calendar API
+            & Calendar sync
+            & OAuth 2.0. Create/update events with reminders. \\
+        \hline
+        Firebase Cloud Messaging
+            & Push notifications
+            & Cross-platform support. Topic-based subscriptions. \\
+        \hline
+        Google Maps API
+            & Location services
+            & Distance calculation. Address autocomplete. \\
+        \hline
+    \end{tabular}
     \caption{Third-party Integrations}
-    \label{tab:integrations-1}
-    \begin{tabularx}{\textwidth}{|p{2.8cm}|p{2.8cm}|X|}
-        \hline
-        \textbf{Integration} & \textbf{Purpose} & \textbf{Implementation} \\
-        \hline
-        Stripe/Razorpay & Payment gateway & Webhooks for async notifications. PCI DSS Level 1. \\
-        \hline
-        Twilio/MessageBird & SMS alerts & Templates for reminders. Delivery tracking. \\
-        \hline
-        SendGrid/NodeMailer & Email service & Transactional emails. DKIM/SPF configured. \\
-        \hline
-        AWS S3/Azure Blob & File storage & AES-256 encryption. Signed URLs (5-min expiry). \\
-        \hline
-    \end{tabularx}
+    \label{tab:integrations}
 \end{table}
-
-\vspace{0.2cm}
-
-
-% TABLE 4.4 - PART 2
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Third-party Integrations (Continued)}
-    \label{tab:integrations-2}
-    \begin{tabularx}{\textwidth}{|p{2.8cm}|p{2.8cm}|X|}
-        \hline
-        \textbf{Integration} & \textbf{Purpose} & \textbf{Implementation} \\
-        \hline
-        Socket.io & Real-time chat & Redis adapter for scaling. Room-based messaging. \\
-        \hline
-        Google Calendar API & Calendar sync & OAuth 2.0. Create/update events with reminders. \\
-        \hline
-        Firebase Cloud Messaging & Push notifications & Cross-platform. Topic-based subscriptions. \\
-        \hline
-        Google Maps API & Location services & Distance calculation. Address autocomplete. \\
-        \hline
-    \end{tabularx}
-\end{table}
-
-\vspace{0.2cm}
-
 
 % =============================================================================
 % 4.9 PERFORMANCE OPTIMIZATION
@@ -703,56 +896,60 @@ The BondHealth platform integrates with multiple external services to extend fun
 
 \section{Performance Optimization}
 
-The BondHealth platform implements multiple optimization strategies to ensure responsive user experiences even under high load.
+\justifying
+The BondHealth platform implements multiple optimization strategies to ensure responsive
+user experiences even under high load.
 
 \textbf{Database Optimization:}
 \begin{itemize}
-    \item Database indexing on frequently queried columns significantly reduces query execution times
-    \item Connection pooling minimizes database connection overhead
-    \item Query optimization through EXPLAIN analysis and index tuning
-    \item Read replicas for reporting queries to offload primary database
-    \item Partitioning for large tables (appointments by date, logs by month)
+    \item Database indexing on frequently queried columns significantly reduces query
+    execution times.
+    \item Connection pooling minimizes database connection overhead.
+    \item Query optimization through EXPLAIN analysis and index tuning.
+    \item Read replicas for reporting queries to offload primary database.
+    \item Partitioning for large tables (appointments by date, logs by month).
 \end{itemize}
 
 \textbf{Caching Strategy:}
 \begin{itemize}
-    \item Redis caching for frequently accessed data such as doctor lists and hospital information
-    \item Session data stored in Redis for sub-millisecond access
-    \item Response caching for public endpoints with CDN
-    \item Database query caching for expensive but static queries
+    \item Redis caching for frequently accessed data such as doctor lists and hospital
+    information.
+    \item Session data stored in Redis for sub-millisecond access.
+    \item Response caching for public endpoints with CDN.
+    \item Database query caching for expensive but static queries.
 \end{itemize}
 
 \textbf{API Optimization:}
 \begin{itemize}
-    \item Pagination for all list endpoints ensuring response sizes remain manageable
-    \item Field selection to allow clients to request only needed data
-    \item Compression (gzip/brotli) for API responses reduces bandwidth by 70-80\%
-    \item HTTP/2 multiplexing for parallel requests
-    \item Batch endpoints for mobile clients to reduce round trips
+    \item Pagination for all list endpoints ensuring response sizes remain manageable.
+    \item Field selection to allow clients to request only needed data.
+    \item Compression (gzip/brotli) for API responses reduces bandwidth by 70--80\%.
+    \item HTTP/2 multiplexing for parallel requests.
+    \item Batch endpoints for mobile clients to reduce round trips.
 \end{itemize}
 
 \textbf{Frontend Optimization:}
 \begin{itemize}
-    \item Lazy loading for images and file attachments
-    \item Code splitting for JavaScript bundles
-    \item Asset minification and bundling
-    \item CDN for static assets with edge caching
-    \item Service workers for offline capability and caching
+    \item Lazy loading for images and file attachments.
+    \item Code splitting for JavaScript bundles.
+    \item Asset minification and bundling.
+    \item CDN for static assets with edge caching.
+    \item Service workers for offline capability and caching.
 \end{itemize}
 
 \textbf{Infrastructure Scaling:}
 \begin{itemize}
-    \item Horizontal scaling through stateless application design
-    \item Load balancing with NGINX/HAProxy across instances
-    \item Auto-scaling groups based on CPU and memory metrics
-    \item Database read replicas to distribute query load
-    \item CDN for static assets reduces origin load by 90\%
+    \item Horizontal scaling through stateless application design.
+    \item Load balancing with NGINX/HAProxy across instances.
+    \item Auto-scaling groups based on CPU and memory metrics.
+    \item Database read replicas to distribute query load.
+    \item CDN for static assets reduces origin load by 90\%.
 \end{itemize}
 
 \textbf{Monitoring and Alerting:}
 \begin{itemize}
-    \item Real-time performance monitoring with DataDog/New Relic
-    \item Alerting on performance degradation (p95 latency > 500ms)
-    \item Log aggregation for slow query analysis
-    \item Synthetic monitoring for critical user journeys
+    \item Real-time performance monitoring with DataDog/New Relic.
+    \item Alerting on performance degradation (p95 latency $>$ 500ms).
+    \item Log aggregation for slow query analysis.
+    \item Synthetic monitoring for critical user journeys.
 \end{itemize}
