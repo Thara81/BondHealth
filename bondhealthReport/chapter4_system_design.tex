@@ -143,15 +143,8 @@ in the system.
 
 \justifying
 The appointment booking process enables patients to schedule consultations with doctors
-based on real-time availability. Figure~\ref{fig:chapter4-appointment-flow} illustrates this
-workflow.
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=0.95\textwidth]{images/chapter4/appointment-flow.png}
-    \caption{Appointment Booking Data Flow Diagram}
-    \label{fig:chapter4-appointment-flow}
-\end{figure}
+based on real-time availability. Figure~\ref{fig:chapter4-appointment-flow} illustrates
+this workflow.
 
 \textbf{Detailed Process Description:}
 
@@ -189,6 +182,14 @@ workflow.
     new appointment in the ``Upcoming Appointments'' section. The doctor's dashboard is
     updated to show the new booking in their schedule.
 \end{enumerate}
+
+% CHANGE 1: Figure placed HERE — after the process description, just before 4.2.2
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/chapter4/appointment-flow.png}
+    \caption{Appointment Booking Data Flow Diagram}
+    \label{fig:chapter4-appointment-flow}
+\end{figure}
 
 \subsection{Lab Report Processing Data Flow}
 
@@ -238,7 +239,10 @@ recorded and securely delivered to authorized recipients.
 \justifying
 The payment processing workflow handles all financial transactions within the BondHealth
 platform, integrating with external payment gateways while maintaining comprehensive
-internal records for reconciliation and audit purposes.
+internal records for reconciliation and audit purposes. Every transaction is recorded
+with a unique payment UUID, a gateway-assigned transaction reference, and a timestamped
+status trail, ensuring that the internal payment history remains consistent with the
+gateway's records even in cases of network interruption or asynchronous webhook delays.
 
 \textbf{Detailed Process Description:}
 
@@ -284,12 +288,50 @@ implements healthcare industry best practices including UUID primary keys for di
 uniqueness, array data types for efficient multi-value storage, and comprehensive foreign
 key constraints for referential integrity.
 
+% CHANGE 2: ER Diagram figure placed first
 \begin{figure}[ht]
     \centering
     \includegraphics[width=\textwidth]{images/chapter4/schema.png}
     \caption{Database Entity-Relationship Diagram}
     \label{fig:schema}
 \end{figure}
+
+% CHANGE 2: Content added between the ER diagram and the table
+\justifying
+\noindent
+The Entity-Relationship diagram above illustrates the complete relational structure of
+the BondHealth database. At the center of the schema is the \texttt{users} table, which
+serves as the authentication anchor for all four system roles: patients, doctors, hospital
+administrators, and laboratory technicians. Each role-specific table references
+\texttt{users} via a foreign key on \texttt{user\_id}, ensuring a single, unified
+identity per account. This centralized identity model simplifies authentication and
+eliminates the need to maintain separate credential stores for each role.
+
+\justifying
+\noindent
+The \texttt{hospitals} table acts as the second major anchor, grouping doctors, medicines,
+and lab technicians under a specific facility. This hospital-scoped design enforces
+data isolation between institutions while still allowing patients to interact with
+multiple hospitals through the appointment and lab report workflows. The
+\texttt{appointments} table sits at the intersection of patients and doctors, linking
+both parties with scheduling, status, and payment information. The \texttt{lab\_reports}
+and \texttt{prescriptions} tables similarly bridge patients and doctors, capturing the
+clinical outputs of each consultation. Together, these relationships form a complete
+picture of the patient journey from booking through diagnosis and treatment.
+
+\justifying
+\noindent
+The \texttt{doctor\_leave} table integrates directly with the appointment availability
+logic, ensuring that time slots are never offered to patients when a doctor has an
+approved leave covering that date. The \texttt{medicines} table is scoped to each
+hospital, enabling independent inventory management per facility, while the
+\texttt{payments} table maintains a one-to-one relationship with appointments, recording
+the full financial transaction lifecycle from initiation through gateway confirmation.
+
+\justifying
+\noindent
+The following table provides a concise summary of each core table, its purpose, and
+its primary fields as implemented in the Neon PostgreSQL schema.
 
 \textbf{Database Design Principles:}
 
@@ -305,6 +347,14 @@ key constraints for referential integrity.
 
     \item \textbf{Performance Optimization}: Strategic indexes on frequently queried columns
     ensure rapid data retrieval even as the database scales to millions of records.
+
+    \item \textbf{Scalability}: The use of UUID primary keys and serverless PostgreSQL
+    ensures the schema can accommodate horizontal scaling without conflicts in distributed
+    environments.
+
+    \item \textbf{Security by Design}: Sensitive fields such as \texttt{password\_hash}
+    are never exposed through API responses, and role-based access controls at the
+    application layer ensure each user can only query data relevant to their role.
 \end{itemize}
 
 \begin{table}[H]
@@ -391,7 +441,18 @@ key constraints for referential integrity.
 \justifying
 The BondHealth platform implements a comprehensive RESTful API architecture that follows
 industry best practices for web service design. All endpoints adhere to REST conventions
-with appropriate HTTP methods, consistent resource naming, and standardized response formats.
+with appropriate HTTP methods, consistent resource naming, and standardized response
+formats. The API serves as the communication backbone between the presentation layer and
+the business logic, handling all data exchange between the four user roles and the
+server. Each endpoint is designed to perform a single, well-defined operation, making
+the API predictable and easy to consume by both the web interface and future mobile
+clients. Error responses follow a consistent JSON structure containing an error code,
+human-readable message, and optional field-level validation details, enabling the
+frontend to provide meaningful feedback to users. All protected endpoints require a
+valid JWT token delivered via HTTP-only cookie, ensuring that unauthenticated requests
+are rejected at the middleware level before reaching any business logic. The table below
+documents the core API endpoints currently implemented in the BondHealth platform,
+organized by resource and access level.
 
 \textbf{API Design Principles:}
 
@@ -508,7 +569,14 @@ for verifying user identities, managing sessions, and enforcing access controls.
 
 \justifying
 The patient dashboard provides a comprehensive, intuitive interface for patients to manage
-all aspects of their healthcare journey, aggregating information from multiple modules.
+all aspects of their healthcare journey, aggregating information from multiple modules into
+a single, unified view. It is designed with simplicity in mind, ensuring that patients of
+all technical backgrounds can navigate their medical records, schedule appointments, and
+communicate with their doctors without friction. The dashboard dynamically loads only the
+data relevant to the logged-in patient, ensuring both performance efficiency and strict
+data privacy. Real-time indicators highlight pending actions such as unpaid bills, upcoming
+appointments within the next 24 hours, and newly uploaded lab reports, keeping patients
+informed and engaged with their own healthcare management.
 
 \textbf{Component Architecture:}
 
@@ -590,9 +658,6 @@ the entire healthcare facility operations.
 
     \item \textbf{Leave Approval Workflow}: Calendar view showing all leave requests with
     quick approve/reject buttons and coverage analysis.
-
-    \item \textbf{Appointment Overview}: Daily/weekly/monthly appointment volumes,
-    utilization rates, no-show rates, and wait time metrics.
 \end{itemize}
 
 \subsection{Lab Technician Module}
@@ -718,6 +783,7 @@ to protect sensitive healthcare data and ensure regulatory compliance.
     \label{tab:ch4-security}
 \end{table}
 
+\vspace{3\baselineskip}
 \subsection{Data Encryption}
 
 \textbf{Encryption at Rest:}
@@ -768,7 +834,15 @@ and security when connecting the Node.js application layer to Neon PostgreSQL.
 \justifying
 Connection pooling maintains a cache of database connections that can be reused across
 multiple client requests, eliminating the overhead of establishing a new connection for
-each database operation.
+each database operation. In a healthcare platform like BondHealth, where concurrent
+requests from patients, doctors, administrators, and lab technicians are common, efficient
+connection management is critical to maintaining responsive performance. Without pooling,
+each API request would require a full TCP handshake and authentication round-trip to the
+Neon PostgreSQL server, adding significant latency to every database interaction. The
+pool maintains a configurable minimum number of ready connections at all times, ensuring
+that even sudden traffic spikes are handled gracefully without exhausting database
+resources. Failed or stale connections are automatically detected and replaced, providing
+resilience without any manual intervention.
 
 \textbf{Pool Configuration:}
 \begin{itemize}
@@ -844,6 +918,15 @@ const query = async (text, params) => {
 \justifying
 The BondHealth platform integrates with multiple external services to extend functionality
 and leverage specialized capabilities while maintaining focus on core healthcare features.
+Each integration is selected based on reliability, security compliance, and ease of
+implementation within the existing Node.js architecture. These third-party services handle
+specialized functions such as payment processing, real-time communication, file storage,
+and push notifications, allowing the core development effort to remain focused on
+healthcare-specific business logic. All integrations communicate over HTTPS with
+appropriate authentication mechanisms, and sensitive credentials are stored exclusively
+in environment variables, never hardcoded in the application source. The table below
+summarizes each integration, its purpose within the platform, and key implementation
+details.
 
 \begin{table}[H]
     \small
