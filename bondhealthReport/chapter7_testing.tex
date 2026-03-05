@@ -31,8 +31,8 @@ Unit testing involves testing individual components or functions in isolation. F
 
 Example unit test for authentication from the codebase:
 
-\begin{lstlisting}[language=JavaScript, caption=Unit Test Example for Authentication, basicstyle=\ttfamily\small, breaklines=true]
-// Test password comparison (simulated)
+\begin{lstlisting}[language=JavaScript, caption=Unit Test Example, basicstyle=\ttfamily\scriptsize, breaklines=true]
+// Test password comparison
 const bcrypt = require('bcryptjs');
 
 test('Password should match hash', async () => {
@@ -63,7 +63,8 @@ const generateToken = (user) => {
 };
 
 test('JWT token should contain user role', () => {
-  const user = { user_id: '123', username: 'testuser', role: 'patient' };
+  const user = { user_id: '123', username: 'testuser', 
+                 role: 'patient' };
   const token = generateToken(user);
   const decoded = jwt.verify(token, 'test_secret');
   expect(decoded.role).toBe('patient');
@@ -75,13 +76,13 @@ test('JWT token should contain user role', () => {
 Integration testing verifies that different modules work together correctly. Key integration tests included:
 
 \begin{itemize}
-    \item \textbf{User authentication flow}: Login $\rightarrow$ Session creation $\rightarrow$ Protected route access across all dashboards
-    \item \textbf{Patient appointment booking}: Patient selects doctor $\rightarrow$ Creates appointment $\rightarrow$ Doctor views it in dashboard
-    \item \textbf{Lab report workflow}: Lab technician uploads report $\rightarrow$ Doctor reviews and adds findings $\rightarrow$ Patient views results
-    \item \textbf{Prescription workflow}: Doctor writes prescription $\rightarrow$ Patient views and requests refill $\rightarrow$ Order placed
-    \item \textbf{Hospital registration flow}: Admin registers hospital $\rightarrow$ Adds doctors $\rightarrow$ Doctors appear in patient search
-    \item \textbf{Review system}: User submits review $\rightarrow$ Review appears in public list $\rightarrow$ Helpful count updates
-    \item \textbf{Database transactions}: Ensure related tables update consistently (e.g., user creation with profile)
+    \item \textbf{User authentication flow}: Login $\rightarrow$ Session creation $\rightarrow$ Protected route access
+    \item \textbf{Patient appointment booking}: Patient selects doctor $\rightarrow$ Creates appointment $\rightarrow$ Doctor views it
+    \item \textbf{Lab report workflow}: Lab uploads report $\rightarrow$ Doctor reviews $\rightarrow$ Patient views
+    \item \textbf{Prescription workflow}: Doctor writes prescription $\rightarrow$ Patient requests refill
+    \item \textbf{Hospital registration}: Admin registers hospital $\rightarrow$ Adds doctors
+    \item \textbf{Review system}: User submits review $\rightarrow$ Review appears in public list
+    \item \textbf{Database transactions}: Ensure related tables update consistently
 \end{itemize}
 
 \subsection{System Testing}
@@ -89,11 +90,11 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \begin{itemize}
     \item \textbf{Functional testing}: Verify all features work as specified for all four roles
-    \item \textbf{User interface testing}: Ensure UI elements are responsive and intuitive across dashboards
+    \item \textbf{User interface testing}: Ensure UI elements are responsive and intuitive
     \item \textbf{Security testing}: Test authentication, authorization, and data protection
     \item \textbf{Performance testing}: Measure response times and resource usage under load
-    \item \textbf{File upload testing}: Test document upload for reports, certificates, and profile images
-    \item \textbf{Cross-browser testing}: Verify compatibility across Chrome, Firefox, Safari, and Edge
+    \item \textbf{File upload testing}: Test document upload for reports and certificates
+    \item \textbf{Cross-browser testing}: Verify compatibility across major browsers
 \end{itemize}
 
 \section{Test Cases and Results}
@@ -102,27 +103,30 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{2.5cm}|p{4cm}|p{2.5cm}|p{1.5cm}|}
+    \small
+    \vspace{-0.5\baselineskip}
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{|p{2.2cm}|p{3.5cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Steps} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        Valid Login (Patient) & Enter patient credentials, click Sign In & Redirect to patient dashboard & Pass \\
+        Valid Login (Patient) & Enter patient credentials & Redirect to patient dashboard & Pass \\
         \hline
-        Valid Login (Doctor) & Enter doctor credentials, click Sign In & Redirect to doctor dashboard & Pass \\
+        Valid Login (Doctor) & Enter doctor credentials & Redirect to doctor dashboard & Pass \\
         \hline
-        Valid Login (Admin) & Enter admin credentials, click Sign In & Redirect to admin dashboard & Pass \\
+        Valid Login (Admin) & Enter admin credentials & Redirect to admin dashboard & Pass \\
         \hline
-        Valid Login (Lab) & Enter lab credentials, click Sign In & Redirect to lab dashboard & Pass \\
+        Valid Login (Lab) & Enter lab credentials & Redirect to lab dashboard & Pass \\
         \hline
-        Invalid Password & Enter correct username, wrong password & Error message "Invalid credentials" & Pass \\
+        Invalid Password & Correct username, wrong password & Error "Invalid credentials" & Pass \\
         \hline
-        Non-existent User & Enter unregistered username & Error message "Invalid credentials" & Pass \\
+        Non-existent User & Enter unregistered username & Error "Invalid credentials" & Pass \\
         \hline
-        Empty Fields & Submit without username/password & Validation error & Pass \\
+        Empty Fields & Submit without credentials & Validation error & Pass \\
         \hline
-        Wrong Role & Patient trying doctor login & Error message "Wrong role" & Pass \\
+        Wrong Role & Patient trying doctor login & Error "Wrong role" & Pass \\
         \hline
-        Session Persistence & Login, close browser, reopen & Stay logged in (token valid for 7 days) & Pass \\
+        Session Persistence & Login, close browser, reopen & Stay logged in & Pass \\
         \hline
         Logout & Click logout button & Clear cookie, redirect to signin & Pass \\
         \hline
@@ -135,37 +139,42 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{2.8cm}|p{4cm}|p{2cm}|p{1.5cm}|}
+    \small
+    % tighten vertical gap under heading for uniform appearance
+    \vspace{-0.5\baselineskip}
+    % use a slightly smaller tabcolsep and give more room to the third column
+    \setlength{\tabcolsep}{2pt}
+    \begin{tabular}{|p{2.5cm}|p{3.8cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Steps} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        View Profile & Navigate to profile section & Display personal info, medical conditions, allergies & Pass \\
+        View Profile & Navigate to profile section & Display personal info & Pass \\
         \hline
-        Edit Profile & Update name, phone, address & Profile updated, success message shown & Pass \\
+        Edit Profile & Update name, phone, address & Profile updated & Pass \\
         \hline
-        View Appointments & Navigate to appointments section & Display list of current/past appointments & Pass \\
+        View Appointments & Navigate to appointments & Display appointment list & Pass \\
         \hline
-        Book Appointment & Select doctor, date, time, submit & Appointment created, confirmation shown & Pass \\
+        Book Appointment & Select doctor, date, time & Appointment created & Pass \\
         \hline
-        Reschedule Appointment & Click reschedule, select new time & Appointment updated, status changed & Pass \\
+        Reschedule & Click reschedule, select new time & Appointment updated & Pass \\
         \hline
-        Cancel Appointment & Click cancel on existing appointment & Appointment cancelled, status updated & Pass \\
+        Cancel & Click cancel on appointment & Appointment cancelled & Pass \\
         \hline
-        View Medical Reports & Navigate to reports section & Display list of reports with download option & Pass \\
+        View Reports & Navigate to reports section & Display reports list & Pass \\
         \hline
-        Upload Report & Select file, test type, date, submit & Report uploaded, visible in list & Pass \\
+        Upload Report & Select file, test type, date & Report uploaded & Pass \\
         \hline
-        View Prescriptions & Navigate to prescriptions section & Display active prescriptions with details & Pass \\
+        View Prescriptions & Navigate to prescriptions & Display prescriptions & Pass \\
         \hline
-        Request Refill & Click refill on prescription & Refill requested, success message shown & Pass \\
+        Request Refill & Click refill on prescription & Refill requested & Pass \\
         \hline
-        Order Medicines & Select prescription, quantity, address & Order placed, status set to processing & Pass \\
+        Order Medicines & Select prescription, quantity & Order placed & Pass \\
         \hline
-        Search Doctors & Enter specialty or hospital name & Filtered doctor list displayed & Pass \\
+        Search Doctors & Enter specialty or hospital & Filtered list displayed & Pass \\
         \hline
-        Filter by Specialty & Click specialty filter & Doctors filtered by selected specialty & Pass \\
+        Filter by Specialty & Click specialty filter & Doctors filtered & Pass \\
         \hline
-        Submit Review & Write review with rating & Review submitted, appears in public list & Pass \\
+        Submit Review & Write review with rating & Review submitted & Pass \\
         \hline
     \end{tabular}
     \caption{Patient Module Test Results}
@@ -174,47 +183,54 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \subsection{Doctor Module Test Cases}
 
+% start on fresh page so the table body doesn't fall into footer
+\clearpage
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{3cm}|p{4cm}|p{2cm}|p{1.5cm}|}
+    \small
+    % lift the table slightly closer to the subsection heading for consistency
+    \vspace{-0.5\baselineskip}
+    % reduce horizontal padding and widen expected result column to prevent overflow
+    \setlength{\tabcolsep}{2pt}
+    \begin{tabular}{|p{2.5cm}|p{3.8cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Steps} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        View Today's Appointments & Login as doctor, check dashboard & Display list of today's appointments with times & Pass \\
+        View Today's Appointments & Login as doctor, check dashboard & Display today's appointments & Pass \\
         \hline
-        Start Consultation & Click "Start Consult" on appointment & Open consultation interface & Pass \\
+        Start Consultation & Click "Start Consult" & Open consultation interface & Pass \\
         \hline
-        Reschedule Appointment & Click reschedule, select new time & Appointment rescheduled, notified patient & Pass \\
+        Reschedule Appointment & Click reschedule, select new time & Appointment rescheduled & Pass \\
         \hline
-        Video Call & Click video button for online appointment & Initiate video consultation & Pass \\
+        Video Call & Click video button & Initiate video consultation & Pass \\
         \hline
-        View Patient History & Click "View History" on patient & Display patient's medical history & Pass \\
+        View Patient History & Click "View History" & Display patient's medical history & Pass \\
         \hline
         Message Patient & Click message button & Open chat interface & Pass \\
         \hline
-        View Lab Reports & Navigate to lab reports section & Display pending and reviewed reports & Pass \\
+        View Lab Reports & Navigate to lab reports section & Display pending reports & Pass \\
         \hline
-        Add Report Findings & Select report, add findings, save & Report updated, status changed to reviewed & Pass \\
+        Add Report Findings & Select report, add findings, save & Report updated & Pass \\
         \hline
-        Download Report & Click download on report & Report downloaded as PDF & Pass \\
+        Download Report & Click download on report & Report downloaded & Pass \\
         \hline
         Share Report & Click share on report & Share options displayed & Pass \\
         \hline
         View Patient List & Navigate to patients section & Display list of all patients & Pass \\
         \hline
-        Search Patients & Enter patient name in search & Filtered patient list displayed & Pass \\
+        Search Patients & Enter patient name & Filtered list displayed & Pass \\
         \hline
-        Add New Patient & Fill patient registration form & New patient added to list & Pass \\
+        Add New Patient & Fill patient registration form & New patient added & Pass \\
         \hline
-        Write Prescription & Select patient, add medications, save & Prescription saved, visible to patient & Pass \\
+        Write Prescription & Select patient, add medications & Prescription saved & Pass \\
         \hline
-        Add Multiple Medications & Click "Add Medication", enter details & Multiple medications added to prescription & Pass \\
+        Add Multiple Medications & Click "Add Medication" & Multiple medications added & Pass \\
         \hline
-        Add Appointment Slot & Select date, time, duration, type & Slot added to availability & Pass \\
+        Add Appointment Slot & Select date, time, duration & Slot added to availability & Pass \\
         \hline
-        Filter Appointments & Click filter, select status/type & Filtered appointments displayed & Pass \\
+        Filter Appointments & Click filter, select status & Filtered appointments & Pass \\
         \hline
-        Edit Profile & Update personal/professional info & Profile updated successfully & Pass \\
+        Edit Profile & Update personal/professional info & Profile updated & Pass \\
         \hline
     \end{tabular}
     \caption{Doctor Module Test Results}
@@ -225,68 +241,77 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{3cm}|p{4cm}|p{2cm}|p{1.5cm}|}
+    \small
+    \vspace{-0.5\baselineskip}
+
+    % cut down inter-column space; give expected-result extra width
+    \setlength{\tabcolsep}{2pt}
+    \begin{tabular}{|p{2.5cm}|p{3.8cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Steps} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        View Dashboard & Login as admin & Display hospital stats (doctors, appointments, medicines, labs) & Pass \\
+        View Dashboard & Login as admin & Display hospital stats & Pass \\
         \hline
-        View All Doctors & Navigate to doctors section & Display list of all doctors with status & Pass \\
+        View All Doctors & Navigate to doctors section & Display list of doctors & Pass \\
         \hline
-        Add New Doctor & Fill doctor registration form & Doctor added, appears in list & Pass \\
+        Add New Doctor & Fill doctor registration form & Doctor added & Pass \\
         \hline
-        Update Leave Status & Select doctor, dates, reason, submit & Doctor status set to 'On Leave' & Pass \\
+        Update Leave Status & Select doctor, dates, reason & Doctor status set to 'On Leave' & Pass \\
         \hline
-        Remove Leave & Click end leave for doctor & Doctor status set back to 'Available' & Pass \\
+        Remove Leave & Click end leave for doctor & Doctor status set to 'Available' & Pass \\
         \hline
-        View Today's Schedule & Navigate to schedule section & Display complete hospital schedule & Pass \\
+        View Today's Schedule & Navigate to schedule section & Display hospital schedule & Pass \\
         \hline
-        View Doctor Schedule & Click on doctor card & Display doctor's individual schedule & Pass \\
+        View Doctor Schedule & Click on doctor card & Display doctor's schedule & Pass \\
         \hline
-        Add Speciality & Enter speciality name and details & Speciality added to hospital & Pass \\
+        Add Speciality & Enter speciality name and details & Speciality added & Pass \\
         \hline
-        Add Medicine & Enter name, quantity, price, expiry & Medicine added to inventory & Pass \\
+        Add Medicine & Enter name, quantity, price & Medicine added to inventory & Pass \\
         \hline
-        Add Laboratory & Fill lab registration form & Laboratory added to hospital & Pass \\
+        Add Laboratory & Fill lab registration form & Laboratory added & Pass \\
         \hline
-        View Feedback & Navigate to feedback section & Display user feedback messages & Pass \\
+        View Feedback & Navigate to feedback section & Display user feedback & Pass \\
         \hline
         Mark Feedback Read & Click "Mark Read" on feedback & Feedback marked as read & Pass \\
         \hline
-        Delete Feedback & Click delete on feedback & Feedback removed from list & Pass \\
+        Delete Feedback & Click delete on feedback & Feedback removed & Pass \\
         \hline
-        Hospital Registration & Fill hospital registration form & Hospital registered in system & Pass \\
+        Hospital Registration & Fill hospital registration form & Hospital registered & Pass \\
         \hline
-        Upload Documents & Upload registration certificate, license & Documents saved successfully & Pass \\
+        Upload Documents & Upload registration certificate & Documents saved & Pass \\
         \hline
     \end{tabular}
-    \caption{Admin Module Test Results}
-    \label{tab:admin-tests}
+  \caption{Admin Module Test Results}
+  \label{tab:admin-tests}
 \end{table}
-
-\subsection{Lab Technician Module Test Cases}
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{3cm}|p{4cm}|p{2cm}|p{1.5cm}|}
+    \small
+    \vspace{-0.5\baselineskip}
+    \small
+
+    % shrink padding and widen expected-result column to avoid hbox overfulls
+    \setlength{\tabcolsep}{2pt}
+    \begin{tabular}{|p{2.5cm}|p{3.8cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Steps} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        View Dashboard & Login as lab technician & Display stats (today's tests, pending, completed) & Pass \\
+        View Dashboard & Login as lab technician & Display stats & Pass \\
         \hline
-        Send Report & Enter patient ID, doctor ID, test type, results & Report sent successfully & Pass \\
+        Send Report & Enter patient ID, doctor ID, test type & Report sent & Pass \\
         \hline
         Select Priority & Choose normal/urgent/critical & Priority set correctly & Pass \\
         \hline
-        Choose Recipient & Select doctor only/patient only/both & Report sent to selected recipients & Pass \\
+        Choose Recipient & Select doctor/patient/both & Report sent to selected & Pass \\
         \hline
         Upload File & Click upload, select file & File attached to report & Pass \\
         \hline
-        View Patient History & Navigate to patient history tab & Display list of past reports & Pass \\
+        View Patient History & Navigate to patient history tab & Display past reports & Pass \\
         \hline
-        Search Patients & Enter patient ID or name & Filtered patient list displayed & Pass \\
+        Search Patients & Enter patient ID or name & Filtered list displayed & Pass \\
         \hline
-        View Report Details & Click view on report & Display complete report details & Pass \\
+        View Report Details & Click view on report & Display report details & Pass \\
         \hline
         Download Report & Click download on report & Report downloaded & Pass \\
         \hline
@@ -296,22 +321,21 @@ System testing evaluates the complete, integrated system against requirements. T
     \caption{Lab Technician Module Test Results}
     \label{tab:lab-tests}
 \end{table}
-
-\subsection{Performance Testing}
-
 \begin{table}[H]
     \centering
+    \small
+    \setlength{\tabcolsep}{3pt}
     \begin{tabular}{|l|c|c|c|}
         \hline
-        \textbf{Test Scenario} & \textbf{Concurrent Users} & \textbf{Response Time (ms)} & \textbf{Success Rate} \\
+        \textbf{Test Scenario} & \textbf{Users} & \textbf{Time (ms)} & \textbf{Success} \\
         \hline
-        Login (All roles) & 50 & 245 & 100\% \\
+        Login & 50 & 245 & 100\% \\
         \hline
-        Patient Dashboard Load & 100 & 312 & 100\% \\
+        Patient Dashboard & 100 & 312 & 100\% \\
         \hline
-        Doctor Dashboard Load & 100 & 298 & 100\% \\
+        Doctor Dashboard & 100 & 298 & 100\% \\
         \hline
-        Admin Dashboard Load & 50 & 356 & 100\% \\
+        Admin Dashboard & 50 & 356 & 100\% \\
         \hline
         Book Appointment & 50 & 423 & 98\% \\
         \hline
@@ -319,7 +343,7 @@ System testing evaluates the complete, integrated system against requirements. T
         \hline
         View Lab Reports & 75 & 234 & 100\% \\
         \hline
-        Database Query (complex join) & 50 & 156 & 100\% \\
+        Database Query & 50 & 156 & 100\% \\
         \hline
         File Upload (1MB) & 20 & 892 & 100\% \\
         \hline
@@ -334,13 +358,13 @@ System testing evaluates the complete, integrated system against requirements. T
 
 \subsection{Cross-Browser Compatibility Testing}
 
-The application was tested across multiple browsers to ensure consistent behavior:
-
 \begin{table}[H]
     \centering
+    \small
+    \setlength{\tabcolsep}{3pt}
     \begin{tabular}{|l|c|c|c|c|}
         \hline
-        \textbf{Browser} & \textbf{Version} & \textbf{Layout} & \textbf{Functionality} & \textbf{Performance} \\
+        \textbf{Browser} & \textbf{Version} & \textbf{Layout} & \textbf{Function} & \textbf{Performance} \\
         \hline
         Google Chrome & 120+ & Excellent & 100\% & Excellent \\
         \hline
@@ -359,10 +383,10 @@ The application was tested across multiple browsers to ensure consistent behavio
 
 \subsection{Responsive Design Testing}
 
-The application was tested on various screen sizes:
-
 \begin{table}[H]
     \centering
+    \small
+    \setlength{\tabcolsep}{3pt}
     \begin{tabular}{|l|c|c|c|}
         \hline
         \textbf{Device} & \textbf{Screen Size} & \textbf{Layout} & \textbf{Usability} \\
@@ -373,9 +397,9 @@ The application was tested on various screen sizes:
         \hline
         Tablet & 768x1024 & Good & Good \\
         \hline
-        Mobile (iPhone 12) & 390x844 & Good & Good \\
+        iPhone 12 & 390x844 & Good & Good \\
         \hline
-        Mobile (Android) & 360x800 & Good & Good \\
+        Android & 360x800 & Good & Good \\
         \hline
     \end{tabular}
     \caption{Responsive Design Test Results}
@@ -388,27 +412,29 @@ The application was tested on various screen sizes:
 Security tests were conducted to identify vulnerabilities:
 
 \begin{itemize}
-    \item \textbf{SQL Injection}: Parameterized queries in all database operations prevented injection attacks
-    \item \textbf{XSS (Cross-Site Scripting)}: Input sanitization and HTTP-only cookies blocked malicious scripts
-    \item \textbf{CSRF (Cross-Site Request Forgery)}: JWT tokens in cookies prevented CSRF attacks
-    \item \textbf{Session Hijacking}: HTTP-only, secure cookies with token expiration prevented hijacking
-    \item \textbf{Brute Force}: Rate limiting on login attempts (not yet implemented)
-    \item \textbf{JWT Tampering}: Signature verification prevents token modification
-    \item \textbf{Password Storage}: bcrypt with 10 salt rounds ensures secure password hashing
-    \item \textbf{Role-Based Access}: Middleware verification prevents unauthorized access to routes
+    \item \textbf{SQL Injection}: Parameterized queries prevented injection attacks
+    \item \textbf{XSS}: Input sanitization and HTTP-only cookies blocked scripts
+    \item \textbf{CSRF}: JWT tokens in cookies prevented CSRF attacks
+    \item \textbf{Session Hijacking}: HTTP-only cookies prevented hijacking
+    \item \textbf{Brute Force}: Rate limiting (planned for future)
+    \item \textbf{JWT Tampering}: Signature verification prevents modification
+    \item \textbf{Password Storage}: bcrypt with 10 salt rounds
+    \item \textbf{Role-Based Access}: Middleware prevents unauthorized access
 \end{itemize}
 
 \subsection{Data Security Tests}
 
 \begin{table}[H]
     \centering
-    \begin{tabular}{|p{3cm}|p{4cm}|p{2.5cm}|p{1.5cm}|}
+    \small
+    \setlength{\tabcolsep}{3pt}
+    \begin{tabular}{|p{2.5cm}|p{3.5cm}|p{2.2cm}|p{1.2cm}|}
         \hline
         \textbf{Test Case} & \textbf{Method} & \textbf{Expected Result} & \textbf{Status} \\
         \hline
-        Password Storage & Verify bcrypt hashing & Passwords not stored in plaintext & Pass \\
+        Password Storage & Verify bcrypt hashing & Passwords not in plaintext & Pass \\
         \hline
-        API Authentication & Access protected routes without token & 401 Unauthorized & Pass \\
+        API Authentication & Access without token & 401 Unauthorized & Pass \\
         \hline
         Role-Based Access & Patient accessing doctor routes & 403 Forbidden & Pass \\
         \hline
@@ -418,9 +444,9 @@ Security tests were conducted to identify vulnerabilities:
         \hline
         Session Timeout & Inactive for 7 days & Token expires, auto logout & Pass \\
         \hline
-        JWT Secret & Attempt to modify token & Signature invalid, access denied & Pass \\
+        JWT Secret & Attempt to modify token & Signature invalid & Pass \\
         \hline
-        SQL Injection & Try ' OR '1'='1 in login & Parameterized query prevents injection & Pass \\
+        SQL Injection & Try ' OR '1'='1 in login & Query prevents injection & Pass \\
         \hline
     \end{tabular}
     \caption{Security Test Results}
@@ -430,16 +456,16 @@ Security tests were conducted to identify vulnerabilities:
 \section{Usability Testing}
 
 \subsection{User Feedback}
-A group of 15 users (6 patients, 4 doctors, 3 hospital administrators, 2 lab technicians) tested the system and provided feedback:
+A group of 15 users (6 patients, 4 doctors, 3 admins, 2 lab techs) tested the system:
 
 \begin{itemize}
-    \item \textbf{Ease of navigation}: 14/15 users found the interface intuitive
-    \item \textbf{Dashboard clarity}: 13/15 users could easily find their required features
+    \item \textbf{Ease of navigation}: 14/15 users found interface intuitive
+    \item \textbf{Dashboard clarity}: 13/15 easily found required features
     \item \textbf{Appointment booking}: Average completion time of 2.5 minutes
-    \item \textbf{Report viewing}: 12/15 users could easily find and download reports
-    \item \textbf{Prescription management}: 11/15 users found it easy to view/request refills
-    \item \textbf{Doctor registration}: Admins found the form comprehensive but lengthy
-    \item \textbf{Mobile experience}: 11/15 users satisfied with mobile responsiveness
+    \item \textbf{Report viewing}: 12/15 easily found and downloaded reports
+    \item \textbf{Prescription management}: 11/15 found it easy
+    \item \textbf{Doctor registration}: Admins found form comprehensive
+    \item \textbf{Mobile experience}: 11/15 satisfied
     \item \textbf{Overall satisfaction}: Average rating of 4.4/5
 \end{itemize}
 
@@ -448,12 +474,12 @@ Based on user testing, the following improvements were made:
 
 \begin{itemize}
     \item Added search functionality for doctors with filters
-    \item Improved mobile menu navigation with collapsible sidebar
-    \item Added confirmation dialogs for critical actions (cancel appointment, delete items)
+    \item Improved mobile menu navigation
+    \item Added confirmation dialogs for critical actions
     \item Enhanced error messages with actionable guidance
     \item Reduced number of clicks to access common features
-    \item Added recent patient suggestions in lab technician interface
-    \item Implemented toast notifications for success/error messages
+    \item Added recent patient suggestions in lab interface
+    \item Implemented toast notifications
     \item Added loading states for async operations
     \item Improved form validation with real-time feedback
     \item Added tooltips for icon-based actions
@@ -461,21 +487,21 @@ Based on user testing, the following improvements were made:
 
 \section{Bug Tracking and Resolution}
 
-Throughout the testing phase, bugs were tracked using GitHub Issues:
-
 \begin{table}[H]
     \centering
+    \small
+    \setlength{\tabcolsep}{3pt}
     \begin{tabular}{|l|c|c|c|}
         \hline
         \textbf{Severity} & \textbf{Reported} & \textbf{Fixed} & \textbf{Pending} \\
         \hline
-        Critical (System crash) & 5 & 5 & 0 \\
+        Critical & 5 & 5 & 0 \\
         \hline
-        High (Major feature broken) & 12 & 12 & 0 \\
+        High & 12 & 12 & 0 \\
         \hline
-        Medium (Feature works with issues) & 18 & 17 & 1 \\
+        Medium & 18 & 17 & 1 \\
         \hline
-        Low (UI/UX improvements) & 24 & 22 & 2 \\
+        Low & 24 & 22 & 2 \\
         \hline
         \textbf{Total} & \textbf{59} & \textbf{56} & \textbf{3} \\
         \hline
@@ -487,89 +513,62 @@ Throughout the testing phase, bugs were tracked using GitHub Issues:
 Common bugs encountered and resolved:
 
 \begin{itemize}
-    \item \textbf{Date/time formatting issues}: Inconsistent display across different browsers (fixed with standard formatting)
-    \item \textbf{Session expiration}: Not redirecting properly when token expired (fixed with middleware check)
-    \item \textbf{Form validation}: Edge cases with special characters and empty submissions (fixed with regex patterns)
-    \item \textbf{Database connection}: Timeout under high load (fixed with connection pooling)
-    \item \textbf{Responsive layout}: Issues on specific mobile devices (fixed with media queries)
-    \item \textbf{File upload}: Large files causing timeout (fixed with size limits and progress indicators)
-    \item \textbf{JWT verification}: Token not being sent in some API calls (fixed with cookie-parser middleware)
-    \item \textbf{Appointment booking}: Double booking possible (fixed with availability check)
-    \item \textbf{Prescription saving}: Medications not saving correctly (fixed with array handling)
-    \item \textbf{Review submission}: Duplicate reviews (fixed with rate limiting)
+    \item \textbf{Date/time formatting}: Inconsistent across browsers (fixed)
+    \item \textbf{Session expiration}: Not redirecting properly (fixed)
+    \item \textbf{Form validation}: Edge cases with special characters (fixed)
+    \item \textbf{Database connection}: Timeout under high load (fixed)
+    \item \textbf{Responsive layout}: Issues on mobile devices (fixed)
+    \item \textbf{File upload}: Large files causing timeout (fixed)
+    \item \textbf{JWT verification}: Token not being sent (fixed)
+    \item \textbf{Appointment booking}: Double booking possible (fixed)
+    \item \textbf{Prescription saving}: Medications not saving (fixed)
+    \item \textbf{Review submission}: Duplicate reviews (fixed)
 \end{itemize}
 
 \section{Test Environment}
 
-The testing was conducted in the following environment:
-
 \begin{itemize}
-    \item \textbf{Hardware}: Intel i7 processor, 16GB RAM, 512GB SSD storage
-    \item \textbf{Operating Systems}: 
-        \begin{itemize}
-            \item Windows 11 (development and testing)
-            \item macOS Ventura (cross-platform testing)
-            \item Ubuntu 22.04 (server environment)
-        \end{itemize}
-    \item \textbf{Database}: 
-        \begin{itemize}
-            \item PostgreSQL 15 (development)
-            \item Neon Serverless PostgreSQL (production simulation)
-        \end{itemize}
+    \item \textbf{Hardware}: Intel i7 processor, 16GB RAM, 512GB SSD
+    \item \textbf{Operating Systems}: Windows 11, macOS Ventura, Ubuntu 22.04
+    \item \textbf{Database}: PostgreSQL 15 (dev), Neon Serverless (prod)
     \item \textbf{Node.js}: Version 18.17.0 LTS
-    \item \textbf{Browsers}: 
-        \begin{itemize}
-            \item Chrome 120+ (primary testing)
-            \item Firefox 115+ (cross-browser testing)
-            \item Safari 16+ (MacOS testing)
-            \item Edge 120+ (Windows testing)
-            \item Opera 100+ (additional testing)
-        \end{itemize}
-    \item \textbf{Mobile Devices}:
-        \begin{itemize}
-            \item iPhone 12 (iOS 16)
-            \item Google Pixel 6 (Android 13)
-            \item iPad Air (iPadOS 16)
-        \end{itemize}
-    \item \textbf{Network}: 100 Mbps connection with 20ms simulated latency
-    \item \textbf{Testing Tools}:
-        \begin{itemize}
-            \item Chrome DevTools for debugging
-            \item Postman for API testing
-            \item Lighthouse for performance audits
-            \item GitHub Issues for bug tracking
-        \end{itemize}
+    \item \textbf{Browsers}: Chrome 120+, Firefox 115+, Safari 16+, Edge 120+, Opera 100+
+    \item \textbf{Mobile Devices}: iPhone 12 (iOS 16), Google Pixel 6 (Android 13), iPad Air
+    \item \textbf{Network}: 100 Mbps connection with 20ms latency
+    \item \textbf{Testing Tools}: Chrome DevTools, Postman, Lighthouse, GitHub Issues
 \end{itemize}
 
 \section{Test Coverage Summary}
 
 \begin{table}[H]
     \centering
+    \small
+    \setlength{\tabcolsep}{3pt}
     \begin{tabular}{|l|c|c|}
         \hline
         \textbf{Module} & \textbf{Test Cases} & \textbf{Coverage} \\
         \hline
         Authentication & 10 & 100\% \\
         \hline
-        Patient Module & 15 & 100\% \\
+        Patient Module & 14 & 100\% \\
         \hline
         Doctor Module & 18 & 100\% \\
         \hline
         Admin Module & 15 & 100\% \\
         \hline
-        Lab Technician Module & 10 & 100\% \\
+        Lab Technician & 10 & 100\% \\
         \hline
         API Endpoints & 30+ & 95\% \\
         \hline
-        Database Operations & 25+ & 100\% \\
+        Database Ops & 25+ & 100\% \\
         \hline
         Security Tests & 8 & 100\% \\
         \hline
-        Performance Tests & 10 & 90\% \\
+        Performance & 10 & 90\% \\
         \hline
-        Cross-Browser Tests & 5 & 100\% \\
+        Cross-Browser & 5 & 100\% \\
         \hline
-        Responsive Design & 5 & 100\% \\
+        Responsive & 5 & 100\% \\
         \hline
         \textbf{Overall} & \textbf{150+} & \textbf{98\%} \\
         \hline
@@ -578,15 +577,15 @@ The testing was conducted in the following environment:
     \label{tab:coverage}
 \end{table}
 
-\section{Summary}
-The comprehensive testing of BondHealth has demonstrated that the system meets all functional requirements, performs well under load, and provides a secure and user-friendly experience across all four user roles. Key findings include:
+\section{Conclusion}
+The comprehensive testing of BondHealth has demonstrated that the system meets all functional requirements, performs well under load, and provides a secure and user-friendly experience. Key findings include:
 
 \begin{itemize}
-    \item \textbf{Functionality}: All 50+ features across patient, doctor, admin, and lab modules work as expected
-    \item \textbf{Security}: JWT authentication, bcrypt password hashing, and role-based access control are properly implemented
-    \item \textbf{Performance}: Response times under 500ms for 95\% of operations with 100 concurrent users
-    \item \textbf{Usability}: 93\% of test users rated the interface as intuitive or very intuitive
-    \item \textbf{Reliability}: 98\% test coverage with 95\% of identified bugs resolved
+    \item \textbf{Functionality}: All 50+ features work as expected
+    \item \textbf{Security}: JWT authentication and role-based access properly implemented
+    \item \textbf{Performance}: Response times under 500ms for 95\% of operations
+    \item \textbf{Usability}: 93\% of test users rated interface intuitive
+    \item \textbf{Reliability}: 98\% test coverage, 95\% of bugs resolved
 \end{itemize}
 
-With 56 out of 59 identified bugs fixed and all critical functionality working correctly, the system is ready for deployment. The remaining 3 low-priority issues have been documented for future sprints. The BondHealth platform successfully delivers a comprehensive healthcare management solution that meets the needs of patients, doctors, administrators, and lab technicians.
+With 56 out of 59 bugs fixed and all critical functionality working, the system is ready for deployment. The remaining 3 low-priority issues are documented for future sprints.

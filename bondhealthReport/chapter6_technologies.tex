@@ -434,7 +434,8 @@ PORT=3005
 NODE_ENV=development
 
 # Database Configuration
-DATABASE_URL=postgresql://bondhealth_user:password@ep-server.aws.neon.tech/bondhealth?sslmode=require
+DATABASE_URL=postgresql://username:password@\
+  host.neon.tech/database
 
 # JWT Configuration
 JWT_SECRET=bondhealth_super_secret_key_2024
@@ -456,30 +457,33 @@ let token = req.cookies.token;
 
 BondHealth follows a modular architecture with clear separation of concerns:
 
-\begin{verbatim}
-BondHealth/
-├── src/
-│   ├── db/
-│   │   ├── config.js          # Database connection
-│   │   ├── init.js             # Database initialization
-│   │   ├── init.sql             # SQL schema
-│   │   ├── seed.js              # Seed data
-│   │   └── seed-reviews.js      # Review data seeding
-│   ├── Patient.js               # Patient dashboard module
-│   ├── Doctor.js                # Doctor dashboard module
-│   ├── admin.js                  # Admin dashboard module
-│   ├── labs.js                   # Lab technician module
-│   ├── signin.js                 # Authentication server
-│   ├── home.js                   # Main server with all APIs
-│   ├── Hospital.js               # Hospital management module
-│   ├── HospitalRegistration.js   # Hospital registration
-│   ├── signup_patient.js         # Patient registration
-│   └── clone.js                  # Appointment booking demo
-├── .env                          # Environment variables
-├── .gitignore                    # Git ignore rules
-├── package.json                  # Dependencies
-└── README.md                     # Project documentation
-\end{verbatim}
+\begin{itemize}
+    \item \textbf{src/} - Main source code directory
+    \begin{itemize}
+        \item \textbf{db/} - Database configuration files
+        \begin{itemize}
+            \item \texttt{config.js} - Database connection
+            \item \texttt{init.js} - Database initialization
+            \item \texttt{init.sql} - SQL schema
+            \item \texttt{seed.js} - Seed data
+            \item \texttt{seed-reviews.js} - Review data seeding
+        \end{itemize}
+        \item \texttt{Patient.js} - Patient dashboard module
+        \item \texttt{Doctor.js} - Doctor dashboard module
+        \item \texttt{admin.js} - Admin dashboard module
+        \item \texttt{labs.js} - Lab technician module
+        \item \texttt{signin.js} - Authentication server
+        \item \texttt{home.js} - Main server with all APIs
+        \item \texttt{Hospital.js} - Hospital management module
+        \item \texttt{HospitalRegistration.js} - Hospital registration
+        \item \texttt{signup\_patient.js} - Patient registration
+        \item \texttt{clone.js} - Appointment booking demo
+    \end{itemize}
+    \item \texttt{.env} - Environment variables
+    \item \texttt{.gitignore} - Git ignore rules
+    \item \texttt{package.json} - Dependencies
+    \item \texttt{README.md} - Project documentation
+\end{itemize}
 
 \section{Deployment Technologies}
 
@@ -539,7 +543,7 @@ Secure Sockets Layer ensures encrypted communication:
     \item Session tracking to prevent token reuse
 \end{itemize}
 
-\section{Summary}
+\section{Conclusion}
 The technology stack chosen for BondHealth provides a solid foundation for building a secure, scalable, and maintainable healthcare management system. Each technology was selected based on its strengths and compatibility with other components:
 
 \begin{itemize}
