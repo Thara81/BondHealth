@@ -579,6 +579,24 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             text-decoration: underline;
         }
 
+        /* Password strength indicator */
+        .password-strength {
+            margin-top: 8px;
+            font-size: 0.85rem;
+        }
+
+        .strength-bar {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 5px;
+            transition: all 0.3s ease;
+            background: #e0e0e0;
+        }
+
+        .strength-bar.weak   { background: var(--error-red); width: 33%; }
+        .strength-bar.medium { background: #ff9800; width: 66%; }
+        .strength-bar.strong { background: var(--success-green); width: 100%; }
+
         /* Success Message */
         .success-message {
             text-align: center;
@@ -727,74 +745,21 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
         /* Responsive */
         @media (max-width: 768px) {
-            .header-section {
-                padding: 20px;
-            }
-            
-            .logo-text {
-                font-size: 1.8rem;
-            }
-            
-            .page-title {
-                font-size: 1.8rem;
-            }
-            
-            .form-section {
-                padding: 20px;
-            }
-            
-            .departments-container {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .radio-group {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .logo-upload-area {
-                padding: 20px;
-            }
-            
-            .logo-preview {
-                width: 120px;
-                height: 120px;
-            }
-            
-            .btn-group {
-                flex-direction: column;
-                align-items: center;
-            }
+            .header-section { padding: 20px; }
+            .logo-text { font-size: 1.8rem; }
+            .page-title { font-size: 1.8rem; }
+            .form-section { padding: 20px; }
+            .departments-container { grid-template-columns: repeat(2, 1fr); }
+            .radio-group { flex-direction: column; gap: 10px; }
+            .logo-upload-area { padding: 20px; }
+            .logo-preview { width: 120px; height: 120px; }
+            .btn-group { flex-direction: column; align-items: center; }
         }
 
         @media (max-width: 480px) {
-            .departments-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .logo {
-                flex-direction: column;
-                gap: 5px;
-            }
-            
-            .logo-actions {
-                flex-direction: column;
-                align-items: center;
-            }
-            .remove-dept-btn {
-                border: none;
-                background: none;
-                color: white;
-                margin-left: 5px;
-                font-size: 1.2rem;
-                cursor: pointer;
-                padding: 0 5px;
-            }
-
-            .remove-dept-btn:hover {
-                opacity: 0.8;
-                transform: scale(1.1);
-            }
+            .departments-container { grid-template-columns: 1fr; }
+            .logo { flex-direction: column; gap: 5px; }
+            .logo-actions { flex-direction: column; align-items: center; }
         }
     </style>
 </head>
@@ -802,6 +767,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     <div class="hospital-container">
         <!-- Registration Form Card -->
         <div class="registration-card">
+
             <!-- Header Section -->
             <div class="header-section">
                 <div class="logo">
@@ -812,17 +778,28 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 <p class="page-subtitle">Join our healthcare network to provide better services to patients. Fill out the form below to register your hospital.</p>
             </div>
 
-            <!-- Success Message (Hidden by default) -->
-           <!-- In the success message section, replace the existing a tag with: -->
+            <!-- ✅ FIX #2: Success Message (hidden by default) -->
+            <div id="successMessage" class="success-message" style="display: none;">
+                <div class="success-icon">✅</div>
+                <h2 class="success-title">Registration Successful!</h2>
+                <p class="success-text">Your hospital has been successfully registered with BondHealth. A temporary password has been sent to your admin email.</p>
+                <div class="btn-group">
+                    <button onclick="goToDashboard()" class="back-btn" style="background: var(--primary-blue);">
+                        <i class="fas fa-tachometer-alt"></i> Go to Dashboard
+                    </button>
+                    <button onclick="resetForm()" class="back-btn" style="background: var(--success-green);">
+                        <i class="fas fa-redo"></i> Register Another
+                    </button>
+                </div>
+            </div>
 
-
-            <!-- Registration Form (Visible by default) -->
+            <!-- Registration Form -->
             <form id="hospitalRegistrationForm" class="registration-form">
-                <!-- Hospital Logo/Photo Section -->
+
+                <!-- Hospital Logo & Photos Section -->
                 <div class="form-section logo-upload-section">
                     <h3 class="section-title"><i class="fas fa-camera"></i> Hospital Logo & Photos</h3>
-                    
-                    <!-- Logo Preview -->
+
                     <div class="logo-preview-container">
                         <div class="logo-preview" id="logoPreview">
                             <div class="logo-preview-placeholder">
@@ -831,8 +808,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                             <img id="logoPreviewImage" alt="Hospital Logo Preview">
                         </div>
                     </div>
-                    
-                    <!-- Logo Upload Area -->
+
                     <div class="logo-upload-area" id="logoUploadArea">
                         <input type="file" class="logo-input" id="hospitalLogo" accept=".jpg,.jpeg,.png,.gif,.svg">
                         <label for="hospitalLogo" class="logo-label">
@@ -842,8 +818,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                             <span class="logo-file-name" id="logoFileName">No file chosen</span>
                         </label>
                     </div>
-                    
-                    <!-- Logo Actions -->
+
                     <div class="logo-actions" id="logoActions" style="display: none;">
                         <button type="button" class="logo-action-btn btn-change-logo" onclick="document.getElementById('hospitalLogo').click()">
                             <i class="fas fa-sync-alt"></i> Change Logo
@@ -852,8 +827,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                             <i class="fas fa-trash"></i> Remove Logo
                         </button>
                     </div>
-                    
-                    <!-- Logo Specifications -->
+
                     <div class="logo-specs">
                         <h6><i class="fas fa-info-circle"></i> Logo Requirements:</h6>
                         <ul>
@@ -864,8 +838,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                             <li>Logo should be visible on both light and dark backgrounds</li>
                         </ul>
                     </div>
-                    
-                    <!-- Hospital Photos Upload -->
+
                     <div class="mt-4">
                         <label class="form-label">Additional Hospital Photos (Optional)</label>
                         <p class="file-note">Upload photos of hospital building, reception, waiting area, etc.</p>
@@ -885,13 +858,13 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 <!-- Hospital Information Section -->
                 <div class="form-section">
                     <h3 class="section-title"><i class="fas fa-hospital"></i> Hospital Information</h3>
-                    
+
                     <div class="mb-4">
                         <label for="hospName" class="form-label required">Hospital Name</label>
                         <input type="text" class="form-control" id="hospName" placeholder="Enter hospital name">
                         <div class="invalid-feedback" id="hospNameError">Please enter hospital name.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="form-label required">Hospital Type</label>
                         <div class="radio-group">
@@ -910,7 +883,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         </div>
                         <div class="invalid-feedback" id="hospTypeError">Please select hospital type.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label for="registrationNumber" class="form-label required">Registration Number</label>
                         <input type="text" class="form-control" id="registrationNumber" placeholder="Issued by health authority">
@@ -918,24 +891,27 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Location & Contact Section -->
+                <!-- ✅ FIX #1: Corrected Location & Contact Section HTML structure -->
                 <div class="form-section">
                     <h3 class="section-title"><i class="fas fa-map-marker-alt"></i> Location & Contact</h3>
-                    
+
                     <div class="mb-4">
                         <label for="city" class="form-label required">City / Location</label>
                         <input type="text" class="form-control" id="city" placeholder="Enter city">
                         <div class="invalid-feedback" id="cityError">Please enter city/location.</div>
                     </div>
-                    
-                   <div class="col-md-6 mb-4">
-    <label for="contactNo" class="form-label required">Contact Number</label>
-    <input type="tel" class="form-control" id="contactNo" placeholder="+91 9876543210" 
-           pattern="[0-9]{10}" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
-    <div class="invalid-feedback" id="contactNoError">Please enter a valid 10-digit contact number.</div>
-    <small class="text-muted">Enter 10-digit mobile number without country code</small>
-</div>
-                        
+
+                    <!-- FIX: Wrapped both fields in a proper <div class="row"> -->
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="contactNo" class="form-label required">Contact Number</label>
+                            <input type="tel" class="form-control" id="contactNo" placeholder="+91 9876543210"
+                                   pattern="[0-9]{10}" maxlength="10"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
+                            <div class="invalid-feedback" id="contactNoError">Please enter a valid 10-digit contact number.</div>
+                            <small class="text-muted">Enter 10-digit mobile number without country code</small>
+                        </div>
+
                         <div class="col-md-6 mb-4">
                             <label for="officialEmail" class="form-label required">Official Email</label>
                             <input type="email" class="form-control" id="officialEmail" placeholder="hospital@example.com">
@@ -947,27 +923,49 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 <!-- Authorized Representative Section -->
                 <div class="form-section">
                     <h3 class="section-title"><i class="fas fa-user-tie"></i> Authorized Representative Details</h3>
-                    
+
                     <div class="row">
                         <div class="col-md-6 mb-4">
                             <label for="adminName" class="form-label required">Admin Name</label>
                             <input type="text" class="form-control" id="adminName" placeholder="Enter admin name">
                             <div class="invalid-feedback" id="adminNameError">Please enter admin name.</div>
                         </div>
-                        
+
                         <div class="col-md-6 mb-4">
                             <label for="designation" class="form-label required">Designation</label>
                             <input type="text" class="form-control" id="designation" placeholder="Enter designation">
                             <div class="invalid-feedback" id="designationError">Please enter designation.</div>
                         </div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label for="adminEmail" class="form-label required">Admin Email</label>
                         <input type="email" class="form-control" id="adminEmail" placeholder="admin@example.com">
                         <div class="invalid-feedback" id="adminEmailError">Please enter a valid email address.</div>
                     </div>
-                    
+
+                    <!-- ✅ FIX #4: Added Password & Confirm Password fields -->
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="adminPassword" class="form-label required">Password</label>
+                            <input type="password" class="form-control" id="adminPassword"
+                                   placeholder="Create a password (min 8 characters)"
+                                   oninput="checkPasswordStrength(this.value)">
+                            <div class="invalid-feedback" id="adminPasswordError">Password must be at least 8 characters.</div>
+                            <div class="password-strength">
+                                <div class="strength-bar" id="strengthBar"></div>
+                                <small id="strengthText" style="color:#888;"></small>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <label for="confirmPassword" class="form-label required">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword"
+                                   placeholder="Re-enter your password">
+                            <div class="invalid-feedback" id="confirmPasswordError">Passwords do not match.</div>
+                        </div>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label">Faculty Services (Optional)</label>
                         <div class="row">
@@ -982,34 +980,25 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 </div>
 
                 <!-- Departments Section -->
-               <div class="form-section">
-    <h3 class="section-title"><i class="fas fa-stethoscope"></i> Departments Available</h3>
-    
-    <div class="mb-4">
-        <label class="form-label required">Select Departments</label>
-        <div class="departments-container" id="departmentsContainer">
-            <!-- Departments will be added by JavaScript -->
-        </div>
-        
-        <!-- Add Custom Department -->
-        <div class="input-group mt-3">
-            <input type="text" class="form-control" id="customDepartment" placeholder="Enter custom department">
-            <button class="btn btn-outline-info" type="button" onclick="addCustomDepartment()">
-                <i class="fas fa-plus"></i> Add Department
-            </button>
-        </div>
-        
-        <div class="invalid-feedback" id="departmentsError">Please select at least one department.</div>
-        <div class="selected-departments mt-3">
-            <strong>Selected Departments:</strong> <span id="selectedDeptsText">None selected</span>
-        </div>
-    </div>
-</div>
+                <div class="form-section">
+                    <h3 class="section-title"><i class="fas fa-stethoscope"></i> Departments Available</h3>
+
+                    <div class="mb-4">
+                        <label class="form-label required">Select Departments</label>
+                        <div class="departments-container" id="departmentsContainer">
+                            <!-- Departments rendered by JavaScript -->
+                        </div>
+                        <div class="invalid-feedback" id="departmentsError">Please select at least one department.</div>
+                        <div class="selected-departments">
+                            <strong>Selected Departments:</strong> <span id="selectedDeptsText">None selected</span>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Documents Upload Section -->
                 <div class="form-section">
                     <h3 class="section-title"><i class="fas fa-file-upload"></i> Upload Documents</h3>
-                    
+
                     <div class="mb-4">
                         <label class="form-label required">Hospital Registration Certificate</label>
                         <p class="file-note">by CEA, State Health Dept</p>
@@ -1023,7 +1012,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         </div>
                         <div class="invalid-feedback" id="regCertificateError">Please upload registration certificate.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="form-label required">Hospital License</label>
                         <p class="file-note">by CEA, State Health Dept</p>
@@ -1037,7 +1026,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         </div>
                         <div class="invalid-feedback" id="hospitalLicenseError">Please upload hospital license.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="form-label required">Trade License / Incorporated</label>
                         <p class="file-note">by Municipality, Registrar</p>
@@ -1051,7 +1040,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         </div>
                         <div class="invalid-feedback" id="tradeLicenseError">Please upload trade license.</div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="form-label required">PAN Card of Hospital</label>
                         <p class="file-note">Annexed to SRF</p>
@@ -1069,189 +1058,164 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
                 <!-- Submit Section -->
                 <div class="form-section submit-section">
-                    <button type="submit" class="submit-btn">
+                    <button type="submit" class="submit-btn" id="submitBtn">
                         <i class="fas fa-rocket"></i> Sign Up & Register Hospital
                     </button>
-                    
                     <p class="terms-note">
                         By registering, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
                     </p>
                 </div>
+
             </form>
         </div>
 
         <!-- Footer -->
-        <!-- In the footer section, replace the existing back to sign in link with: -->
-<div class="footer">
-    <p>© 2024 BondHealth. All rights reserved. | <a href="/signin" style="color: var(--primary-blue); font-weight: 600;">← Back to Sign In</a>
-</div>
+        <div class="footer">
+            <p>© 2024 BondHealth. All rights reserved. | <a href="/signin" style="color: var(--primary-blue); font-weight: 600;">← Back to Sign In</a></p>
+        </div>
+    </div>
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
-        // Department options
+        // ─────────────────────────────────────────
+        // GLOBAL STATE
+        // ─────────────────────────────────────────
         const departmentOptions = [
-            'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 
+            'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics',
             'Gynecology', 'Dermatology', 'Emergency', 'Radiology',
             'General Surgery', 'Internal Medicine', 'Oncology', 'Psychiatry'
         ];
 
-        // Selected departments array
         let selectedDepartments = [];
-        
-        // Hospital logo data
-        let hospitalLogoData = null;
-        let hospitalPhotosData = [];
+        let hospitalLogoData    = null;
+        let hospitalPhotosData  = [];
 
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Render department chips
+        // ─────────────────────────────────────────
+        // INIT
+        // ─────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', function () {
             renderDepartments();
-            
-            // Set up file upload handlers
             setupFileUploads();
-            
-            // Set up logo upload handlers
             setupLogoUpload();
-            
-            // Set up form submission
             setupFormSubmission();
-            
-            // Set up back button
-            document.getElementById('backButton').addEventListener('click', resetForm);
         });
 
-        // Set up logo upload functionality
+        // ─────────────────────────────────────────
+        // ✅ FIX #4: Password strength checker
+        // ─────────────────────────────────────────
+        function checkPasswordStrength(password) {
+            const bar  = document.getElementById('strengthBar');
+            const text = document.getElementById('strengthText');
+
+            bar.className = 'strength-bar';
+            if (!password) { text.textContent = ''; return; }
+
+            if (password.length < 6) {
+                bar.classList.add('weak');
+                text.textContent = 'Weak';
+                text.style.color = '#f44336';
+            } else if (password.length < 10 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+                bar.classList.add('medium');
+                text.textContent = 'Medium';
+                text.style.color = '#ff9800';
+            } else {
+                bar.classList.add('strong');
+                text.textContent = 'Strong';
+                text.style.color = '#4caf50';
+            }
+        }
+
+        // ─────────────────────────────────────────
+        // LOGO UPLOAD
+        // ─────────────────────────────────────────
         function setupLogoUpload() {
-            const logoInput = document.getElementById('hospitalLogo');
-            const logoPreview = document.getElementById('logoPreviewImage');
-            const logoPlaceholder = document.querySelector('.logo-preview-placeholder');
-            const logoUploadArea = document.getElementById('logoUploadArea');
-            const logoFileName = document.getElementById('logoFileName');
-            const logoActions = document.getElementById('logoActions');
+            const logoInput           = document.getElementById('hospitalLogo');
+            const logoPreview         = document.getElementById('logoPreviewImage');
+            const logoPlaceholder     = document.querySelector('.logo-preview-placeholder');
+            const logoUploadArea      = document.getElementById('logoUploadArea');
+            const logoFileName        = document.getElementById('logoFileName');
+            const logoActions         = document.getElementById('logoActions');
             const hospitalPhotosInput = document.getElementById('hospitalPhotos');
             const hospitalPhotosPreview = document.getElementById('hospitalPhotosPreview');
-            const hospitalPhotosName = document.getElementById('hospitalPhotosName');
+            const hospitalPhotosName  = document.getElementById('hospitalPhotosName');
 
-            // Logo upload handler
-            logoInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    const file = this.files[0];
-                    
-                    // Validate file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert('File size exceeds 5MB limit. Please upload a smaller file.');
-                        this.value = '';
-                        return;
-                    }
-                    
-                    // Validate file type
-                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/svg+xml'];
-                    if (!validTypes.includes(file.type)) {
-                        alert('Invalid file type. Please upload JPG, PNG, GIF, or SVG files.');
-                        this.value = '';
-                        return;
-                    }
-                    
-                    // Read and display the image
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        hospitalLogoData = {
-                            name: file.name,
-                            type: file.type,
-                            size: file.size,
-                            data: e.target.result
-                        };
-                        
-                        // Show preview
-                        logoPreview.src = e.target.result;
-                        logoPreview.style.display = 'block';
-                        logoPlaceholder.style.display = 'none';
-                        
-                        // Update file name
-                        logoFileName.textContent = file.name;
-                        logoFileName.style.color = '#1565c0';
-                        
-                        // Show logo actions
-                        logoActions.style.display = 'flex';
-                    };
-                    reader.readAsDataURL(file);
+            // --- Logo file change ---
+            logoInput.addEventListener('change', function () {
+                if (!this.files.length) return;
+                const file = this.files[0];
+
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File size exceeds 5MB limit. Please upload a smaller file.');
+                    this.value = '';
+                    return;
                 }
+
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/svg+xml'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Invalid file type. Please upload JPG, PNG, GIF, or SVG files.');
+                    this.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    hospitalLogoData = { name: file.name, type: file.type, size: file.size, data: e.target.result };
+                    logoPreview.src           = e.target.result;
+                    logoPreview.style.display = 'block';
+                    logoPlaceholder.style.display = 'none';
+                    logoFileName.textContent  = file.name;
+                    logoFileName.style.color  = '#1565c0';
+                    logoActions.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
             });
 
-            // Hospital photos upload handler
-            hospitalPhotosInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    hospitalPhotosData = [];
-                    const fileNames = [];
-                    
-                    // Clear previous preview
-                    hospitalPhotosPreview.innerHTML = '';
-                    
-                    // Process each file
-                    for (let i = 0; i < Math.min(this.files.length, 5); i++) { // Limit to 5 files
-                        const file = this.files[i];
-                        
-                        // Validate file size (max 5MB each)
-                        if (file.size > 5 * 1024 * 1024) {
-                            alert(\`File "\${file.name}" exceeds 5MB limit. Skipping.\`);
-                            continue;
-                        }
-                        
-                        // Validate file type
-                        const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-                        if (!validTypes.includes(file.type)) {
-                            alert(\`Invalid file type for "\${file.name}". Please upload JPG or PNG files.\`);
-                            continue;
-                        }
-                        
-                        // Read and store the image
-                        const reader = new FileReader();
-                        reader.onload = (function(file) {
-                            return function(e) {
-                                hospitalPhotosData.push({
-                                    name: file.name,
-                                    type: file.type,
-                                    size: file.size,
-                                    data: e.target.result
-                                });
-                                
-                                // Create preview thumbnail
-                                const thumb = document.createElement('div');
-                                thumb.className = 'photo-thumb';
-                                
-                                const img = document.createElement('img');
-                                img.src = e.target.result;
-                                img.alt = file.name;
-                                
-                                const removeBtn = document.createElement('button');
-                                removeBtn.className = 'remove-photo';
-                                removeBtn.innerHTML = '×';
-                                removeBtn.onclick = function() {
-                                    thumb.remove();
-                                    hospitalPhotosData = hospitalPhotosData.filter(p => p.name !== file.name);
-                                    updatePhotosFileName();
-                                    if (hospitalPhotosData.length === 0) {
-                                        hospitalPhotosPreview.style.display = 'none';
-                                    }
-                                };
-                                
-                                thumb.appendChild(img);
-                                thumb.appendChild(removeBtn);
-                                hospitalPhotosPreview.appendChild(thumb);
+            // --- Hospital photos ---
+            hospitalPhotosInput.addEventListener('change', function () {
+                if (!this.files.length) return;
+                hospitalPhotosData = [];
+                hospitalPhotosPreview.innerHTML = '';
+
+                for (let i = 0; i < Math.min(this.files.length, 5); i++) {
+                    const file = this.files[i];
+
+                    if (file.size > 5 * 1024 * 1024) { alert(\`"\${file.name}" exceeds 5MB. Skipping.\`); continue; }
+
+                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                    if (!validTypes.includes(file.type)) { alert(\`Invalid type for "\${file.name}". Skipping.\`); continue; }
+
+                    const reader = new FileReader();
+                    reader.onload = (function (f) {
+                        return function (e) {
+                            hospitalPhotosData.push({ name: f.name, type: f.type, size: f.size, data: e.target.result });
+
+                            const thumb     = document.createElement('div');
+                            thumb.className = 'photo-thumb';
+
+                            const img = document.createElement('img');
+                            img.src   = e.target.result;
+                            img.alt   = f.name;
+
+                            const removeBtn       = document.createElement('button');
+                            removeBtn.className   = 'remove-photo';
+                            removeBtn.innerHTML   = '×';
+                            removeBtn.onclick     = function () {
+                                thumb.remove();
+                                hospitalPhotosData = hospitalPhotosData.filter(p => p.name !== f.name);
+                                updatePhotosFileName();
+                                if (!hospitalPhotosData.length) hospitalPhotosPreview.style.display = 'none';
                             };
-                        })(file);
-                        
-                        reader.readAsDataURL(file);
-                        fileNames.push(file.name);
-                    }
-                    
-                    // Update file name display
-                    updatePhotosFileName();
-                    if (hospitalPhotosData.length > 0) {
-                        hospitalPhotosPreview.style.display = 'flex';
-                    }
+
+                            thumb.appendChild(img);
+                            thumb.appendChild(removeBtn);
+                            hospitalPhotosPreview.appendChild(thumb);
+                            updatePhotosFileName();
+                            hospitalPhotosPreview.style.display = 'flex';
+                        };
+                    })(file);
+                    reader.readAsDataURL(file);
                 }
             });
 
@@ -1265,349 +1229,248 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 }
             }
 
-            // Drag and drop for logo
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                logoUploadArea.addEventListener(eventName, preventDefaults, false);
+            // --- Drag & drop for logo ---
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt =>
+                logoUploadArea.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false)
+            );
+            ['dragenter', 'dragover'].forEach(evt =>
+                logoUploadArea.addEventListener(evt, () => logoUploadArea.classList.add('dragover'), false)
+            );
+            ['dragleave', 'drop'].forEach(evt =>
+                logoUploadArea.addEventListener(evt, () => logoUploadArea.classList.remove('dragover'), false)
+            );
+            logoUploadArea.addEventListener('drop', function (e) {
+                const files = e.dataTransfer.files;
+                if (files.length) { logoInput.files = files; logoInput.dispatchEvent(new Event('change')); }
             });
 
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                logoUploadArea.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                logoUploadArea.addEventListener(eventName, unhighlight, false);
-            });
-
-            function highlight() {
-                logoUploadArea.classList.add('dragover');
-            }
-
-            function unhighlight() {
-                logoUploadArea.classList.remove('dragover');
-            }
-
-            logoUploadArea.addEventListener('drop', handleDrop, false);
-
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                
-                if (files.length > 0) {
-                    logoInput.files = files;
-                    logoInput.dispatchEvent(new Event('change'));
-                }
-            }
-
-            // Make the whole area clickable
-            logoUploadArea.addEventListener('click', function(e) {
-                if (e.target !== logoInput) {
-                    logoInput.click();
-                }
+            logoUploadArea.addEventListener('click', function (e) {
+                if (e.target !== logoInput) logoInput.click();
             });
         }
 
-        // Remove logo function
+        // ─────────────────────────────────────────
+        // REMOVE LOGO
+        // ─────────────────────────────────────────
         function removeLogo() {
             hospitalLogoData = null;
-            const logoPreview = document.getElementById('logoPreviewImage');
+            const logoPreview     = document.getElementById('logoPreviewImage');
             const logoPlaceholder = document.querySelector('.logo-preview-placeholder');
-            const logoFileName = document.getElementById('logoFileName');
-            const logoActions = document.getElementById('logoActions');
-            
-            // Reset preview
-            logoPreview.style.display = 'none';
+            const logoFileName    = document.getElementById('logoFileName');
+            const logoActions     = document.getElementById('logoActions');
+
+            logoPreview.style.display     = 'none';
             logoPlaceholder.style.display = 'flex';
-            logoFileName.textContent = 'No file chosen';
-            logoFileName.style.color = '';
-            logoActions.style.display = 'none';
-            
-            // Reset file input
+            logoFileName.textContent      = 'No file chosen';
+            logoFileName.style.color      = '';
+            logoActions.style.display     = 'none';
             document.getElementById('hospitalLogo').value = '';
         }
 
-        // Render department selection chips
+        // ─────────────────────────────────────────
+        // DEPARTMENTS
+        // ─────────────────────────────────────────
         function renderDepartments() {
             const container = document.getElementById('departmentsContainer');
             container.innerHTML = '';
-            
+
             departmentOptions.forEach(dept => {
-                const chip = document.createElement('div');
-                chip.className = 'department-chip';
+                const chip       = document.createElement('div');
+                chip.className   = 'department-chip' + (selectedDepartments.includes(dept) ? ' selected' : '');
                 chip.textContent = dept;
                 chip.addEventListener('click', () => toggleDepartment(dept));
-                
-                if (selectedDepartments.includes(dept)) {
-                    chip.classList.add('selected');
-                }
-                
                 container.appendChild(chip);
             });
-            
+
             updateSelectedDepartmentsText();
         }
 
-        // Toggle department selection
         function toggleDepartment(dept) {
             const index = selectedDepartments.indexOf(dept);
-            
-            if (index === -1) {
-                selectedDepartments.push(dept);
-            } else {
-                selectedDepartments.splice(index, 1);
-            }
-            
-            // Update UI
+            if (index === -1) selectedDepartments.push(dept);
+            else selectedDepartments.splice(index, 1);
             renderDepartments();
-            
-            // Clear error if any
             clearError('departmentsError');
         }
 
-        // Update selected departments text
         function updateSelectedDepartmentsText() {
-            const textElement = document.getElementById('selectedDeptsText');
-            if (selectedDepartments.length > 0) {
-                textElement.textContent = selectedDepartments.join(', ');
-            } else {
-                textElement.textContent = 'None selected';
-            }
+            document.getElementById('selectedDeptsText').textContent =
+                selectedDepartments.length ? selectedDepartments.join(', ') : 'None selected';
         }
 
-        // Set up file upload handlers
+        // ─────────────────────────────────────────
+        // DOCUMENT FILE UPLOADS
+        // ─────────────────────────────────────────
         function setupFileUploads() {
             const fileInputs = [
-                { id: 'regCertificate', nameId: 'regCertificateName', areaId: 'regCertificateArea' },
+                { id: 'regCertificate',  nameId: 'regCertificateName',  areaId: 'regCertificateArea'  },
                 { id: 'hospitalLicense', nameId: 'hospitalLicenseName', areaId: 'hospitalLicenseArea' },
-                { id: 'tradeLicense', nameId: 'tradeLicenseName', areaId: 'tradeLicenseArea' },
-                { id: 'panCard', nameId: 'panCardName', areaId: 'panCardArea' }
+                { id: 'tradeLicense',    nameId: 'tradeLicenseName',    areaId: 'tradeLicenseArea'    },
+                { id: 'panCard',         nameId: 'panCardName',         areaId: 'panCardArea'         }
             ];
-            
+
             fileInputs.forEach(file => {
-                const input = document.getElementById(file.id);
+                const input       = document.getElementById(file.id);
                 const nameElement = document.getElementById(file.nameId);
-                const area = document.getElementById(file.areaId);
-                
-                input.addEventListener('change', function() {
+                const area        = document.getElementById(file.areaId);
+
+                input.addEventListener('change', function () {
                     if (this.files.length > 0) {
-                        nameElement.textContent = this.files[0].name;
-                        nameElement.style.color = '#1565c0';
+                        nameElement.textContent   = this.files[0].name;
+                        nameElement.style.color   = '#1565c0';
                         nameElement.style.fontWeight = '600';
-                        
-                        // Clear error if any
                         clearError(file.id + 'Error');
                     } else {
-                        nameElement.textContent = 'No file chosen';
-                        nameElement.style.color = '';
+                        nameElement.textContent      = 'No file chosen';
+                        nameElement.style.color      = '';
                         nameElement.style.fontWeight = '';
                     }
                 });
-                
-                // Make the whole area clickable
-                area.addEventListener('click', function(e) {
-                    if (e.target !== input) {
-                        input.click();
-                    }
+
+                area.addEventListener('click', function (e) {
+                    if (e.target !== input) input.click();
                 });
             });
         }
 
-// Function to add custom department
-function addCustomDepartment() {
-    const customDept = document.getElementById('customDepartment').value.trim();
-    if (customDept && !selectedDepartments.includes(customDept)) {
-        selectedDepartments.push(customDept);
-        renderDepartments();
-        document.getElementById('customDepartment').value = '';
-        clearError('departmentsError');
-    } else if (selectedDepartments.includes(customDept)) {
-        alert('This department is already selected');
-    } else {
-        alert('Please enter a department name');
-    }
-}
-
-// Updated renderDepartments function WITHOUT inline onclick (FIXED VERSION)
-function renderDepartments() {
-    const container = document.getElementById('departmentsContainer');
-    container.innerHTML = '';
-    
-    // Combine predefined and custom departments
-    const allDepartments = [...new Set([...departmentOptions, ...selectedDepartments])];
-    
-    allDepartments.forEach(dept => {
-        const chip = document.createElement('div');
-        chip.className = 'department-chip';
-        
-        if (selectedDepartments.includes(dept)) {
-            chip.classList.add('selected');
-            
-            // Create text node for department name
-            const deptText = document.createTextNode(dept);
-            chip.appendChild(deptText);
-            
-            // Create remove button (NO inline onclick)
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-dept-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.style.cssText = 'border:none; background:none; color:white; margin-left:5px; font-size:1.2rem; cursor:pointer;';
-            
-            // Add click event using addEventListener (FIXED)
-            removeBtn.addEventListener('click', function(e) {
-                e.stopPropagation(); // Prevent triggering chip click
-                removeDepartment(dept);
-            });
-            
-            chip.appendChild(removeBtn);
-        } else {
-            chip.textContent = dept;
-        }
-        
-        // Add click event to toggle department selection
-        chip.addEventListener('click', function(e) {
-            if (!e.target.classList.contains('remove-dept-btn')) {
-                toggleDepartment(dept);
-            }
-        });
-        
-        container.appendChild(chip);
-    });
-    
-    updateSelectedDepartmentsText();
-}
-
-// Function to remove department
-function removeDepartment(dept) {
-    const index = selectedDepartments.indexOf(dept);
-    if (index > -1) {
-        selectedDepartments.splice(index, 1);
-        renderDepartments();
-    }
-}
-
-        
-        // Set up form submission
+        // ─────────────────────────────────────────
+        // ✅ FIX #5: FORM SUBMISSION — calls backend via fetch
+        // ─────────────────────────────────────────
         function setupFormSubmission() {
-              const form = document.getElementById('hospitalRegistrationForm');
-    
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        if (validateForm()) {
-            // Show loading state
-            const submitBtn = form.querySelector('.submit-btn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
-            submitBtn.disabled = true;
-            
-            try {
-                // Collect form data
-                const formData = getFormData();
-                
-                // Send to your API endpoint
-                fetch('/api/hospitals/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Store hospital info in sessionStorage for the dashboard
-                        sessionStorage.setItem('registeredHospital', JSON.stringify({
-                            hospitalId: data.hospitalId,
-                            hospitalName: formData.hospitalName,
-                            registrationDate: new Date().toISOString()
-                        }));
-                        
-                        // Show success message briefly
-                        alert('Registration successful! Redirecting to dashboard...');
-                        
-                        // Redirect to Hospital Dashboard (port 3000)
-                        window.location.href = 'http://localhost:3000/';
-                    } else {
-                        alert('Registration failed: ' + (data.error || 'Unknown error'));
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Registration failed. Please try again.');
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                });
-            } catch (error) {
-                console.error('Registration error:', error);
-                alert('Registration failed. Please try again.');
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
-    });
-}
+            const form = document.getElementById('hospitalRegistrationForm');
 
-        // Validate the form
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                if (!validateForm()) return;
+
+                const submitBtn  = document.getElementById('submitBtn');
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+                submitBtn.disabled   = true;
+
+                try {
+                    const formData = getFormData();
+
+                    // ✅ FIX #5: Send data to the backend API endpoint
+                    const response = await fetch('/api/hospitals/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || 'Registration failed. Please try again.');
+                    }
+
+                    // ✅ FIX #2: Safe sessionStorage usage with try/catch
+                    try {
+                        sessionStorage.setItem('currentHospital', JSON.stringify({
+                            id:        result.hospitalId,
+                            name:      formData.hospitalName,
+                            email:     formData.officialEmail,
+                            adminName: formData.adminName
+                        }));
+                    } catch (storageErr) {
+                        console.warn('sessionStorage unavailable:', storageErr);
+                    }
+
+                    // Show success
+                    form.style.display = 'none';
+                    const successMessage = document.getElementById('successMessage');
+                    successMessage.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Registration error:', error);
+                    alert('Registration failed: ' + error.message);
+                } finally {
+                    submitBtn.innerHTML = originalHTML;
+                    submitBtn.disabled  = false;
+                }
+            });
+        }
+
+        // ─────────────────────────────────────────
+        // ✅ FIX #3 & GLOBAL: goToDashboard / resetForm defined at global scope
+        // ─────────────────────────────────────────
+        function goToDashboard() {
+            window.location.href = '/';
+        }
+
+        function resetForm() {
+            document.getElementById('successMessage').style.display        = 'none';
+            document.getElementById('hospitalRegistrationForm').style.display = 'block';
+            document.getElementById('hospitalRegistrationForm').reset();
+
+            // Reset departments
+            selectedDepartments = [];
+            renderDepartments();
+
+            // Reset logo
+            removeLogo();
+
+            // Reset photos
+            hospitalPhotosData = [];
+            const photosPreview = document.getElementById('hospitalPhotosPreview');
+            photosPreview.innerHTML      = '';
+            photosPreview.style.display  = 'none';
+            document.getElementById('hospitalPhotosName').textContent = 'No files chosen';
+
+            // Reset document file names
+            ['regCertificateName', 'hospitalLicenseName', 'tradeLicenseName', 'panCardName'].forEach(id => {
+                document.getElementById(id).textContent = 'No file chosen';
+            });
+
+            // Reset password strength UI
+            document.getElementById('strengthBar').className  = 'strength-bar';
+            document.getElementById('strengthText').textContent = '';
+
+            clearAllErrors();
+        }
+
+        // ─────────────────────────────────────────
+        // VALIDATION
+        // ─────────────────────────────────────────
         function validateForm() {
             let isValid = true;
-            
-            // Reset all errors
             clearAllErrors();
-            
+
             // Hospital Name
-            const hospName = document.getElementById('hospName').value.trim();
-            if (!hospName) {
+            if (!document.getElementById('hospName').value.trim()) {
                 showError('hospNameError', 'Please enter hospital name.');
                 isValid = false;
             }
-            
+
             // Hospital Type
-            const hospType = document.querySelector('input[name="hospType"]:checked');
-            if (!hospType) {
+            if (!document.querySelector('input[name="hospType"]:checked')) {
                 showError('hospTypeError', 'Please select hospital type.');
                 isValid = false;
             }
-            
+
             // Registration Number
-            const regNumber = document.getElementById('registrationNumber').value.trim();
-            if (!regNumber) {
+            if (!document.getElementById('registrationNumber').value.trim()) {
                 showError('registrationNumberError', 'Please enter registration number.');
                 isValid = false;
             }
-            
+
             // City
-            const city = document.getElementById('city').value.trim();
-            if (!city) {
+            if (!document.getElementById('city').value.trim()) {
                 showError('cityError', 'Please enter city/location.');
                 isValid = false;
             }
-            
+
             // Contact Number
             const contactNo = document.getElementById('contactNo').value.trim();
             if (!contactNo) {
                 showError('contactNoError', 'Please enter contact number.');
                 isValid = false;
+            } else if (!/^[0-9]{10}$/.test(contactNo)) {
+                showError('contactNoError', 'Please enter a valid 10-digit number.');
+                isValid = false;
             }
 
-            // Add phone number validation
-document.getElementById('contactNo').addEventListener('blur', function() {
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(this.value)) {
-        document.getElementById('contactNoError').textContent = 'Please enter a valid 10-digit number';
-        document.getElementById('contactNoError').style.display = 'block';
-        this.classList.add('is-invalid');
-    } else {
-        document.getElementById('contactNoError').style.display = 'none';
-        this.classList.remove('is-invalid');
-    }
-});
-            
             // Official Email
             const officialEmail = document.getElementById('officialEmail').value.trim();
             if (!officialEmail) {
@@ -1617,21 +1480,19 @@ document.getElementById('contactNo').addEventListener('blur', function() {
                 showError('officialEmailError', 'Please enter a valid email address.');
                 isValid = false;
             }
-            
+
             // Admin Name
-            const adminName = document.getElementById('adminName').value.trim();
-            if (!adminName) {
+            if (!document.getElementById('adminName').value.trim()) {
                 showError('adminNameError', 'Please enter admin name.');
                 isValid = false;
             }
-            
+
             // Designation
-            const designation = document.getElementById('designation').value.trim();
-            if (!designation) {
+            if (!document.getElementById('designation').value.trim()) {
                 showError('designationError', 'Please enter designation.');
                 isValid = false;
             }
-            
+
             // Admin Email
             const adminEmail = document.getElementById('adminEmail').value.trim();
             if (!adminEmail) {
@@ -1641,234 +1502,124 @@ document.getElementById('contactNo').addEventListener('blur', function() {
                 showError('adminEmailError', 'Please enter a valid email address.');
                 isValid = false;
             }
-            
+
+            // ✅ FIX #4: Validate Password fields
+            const password        = document.getElementById('adminPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!password) {
+                showError('adminPasswordError', 'Please enter a password.');
+                isValid = false;
+            } else if (password.length < 8) {
+                showError('adminPasswordError', 'Password must be at least 8 characters.');
+                isValid = false;
+            }
+
+            if (!confirmPassword) {
+                showError('confirmPasswordError', 'Please confirm your password.');
+                isValid = false;
+            } else if (password && password !== confirmPassword) {
+                showError('confirmPasswordError', 'Passwords do not match.');
+                isValid = false;
+            }
+
             // Departments
             if (selectedDepartments.length === 0) {
                 showError('departmentsError', 'Please select at least one department.');
                 isValid = false;
             }
-            
-            // File uploads (basic check for demo)
-            const files = [
-                { id: 'regCertificate', errorId: 'regCertificateError' },
-                { id: 'hospitalLicense', errorId: 'hospitalLicenseError' },
-                { id: 'tradeLicense', errorId: 'tradeLicenseError' },
-                { id: 'panCard', errorId: 'panCardError' }
-            ];
-            
-            files.forEach(file => {
-                const input = document.getElementById(file.id);
-                if (input.files.length === 0) {
-                    showError(file.errorId, \`Please upload \${file.id.replace(/([A-Z])/g, ' $1').toLowerCase()}.\`);
+
+            // Required document uploads
+            [
+                { id: 'regCertificate',  errorId: 'regCertificateError',  label: 'registration certificate' },
+                { id: 'hospitalLicense', errorId: 'hospitalLicenseError', label: 'hospital license'          },
+                { id: 'tradeLicense',    errorId: 'tradeLicenseError',    label: 'trade license'             },
+                { id: 'panCard',         errorId: 'panCardError',         label: 'PAN card'                  }
+            ].forEach(file => {
+                if (!document.getElementById(file.id).files.length) {
+                    showError(file.errorId, \`Please upload the \${file.label}.\`);
                     isValid = false;
                 }
             });
-            
+
             return isValid;
         }
 
-        // Get form data as object
+        // ─────────────────────────────────────────
+        // GET FORM DATA
+        // ─────────────────────────────────────────
         function getFormData() {
             return {
-                hospitalName: document.getElementById('hospName').value,
-                hospitalType: document.querySelector('input[name="hospType"]:checked')?.value,
+                hospitalName:       document.getElementById('hospName').value,
+                hospitalType:       document.querySelector('input[name="hospType"]:checked')?.value,
                 registrationNumber: document.getElementById('registrationNumber').value,
-                city: document.getElementById('city').value,
-                contactNo: document.getElementById('contactNo').value,
-                officialEmail: document.getElementById('officialEmail').value,
-                adminName: document.getElementById('adminName').value,
-                designation: document.getElementById('designation').value,
-                adminEmail: document.getElementById('adminEmail').value,
+                city:               document.getElementById('city').value,
+                contactNo:          document.getElementById('contactNo').value,
+                officialEmail:      document.getElementById('officialEmail').value,
+                adminName:          document.getElementById('adminName').value,
+                designation:        document.getElementById('designation').value,
+                adminEmail:         document.getElementById('adminEmail').value,
+                // ✅ FIX #4: Include password in payload
+                password:           document.getElementById('adminPassword').value,
                 facultyServices: [
                     document.getElementById('facultyService1').value,
                     document.getElementById('facultyService2').value
-                ].filter(service => service.trim() !== ''),
-                departments: selectedDepartments,
-                hospitalLogo: hospitalLogoData?.name || null,
-                hospitalPhotos: hospitalPhotosData.map(photo => photo.name),
+                ].filter(s => s.trim() !== ''),
+                departments:        selectedDepartments,
+                hospitalLogo:       hospitalLogoData?.name || null,
+                hospitalPhotos:     hospitalPhotosData.map(p => p.name),
                 documents: {
-                    regCertificate: document.getElementById('regCertificate').files[0]?.name,
+                    regCertificate:  document.getElementById('regCertificate').files[0]?.name,
                     hospitalLicense: document.getElementById('hospitalLicense').files[0]?.name,
-                    tradeLicense: document.getElementById('tradeLicense').files[0]?.name,
-                    panCard: document.getElementById('panCard').files[0]?.name
+                    tradeLicense:    document.getElementById('tradeLicense').files[0]?.name,
+                    panCard:         document.getElementById('panCard').files[0]?.name
                 }
             };
         }
 
-        // Reset form after success
-        function resetForm() {
-            // Hide success message
-            document.getElementById('successMessage').classList.remove('show');
-            
-            // Show form
-            document.getElementById('hospitalRegistrationForm').style.display = 'block';
-            
-            // Reset form fields
-            document.getElementById('hospitalRegistrationForm').reset();
-            
-            // Reset departments
-            selectedDepartments = [];
-            renderDepartments();
-            
-            // Reset logo
-            removeLogo();
-            
-            // Reset photos
-            hospitalPhotosData = [];
-            document.getElementById('hospitalPhotosPreview').innerHTML = '';
-            document.getElementById('hospitalPhotosPreview').style.display = 'none';
-            document.getElementById('hospitalPhotosName').textContent = 'No files chosen';
-            document.getElementById('hospitalPhotosName').style.color = '';
-            
-            // Reset file names
-            ['regCertificateName', 'hospitalLicenseName', 'tradeLicenseName', 'panCardName'].forEach(id => {
-                document.getElementById(id).textContent = 'No file chosen';
-                document.getElementById(id).style.color = '';
-                document.getElementById(id).style.fontWeight = '';
-            });
-            
-            // Reset submit button
-            const submitBtn = document.querySelector('.submit-btn');
-            submitBtn.innerHTML = '<i class="fas fa-rocket"></i> Sign Up & Register Hospital';
-            submitBtn.disabled = false;
-            
-            // Clear all errors
-            clearAllErrors();
-        }
-
-        // Helper functions
+        // ─────────────────────────────────────────
+        // HELPER: show / clear errors
+        // ─────────────────────────────────────────
         function showError(elementId, message) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.classList.add('show');
-            
-            // Add error class to corresponding input if it exists
-            const inputId = elementId.replace('Error', '');
-            const input = document.getElementById(inputId);
-            if (input) {
-                input.classList.add('is-invalid');
-            }
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.textContent = message;
+            el.classList.add('show');
+            const input = document.getElementById(elementId.replace('Error', ''));
+            if (input) input.classList.add('is-invalid');
         }
 
         function clearError(elementId) {
-            const element = document.getElementById(elementId);
-            element.classList.remove('show');
-            
-            // Remove error class from corresponding input if it exists
-            const inputId = elementId.replace('Error', '');
-            const input = document.getElementById(inputId);
-            if (input) {
-                input.classList.remove('is-invalid');
-            }
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.classList.remove('show');
+            const input = document.getElementById(elementId.replace('Error', ''));
+            if (input) input.classList.remove('is-invalid');
         }
 
         function clearAllErrors() {
-            const errorElements = document.querySelectorAll('.invalid-feedback');
-            errorElements.forEach(element => {
-                element.classList.remove('show');
-                
-                const inputId = element.id.replace('Error', '');
-                const input = document.getElementById(inputId);
-                if (input) {
-                    input.classList.remove('is-invalid');
-                }
+            document.querySelectorAll('.invalid-feedback').forEach(el => {
+                el.classList.remove('show');
+                const input = document.getElementById(el.id.replace('Error', ''));
+                if (input) input.classList.remove('is-invalid');
             });
         }
 
         function isValidEmail(email) {
-            const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
-            return emailRegex.test(email);
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
         }
     </script>
 </body>
 </html>`;
 
-// Data storage for registered hospitals (in-memory for demo)
-/*let registeredHospitals = [];
-
-const server = http.createServer((req, res) => {
-    // Serve the main registration page
-    if (req.url === '/' || req.url === '/index.html') {
-        res.writeHead(200, { 
-            'Content-Type': 'text/html',
-            'Cache-Control': 'no-cache'
-        });
-        res.end(HTML_TEMPLATE);
-    }
-    
-    // API endpoint for hospital registration
-    else if (req.url === '/api/hospitals/register' && req.method === 'POST') {
-        
-    let body = '';
-
-    req.on('data', chunk => {
-        body += chunk.toString();
-    });
-
-    req.on('end', () => {
-        const formData = new URLSearchParams(body);
-
-        const hospitalData = {
-            hospitalName: formData.get('hospName'),
-            hospitalId: 'HOSP-' + Date.now()
-        };
-
-        // Here we generate dynamic HTML
-        const html = hospitalPage(hospitalData);
-
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(html);
-    });
-    }
-    
-    // API endpoint to get all registered hospitals
-    else if (req.url === '/api/hospitals' && req.method === 'GET') {
-        res.writeHead(200, { 
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-        });
-        res.end(JSON.stringify(registeredHospitals));
-    }
-    
-    // API endpoint to get a specific hospital
-    else if (req.url.startsWith('/api/hospitals/') && req.method === 'GET') {
-        const id = req.url.split('/').pop();
-        const hospital = registeredHospitals.find(h => h.hospitalId === id);
-        
-        if (hospital) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(hospital));
-        } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Hospital not found' }));
-        }
-    }
-    
-    // Handle CORS preflight requests
-    else if (req.method === 'OPTIONS') {
-        res.writeHead(200, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        });
-        res.end();
-    }
-    
-    // 404 for any other routes
-    else {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404 Not Found');
-    }
-});
-*/
 // ============================================
-// API ENDPOINT HANDLER (to be used by home.js)
+// API ENDPOINT HANDLER (used by home.js / router)
 // ============================================
 async function handleHospitalRegistration(reqBody) {
     const client = await getClient();
     try {
         await client.query('BEGIN');
-        
+
         const {
             hospitalName,
             hospitalType,
@@ -1879,73 +1630,61 @@ async function handleHospitalRegistration(reqBody) {
             adminName,
             designation,
             adminEmail,
+            password,       // ✅ FIX #4: use the password submitted by the form
             departments
         } = reqBody;
-        
-        // Insert hospital
+
+        // Insert hospital record
         const hospitalResult = await client.query(
             `INSERT INTO hospitals (hospital_uuid, name, type, city, phone, email)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING hospital_id, hospital_uuid`,
             ['HOSP-' + Date.now(), hospitalName, hospitalType, city, contactNo, officialEmail]
         );
-        
+
         const hospitalId = hospitalResult.rows[0].hospital_id;
-        
-        // Create admin user
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('password123', salt); // Temporary password
-        
+
+        // ✅ FIX #4: Hash the user-supplied password instead of a hardcoded one
+        const salt           = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create admin user account
         const userResult = await client.query(
             `INSERT INTO users (username, email, password_hash, role, hospital_id)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING user_id`,
             [adminEmail.split('@')[0], adminEmail, hashedPassword, 'admin', hospitalId]
         );
-        
-        // Insert hospital admin
+
+        // Insert hospital admin profile
         await client.query(
             `INSERT INTO hospital_admins (user_id, hospital_id, full_name, position, phone, email)
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [userResult.rows[0].user_id, hospitalId, adminName, designation, contactNo, adminEmail]
         );
-        
+
         await client.query('COMMIT');
-        
+
         return {
-            success: true,
+            success:    true,
             hospitalId: hospitalResult.rows[0].hospital_uuid,
-            message: 'Hospital registered successfully'
+            message:    'Hospital registered successfully'
         };
-        
+
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Hospital registration error:', error);
         return {
             success: false,
-            error: error.message
+            error:   error.message
         };
     } finally {
         client.release();
     }
 }
 
-// Export both the template and the handler
+// Export HTML renderer and the registration handler
 module.exports = function renderHospitalRegistration() {
     return HTML_TEMPLATE;
 };
 module.exports.handleRegistration = handleHospitalRegistration;
-
-// At the bottom of HospitalRegistration.js, add:
-
-
-
-// server.listen(PORT, () => {
-//     console.log(`✅ Hospital Registration Portal running at:`);
-//     console.log(`   🌐 http://localhost:${PORT}`);
-//     console.log(`   📁 Single file: HospitalRegistration.js`);
-//     console.log(`   🚀 No dependencies required!`);
-//     console.log(`   📝 Registration Form: http://localhost:${PORT}`);
-//     console.log(`   🔗 Back to Sign In: http://localhost:3001/ (if signin.js is running)`);
-//     console.log(`   📊 Total registered hospitals: 0`);
-// });
