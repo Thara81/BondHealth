@@ -210,7 +210,7 @@ async function saveLabReportWithFile(reportData, labTechId, fileUrl) {
                 fileUrl,
                 'completed',  // status
                 reportData.priority || 'normal',
-                reportData.sendTo || 'doctor'
+                reportData.sendTo
             ]
         );
         
@@ -1281,7 +1281,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     </script>
 </body>
 </html>`;
-
+/*
 // Create HTTP server
 // Create HTTP server
 const server = http.createServer(async (req, res) => {
@@ -1457,7 +1457,7 @@ if (require.main === module) {
         console.log('   🔗 Sign Out returns to: http://localhost:3001/');
     });
 }
-
+*/
 // ============================================
 // EXPORT for signin.js
 // ============================================

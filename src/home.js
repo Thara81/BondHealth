@@ -213,6 +213,7 @@ app.post('/api/auth/register', async (req, res) => {
 // ============================================
 
 // Upload lab report with file
+// Upload lab report with file
 app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single('report'), async (req, res) => {
     const client = await getClient();
     try {
@@ -267,13 +268,16 @@ app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single
         // Generate report UUID
         const reportUUID = 'REP-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
         
+        // Get today's date for test_date
+        const today = new Date().toISOString().split('T')[0];
+        
         // Insert into database
         const result = await client.query(
             `INSERT INTO lab_reports (
                 report_uuid, patient_id, doctor_id, lab_tech_id,
                 test_type, test_date, findings, file_url, 
                 status, priority, shared_with
-            ) VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7, 'completed', $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING report_id, report_uuid`,
             [
                 reportUUID,
@@ -281,10 +285,12 @@ app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single
                 actualDoctorId,
                 labTechId,
                 testType,
+                today,
                 findings || 'No findings',
                 fileData.url,
+                'completed',
                 priority || 'normal',
-                sendTo || 'doctor'
+                sendTo  // This is the key - using the value from the form directly
             ]
         );
         
@@ -293,7 +299,8 @@ app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single
         res.json({
             success: true,
             message: 'Report uploaded successfully',
-            reportId: result.rows[0].report_uuid
+            reportId: result.rows[0].report_uuid,
+            sharedWith: sendTo // Return the value for debugging
         });
         
     } catch (error) {
