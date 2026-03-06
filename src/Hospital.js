@@ -1,4 +1,5 @@
 //Hospital.js
+
 const PORT = process.env.PORT || 3000;
 const express = require('express');
 const app = express();
@@ -169,6 +170,33 @@ app.use(express.urlencoded({ extended: true }));
     res.end('404 Not Found');
   }
 });*/
+// Add this near the top of Hospital.js after your existing requires
+const path = require('path');
+
+// Add this route to handle redirects from registration
+app.get('/', async (req, res) => {
+    try {
+        // Check if this is a new registration redirect
+        const hospitalData = await module.exports.renderHospitalDashboard();
+        res.send(hospitalData);
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        res.status(500).send('Error loading dashboard');
+    }
+});
+
+// Add this route to handle the dashboard display
+app.get('/dashboard', async (req, res) => {
+    try {
+        // You can pass hospital ID as query parameter
+        // For now, just render the dashboard
+        const html = await module.exports.renderHospitalDashboard();
+        res.send(html);
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        res.status(500).send('Error loading dashboard');
+    }
+});
 
 // HTML Template Functions
 function getMainDashboardHTML(hospitalData = null, doctors = [], medicines = [], labs = []) {
