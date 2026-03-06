@@ -74,36 +74,45 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
     });
     
     let patient = patientData ? {
-        id: patientData.patient_uuid || 'PT-2024-0847',
-        name: patientData.full_name || 'Alex Johnson',
-        age: patientData.date_of_birth ? calculateAge(patientData.date_of_birth) : 32,
-        gender: patientData.gender || 'Male',
-        bloodType: patientData.blood_type || 'O+',
-        email: patientData.email || 'alex.johnson@email.com',
-        contact: patientData.phone || '+1 (555) 123-4567',
-        address: patientData.address || '123 Health Street, Medical City',
-        emergencyContact: patientData.emergency_contact_name ? 
-            `${patientData.emergency_contact_name} ${patientData.emergency_contact_phone || ''}` : 
-            'Jane Johnson (Wife) +1 (555) 987-6543',
-        conditions: patientData.medical_conditions || ['Hypertension', 'Asthma'],
-        allergies: patientData.allergies || ['Penicillin'],
-        lastVisit: patientData.last_visit || '2024-11-15',
-        nextAppointment: patientData.next_appointment || '2024-12-20'
-    } : {
-        id: 'PT-2024-0847',
-        name: 'Alex Johnson',
-        age: 32,
-        gender: 'Male',
-        bloodType: 'O+',
-        email: 'alex.johnson@email.com',
-        contact: '+1 (555) 123-4567',
-        address: '123 Health Street, Medical City',
-        emergencyContact: 'Jane Johnson (Wife) +1 (555) 987-6543',
-        conditions: ['Hypertension', 'Asthma'],
-        allergies: ['Penicillin'],
-        lastVisit: '2024-11-15',
-        nextAppointment: '2024-12-20'
-    };
+        id: patientData.patient_uuid || 'Unknown ID',
+        name: patientData.full_name || 'Name not provided',
+        age: patientData.date_of_birth ? calculateAge(patientData.date_of_birth) : 'Date of Birth not provided',
+        gender: patientData.gender || 'Gender not provided',
+        bloodType: patientData.blood_type || 'Blood Group not provided',
+        email: patientData.email ||'Email not provided',
+        contact: patientData.phone || 'Phone not provided',
+        address: patientData.address || 'Address not provided',
+        emergencyContact: (() => {
+        const name = patientData.emergency_contact_name;
+        const phone = patientData.emergency_contact_phone;
+        
+        if (name && phone) return `${name} - ${phone}`;
+        if (name) return `${name} (no phone provided)`;
+        if (phone) return `Emergency contact phone: ${phone} (name not provided)`;
+        return 'Emergency contact not provided';
+    })(),
+    
+    // Medical conditions
+    conditions: (() => {
+        if (Array.isArray(patientData.medical_conditions) && patientData.medical_conditions.length > 0) {
+            return patientData.medical_conditions;
+        }
+        return ['No medical conditions reported'];
+    })(),
+    
+    // Allergies
+    allergies: (() => {
+        if (Array.isArray(patientData.allergies) && patientData.allergies.length > 0) {
+            return patientData.allergies;
+        }
+        return ['No allergies reported'];
+    })(),
+    
+    // Dates
+    lastVisit: patientData.last_visit || 'No previous visits',
+    nextAppointment: patientData.next_appointment || 'No upcoming appointments'
+    
+} : null;
 
     // Helper function to calculate age from date of birth
     function calculateAge(dob) {
