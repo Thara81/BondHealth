@@ -1,5 +1,6 @@
 
 const express = require('express');
+const { upload, storageService } = require('./storage');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
@@ -9,7 +10,6 @@ require('dotenv').config();
 const { query, getClient } = require('./db/config');
 const app = express();
 const PORT = process.env.PORT || 3005;
-
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
@@ -25,6 +25,20 @@ app.use(cookieParser());
 // Track active sessions
 let activeSessions = new Map();
 
+// Create upload directories if they don't exist
+const uploadDirs = [
+    './uploads',
+    './uploads/reports',
+    './uploads/scans',
+    './uploads/temp'
+];
+
+uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`Created directory: ${dir}`);
+    }
+});
 // ============================================
 // JWT HELPER FUNCTIONS
 // ============================================
@@ -191,6 +205,176 @@ app.post('/api/auth/register', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+
+// ============================================
+// FILE UPLOAD ROUTES
+// ============================================
+
+// Upload lab report with file
+// Upload lab report with file
+app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single('report'), async (req, res) => {
+    const client = await getClient();
+    try {
+        await client.query('BEGIN');
+        
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded' });
+        }
+
+        const { patientId, doctorId, testType, priority, findings, sendTo } = req.body;
+        
+        // Get lab technician ID
+        const labTechResult = await client.query(
+            'SELECT lab_tech_id FROM lab_technicians WHERE user_id = $1',
+            [req.user.id]
+        );
+        
+        if (labTechResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Lab technician not found' });
+        }
+        
+        const labTechId = labTechResult.rows[0].lab_tech_id;
+        
+        // Get patient_id from patient_uuid (friendly ID like PT-20260306-3907)
+        const patientResult = await client.query(
+            'SELECT patient_id FROM patients WHERE patient_uuid = $1',
+            [patientId]
+        );
+        
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Patient not found with ID: ' + patientId });
+        }
+        
+        const actualPatientId = patientResult.rows[0].patient_id;
+        
+        // Get doctor_id from doctor_uuid (friendly ID like DR-2024-0567) if provided
+        let actualDoctorId = null;
+        if (doctorId && doctorId.trim() !== '') {
+            const doctorResult = await client.query(
+                'SELECT doctor_id FROM doctors WHERE doctor_uuid = $1',
+                [doctorId]
+            );
+            
+            if (doctorResult.rows.length > 0) {
+                actualDoctorId = doctorResult.rows[0].doctor_id;
+            }
+        }
+        
+        // Upload file info
+        const fileData = await storageService.uploadFile(req.file, 'reports');
+        
+        // Generate report UUID
+        const reportUUID = 'REP-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+        
+        // Get today's date for test_date
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Insert into database
+        const result = await client.query(
+            `INSERT INTO lab_reports (
+                report_uuid, patient_id, doctor_id, lab_tech_id,
+                test_type, test_date, findings, file_url, 
+                status, priority, shared_with
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING report_id, report_uuid`,
+            [
+                reportUUID,
+                actualPatientId,
+                actualDoctorId,
+                labTechId,
+                testType,
+                today,
+                findings || 'No findings',
+                fileData.url,
+                'completed',
+                priority || 'normal',
+                sendTo  // This is the key - using the value from the form directly
+            ]
+        );
+        
+        await client.query('COMMIT');
+        
+        res.json({
+            success: true,
+            message: 'Report uploaded successfully',
+            reportId: result.rows[0].report_uuid,
+            sharedWith: sendTo // Return the value for debugging
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error uploading report:', error);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+// Serve uploaded files
+app.get('/uploads/:folder/:file', (req, res) => {
+    const filePath = path.join(__dirname, 'uploads', req.params.folder, req.params.file);
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).json({ error: 'File not found' });
+    }
+});
+
+// Get report file for download
+app.get('/api/reports/:reportId/download', authenticate, async (req, res) => {
+    try {
+        const { reportId } = req.params;
+        
+        const result = await query(
+            `SELECT file_url, report_uuid, test_type FROM lab_reports WHERE report_uuid = $1`,
+            [reportId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+        
+        const report = result.rows[0];
+        
+        // Extract filename from URL
+        const fileName = report.file_url.split('/').pop();
+        const filePath = path.join(__dirname, 'uploads/reports', fileName);
+        
+        if (fs.existsSync(filePath)) {
+            res.download(filePath, `${report.test_type}_${report.report_uuid}.pdf`);
+        } else {
+            res.status(404).json({ error: 'File not found on server' });
+        }
+    } catch (error) {
+        console.error('Error downloading report:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get patient list for lab technician
+app.get('/api/lab/patients', authenticate, authorize('lab'), async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT patient_id, patient_uuid, full_name FROM patients ORDER BY full_name`
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get doctors list for lab technician
+app.get('/api/lab/doctors', authenticate, authorize('lab'), async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT doctor_id, doctor_uuid, full_name, specialization FROM doctors WHERE status = 'Available' ORDER BY full_name`
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Add these routes to home.js - near your other API routes
@@ -1087,6 +1271,50 @@ app.get('/api/patient', authenticate, authorize('patient'), async (req, res) => 
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Get patient history for lab technician
+app.get('/api/patient-history', authenticate, authorize('lab'), async (req, res) => {
+    try {
+        // Get lab technician ID
+        const labTechResult = await query(
+            'SELECT lab_tech_id FROM lab_technicians WHERE user_id = $1',
+            [req.user.id]
+        );
+        
+        if (labTechResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Lab technician not found' });
+        }
+        
+        const labTechId = labTechResult.rows[0].lab_tech_id;
+        
+        const result = await query(
+            `SELECT 
+                lr.report_id,
+                lr.report_uuid as id,
+                p.full_name as name,
+                p.patient_uuid as patient_id,
+                lr.test_type,
+                lr.test_date as date,
+                lr.status,
+                lr.priority,
+                lr.created_at,
+                d.doctor_uuid as doctor_id,
+                d.full_name as doctor_name
+             FROM lab_reports lr
+             JOIN patients p ON lr.patient_id = p.patient_id
+             LEFT JOIN doctors d ON lr.doctor_id = d.doctor_id
+             WHERE lr.lab_tech_id = $1
+             ORDER BY lr.created_at DESC
+             LIMIT 50`,
+            [labTechId]
+        );
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching patient history:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.get('/api/appointments', authenticate, async (req, res) => {
