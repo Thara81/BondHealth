@@ -33,9 +33,11 @@ function getHospitalRegisterHTML() {
   }
 }
 
-function generateHTML(doctorsData = [], appointmentsData = []) {
+function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}) {
   doctors = doctorsData;
   todaysAppointments = appointmentsData;
+  const hospitalName = hospitalData.name || 'Hospital Dashboard';
+  const hospitalType = hospitalData.type || 'Admin Dashboard';
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -99,9 +101,9 @@ function generateHTML(doctorsData = [], appointmentsData = []) {
                 <i class="fas fa-hospital text-white text-xl"></i>
             </div>
             <div>
-                <h1 class="font-bold text-xl text-gray-800">City General Hospital</h1>
-                <p class="text-sm text-cyan-600">Admin Dashboard</p>
-            </div>
+            <h1 class="font-bold text-xl text-gray-800">${hospitalName}</h1>
+<p class="text-sm text-cyan-600">${hospitalType}</p>
+               </div>
         </div>
         <div class="space-y-1 mb-8">
             <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt mr-3"></i>Dashboard</div>
@@ -641,7 +643,12 @@ module.exports = async function renderAdminDashboard(userId) {
       [hospitalId]
     );
 
-    return generateHTML(doctorsResult.rows, appointmentsResult.rows);
+ const hospitalResult = await query(
+      `SELECT name, type, city FROM hospitals WHERE hospital_id = $1`,
+      [hospitalId]
+    );
+
+    return generateHTML(doctorsResult.rows, appointmentsResult.rows, hospitalResult.rows[0] || {});
   } catch (error) {
     console.error('Error loading admin dashboard data:', error);
     return `<h1>Error loading dashboard</h1><p>${error.message}</p>`;

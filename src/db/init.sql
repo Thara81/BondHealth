@@ -23,10 +23,21 @@ CREATE TABLE IF NOT EXISTS hospitals (
     hospital_uuid VARCHAR(50) UNIQUE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) CHECK (type IN ('Govt', 'Private', 'Clinic')),
+    registration_number VARCHAR(100),
     address TEXT,
     city VARCHAR(100),
     phone VARCHAR(20),
     email VARCHAR(255),
+    departments       TEXT[],
+    faculty_services  TEXT[],                   -- stores facultyService1, facultyService2
+    logo_filename     VARCHAR(255),             -- uploaded logo file name
+    photo_filenames   TEXT[],                   -- additional hospital photo names
+    -- Document file names (uploaded by admin)
+    doc_reg_certificate  VARCHAR(255),          -- Hospital Registration Certificate
+    doc_hospital_license VARCHAR(255),          -- Hospital License
+    doc_trade_license    VARCHAR(255),          -- Trade License
+    doc_pan_card         VARCHAR(255),          -- PAN Card
+    is_active         BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -9,6 +9,8 @@ require('dotenv').config();
 const { query, getClient } = require('./db/config');
 const app = express();
 const PORT = process.env.PORT || 3005;
+const { handleRegistration } = require('./HospitalRegistration');
+
 
 // Middleware
 app.use(express.static('public'));
@@ -185,9 +187,8 @@ app.post('/api/auth/register', async (req, res) => {
       user: { id: user.user_id, username, email, role: user.role }
     });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('❌ Registration error:', error);
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    console.error('Sign in error FULL:', error.message, error.stack);
+    res.status(500).json({ success: false, message: error.message });
   } finally {
     client.release();
   }
@@ -987,7 +988,18 @@ app.get('/register-doctor', requireAuth('admin'), async (req, res) => {
 
 // Add these routes to home.js (near your other routes)
 
+// ── Inside your http.createServer request handler ────────────
+// Route: POST /api/hospitals/register
 
+app.post('/api/hospitals/register', async (req, res) => {
+    try {
+        const result = await handleRegistration(req.body);
+        res.status(result.success ? 200 : 400).json(result);
+    } catch (err) {
+        console.error('Route error /api/hospitals/register:', err.message);
+        res.status(500).json({ success: false, error: 'Server error. Please try again.' });
+    }
+});
 // Add Speciality page
 app.get('/add-speciality', requireAuth('admin'), async (req, res) => {
     try {
