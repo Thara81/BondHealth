@@ -914,7 +914,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
                         <div class="col-md-6 mb-4">
                             <label for="officialEmail" class="form-label required">Official Email</label>
-                            <input type="email" class="form-control" id="officialEmail" placeholder="hospital@example.com">
+                            <input type="text" class="form-control" id="officialEmail" placeholder="hospital@example.com" autocomplete="off">
                             <div class="invalid-feedback" id="officialEmailError">Please enter a valid email address.</div>
                         </div>
                     </div>
@@ -940,7 +940,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
                     <div class="mb-4">
                         <label for="adminEmail" class="form-label required">Admin Email</label>
-                        <input type="email" class="form-control" id="adminEmail" placeholder="admin@example.com">
+                        <input type="text" class="form-control" id="adminEmail" placeholder="admin@example.com" autocomplete="off">
                         <div class="invalid-feedback" id="adminEmailError">Please enter a valid email address.</div>
                     </div>
 
@@ -1631,31 +1631,45 @@ async function handleHospitalRegistration(reqBody) {
             designation,
             adminEmail,
             password,       // ✅ FIX #4: use the password submitted by the form
-            departments
+            departments,
+            facultyServices,    // array  e.g. ['Service A', 'Service B']
+            hospitalLogo,       // string (file name)
+            hospitalPhotos,     // array  of file names
+            documents 
         } = reqBody;
+        
+        if (!hospitalName || !adminEmail || !password) {
+            return { success: false, error: 'Missing required fields.' };
+        }
 
         // Insert hospital record
         const hospitalResult = await client.query(
-            `INSERT INTO hospitals (hospital_uuid, name, type, city, phone, email)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO hospitals (hospital_uuid, name, type, registration_number, city, phone, email, departments, faculty_services, logo_filename, photo_filenames, doc_reg_certificate, doc_hospital_license, doc_trade_license, doc_pan_card)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              RETURNING hospital_id, hospital_uuid`,
-            ['HOSP-' + Date.now(), hospitalName, hospitalType, city, contactNo, officialEmail]
+            ['HOSP-' + Date.now(), hospitalName, hospitalType, registrationNumber || null, city, contactNo || null, officialEmail, departments || [], facultyServices || [], hospitalLogo || null, hospitalPhotos || [], documents?.regCertificate  || null,
+documents?.hospitalLicense || null,
+documents?.tradeLicense    || null,
+documents?.panCard         || null]
         );
 
         const hospitalId = hospitalResult.rows[0].hospital_id;
+        const hospitalUuid = hospitalResult.rows[0].hospital_uuid;
 
         // ✅ FIX #4: Hash the user-supplied password instead of a hardcoded one
         const salt           = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
+        
+        const username = adminEmail.split('@')[0] + '_' + Date.now(); // ensure uniqueness
 
         // Create admin user account
         const userResult = await client.query(
             `INSERT INTO users (username, email, password_hash, role, hospital_id)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING user_id`,
-            [adminEmail.split('@')[0], adminEmail, hashedPassword, 'admin', hospitalId]
+            [username, adminEmail, hashedPassword, 'admin', hospitalId]
         );
-
+        const userId = userResult.rows[0].user_id;
         // Insert hospital admin profile
         await client.query(
             `INSERT INTO hospital_admins (user_id, hospital_id, full_name, position, phone, email)
@@ -1673,11 +1687,19 @@ async function handleHospitalRegistration(reqBody) {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Hospital registration error:', error);
-        return {
-            success: false,
-            error:   error.message
-        };
+         if (error.code === '23505') {
+            const detail = error.detail || '';
+            if (detail.includes('email')) {
+                return { success: false, error: 'This email is already registered.' };
+            }
+            if (detail.includes('username')) {
+                return { success: false, error: 'Username already exists. Please try again.' };
+            }
+            return { success: false, error: 'A record with this data already exists.' };
+        }
+
+        console.error('Hospital registration DB error:', error.message);
+        return { success: false, error: error.message };
     } finally {
         client.release();
     }
