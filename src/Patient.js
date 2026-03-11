@@ -571,10 +571,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="flex items-center space-x-4 mb-4 md:mb-0">
               <div class="w-16 h-16 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white">
-                ${patient.name.charAt(0)}
+                ${patient.name ? patient.name.charAt(0) : 'P'}
               </div>
               <div>
-                <h1 class="text-3xl font-bold cyan-text">Welcome back, <span class="text-gray-800">${patient.name}</span></h1>
+                <h1 class="text-3xl font-bold cyan-text">Welcome back, <span class="text-gray-800">${patient.name || 'Patient'}</span></h1>
                 <p class="text-gray-600">Your health, our priority</p>
               </div>
             </div>
@@ -586,7 +586,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               </div>
               <div class="cyan-light rounded-xl p-4 min-w-[120px] text-center">
                 <p class="text-sm cyan-text font-medium">Age</p>
-                <p class="text-xl font-bold cyan-text">${patient.age} years</p>
+                <p class="text-xl font-bold cyan-text">${patient.age}</p>
               </div>
               <div class="cyan-light rounded-xl p-4 min-w-[120px] text-center relative">
                 <p class="text-sm cyan-text font-medium">Next Visit</p>
@@ -1078,10 +1078,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               </button>
             </div>
             
-            <form id="uploadReportForm">
+            <form id="uploadReportForm" enctype="multipart/form-data">
               <div class="mb-4">
                 <label class="block text-sm font-medium cyan-text mb-2">Test Type</label>
-                <select id="reportTestType" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <select id="reportTestType" name="test_type" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
                   <option value="">Select test type</option>
                   <option value="Blood Test">Blood Test</option>
                   <option value="X-Ray">X-Ray</option>
@@ -1094,15 +1094,15 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               
               <div class="mb-4">
                 <label class="block text-sm font-medium cyan-text mb-2">Test Date</label>
-                <input type="date" id="reportTestDate" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <input type="date" id="reportTestDate" name="test_date" required class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
               </div>
               
               <div class="mb-4">
                 <label class="block text-sm font-medium cyan-text mb-2">Upload File</label>
-                <div class="border-2 border-dashed cyan-border rounded-xl p-4 text-center file-upload-area">
+                <div class="border-2 border-dashed cyan-border rounded-xl p-4 text-center file-upload-area cursor-pointer" onclick="document.getElementById('reportFile').click()">
                   <i class="fas fa-cloud-upload-alt text-3xl cyan-text mb-2"></i>
                   <p class="cyan-text text-sm mb-2">Drag & drop or click to upload</p>
-                  <input type="file" id="reportFile" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
+                  <input type="file" id="reportFile" name="report" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
                   <button type="button" id="browseFileBtn" class="px-4 py-2 btn-cyan rounded-lg text-sm">
                     Browse Files
                   </button>
@@ -1115,7 +1115,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               
               <div class="mb-4">
                 <label class="block text-sm font-medium cyan-text mb-2">Notes (Optional)</label>
-                <textarea id="reportNotes" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Any additional notes..."></textarea>
+                <textarea id="reportNotes" name="notes" rows="2" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Any additional notes..."></textarea>
               </div>
               
               <button type="submit" class="w-full book-btn text-white font-semibold py-3 rounded-xl text-base hover:shadow-lg transition-all duration-300">
@@ -1575,23 +1575,28 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               return;
             }
             
+            if (!selectedFile) {
+              showToast('Error', 'Please select a file to upload', 'error');
+              return;
+            }
+            
             const btn = e.target.querySelector('button[type="submit"]');
             const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Uploading...';
             
             try {
-              // In a real app with file upload, you'd use FormData
-              // For now, we'll send JSON with the report metadata
+              // Create FormData to handle file upload
+              const formData = new FormData();
+              formData.append('patient_id', patientId);
+              formData.append('test_type', testType);
+              formData.append('test_date', testDate);
+              formData.append('notes', notes);
+              formData.append('report', selectedFile);
+              
               const response = await fetch('/api/reports', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  patient_id: patientId,
-                  test_type: testType,
-                  test_date: testDate,
-                  notes: notes
-                })
+                body: formData
               });
               
               if (response.ok) {
@@ -1603,7 +1608,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 document.getElementById('selectedFile').classList.add('hidden');
                 selectedFile = null;
                 
-                // Reload reports section to show new report
+                // Wait a moment and then reload the reports section
                 setTimeout(() => {
                   loadReportsContent();
                 }, 1500);
@@ -1618,19 +1623,6 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             
             btn.disabled = false;
             btn.textContent = originalText;
-          });
-          
-          const orderMedicinesModal = document.getElementById('orderMedicinesModal');
-          const closeOrderMedicinesModal = document.getElementById('closeOrderMedicinesModal');
-          
-          closeOrderMedicinesModal.addEventListener('click', () => {
-            orderMedicinesModal.classList.add('hidden');
-          });
-          
-          orderMedicinesModal.addEventListener('click', (e) => {
-            if (e.target === orderMedicinesModal) {
-              orderMedicinesModal.classList.add('hidden');
-            }
           });
           
           // ============================================
@@ -1699,9 +1691,11 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         async function loadBookContent() {
-          const response = await fetch('/api/doctors');
-          const doctors = await response.json();
-          const hospitals = await fetch('/api/hospitals').then(res => res.json());
+          try {
+            const response = await fetch('/api/doctors');
+            const doctors = await response.json();
+            const hospitalsResponse = await fetch('/api/hospitals');
+            const hospitals = await hospitalsResponse.json();
           
           const bookContent = document.getElementById('bookContent');
           bookContent.innerHTML = \`
@@ -1781,6 +1775,9 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           
           renderDoctors(doctors);
           setupBookingEventListeners();
+          } catch (error) {
+            console.error('Error loading book content:', error);
+          }
         }
         
         function renderDoctors(doctorsData) {
@@ -2078,55 +2075,67 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         async function loadReportsContent() {
           const patientId = document.getElementById('patientId')?.value;
+          console.log('Loading reports for patient ID:', patientId);
           
-          // Fetch latest reports from server
-          let latestReports = reportsData;
-          if (patientId) {
-            try {
-              const response = await fetch('/api/reports?patient_id=' + patientId);
-              if (response.ok) {
-                latestReports = await response.json();
-              }
-            } catch (error) {
-              console.error('Error fetching reports:', error);
-            }
+          if (!patientId) {
+            console.error('No patient ID found');
+            return;
           }
           
-          const reportsContent = document.getElementById('reportsContent');
-          reportsContent.innerHTML = \`
-            <h2 class="text-xl font-bold mb-4 cyan-text">Medical Reports</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              \${latestReports.map(report => \`
-                <div class="report-card white-card rounded-xl p-4 hover-lift">
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="w-10 h-10 cyan-light rounded-lg flex items-center justify-center">
-                      <i class="fas \${report.test_type?.toLowerCase().includes('blood') ? 'fa-vial' : 'fa-x-ray'} cyan-text"></i>
+          try {
+            // Fetch latest reports from server
+            const url = '/api/reports?patient_id=' + patientId;
+            console.log('Fetching from URL:', url);
+            
+            const response = await fetch(url);
+            console.log('Response status:', response.status);
+            
+            if (response.ok) {
+              const latestReports = await response.json();
+              console.log('Reports received:', latestReports);
+              console.log('Number of reports:', latestReports.length);
+              
+              const reportsContent = document.getElementById('reportsContent');
+              reportsContent.innerHTML = \`
+                <h2 class="text-xl font-bold mb-4 cyan-text">Medical Reports</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  \${latestReports.map(report => \`
+                    <div class="report-card white-card rounded-xl p-4 hover-lift">
+                      <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 cyan-light rounded-lg flex items-center justify-center">
+                          <i class="fas \${report.test_type?.toLowerCase().includes('blood') ? 'fa-vial' : 'fa-x-ray'} cyan-text"></i>
+                        </div>
+                        <span class="text-xs cyan-dark text-white px-2 py-0.5 rounded-full">\${report.test_type}</span>
+                      </div>
+                      <h3 class="text-base font-semibold cyan-text mb-1">\${report.test_type}</h3>
+                      <p class="text-xs cyan-text opacity-75 mb-2">\${new Date(report.test_date).toLocaleDateString()}</p>
+                      <div class="flex justify-between">
+                        <button class="text-xs cyan-dark text-white px-3 py-1.5 rounded-lg" onclick="viewReport('\${report.report_uuid}')">
+                          <i class="fas fa-eye mr-1"></i>View
+                        </button>
+                        <button class="text-xs btn-white px-3 py-1.5 rounded-lg" onclick="downloadReport('\${report.report_uuid}')">
+                          <i class="fas fa-download mr-1"></i>Download
+                        </button>
+                      </div>
                     </div>
-                    <span class="text-xs cyan-dark text-white px-2 py-0.5 rounded-full">\${report.test_type}</span>
-                  </div>
-                  <h3 class="text-base font-semibold cyan-text mb-1">\${report.test_type}</h3>
-                  <p class="text-xs cyan-text opacity-75 mb-2">\${new Date(report.test_date).toLocaleDateString()}</p>
-                  <div class="flex justify-between">
-                    <button class="text-xs cyan-dark text-white px-3 py-1.5 rounded-lg" onclick="viewReport('\${report.report_uuid}')">
-                      <i class="fas fa-eye mr-1"></i>View
-                    </button>
-                    <button class="text-xs btn-white px-3 py-1.5 rounded-lg" onclick="downloadReport('\${report.report_uuid}')">
-                      <i class="fas fa-download mr-1"></i>Download
-                    </button>
+                  \`).join('')}
+                </div>
+                
+                <div class="mt-6 cyan-light rounded-xl p-4">
+                  <h3 class="text-base font-semibold cyan-text mb-3">Upload New Report</h3>
+                  <div class="border-2 border-dashed cyan-border rounded-lg p-4 text-center file-upload-area cursor-pointer" onclick="openUploadReportModal()">
+                    <i class="fas fa-cloud-upload-alt text-2xl cyan-text mb-2"></i>
+                    <p class="cyan-text text-sm mb-1">Click to upload</p>
+                    <p class="text-xs text-gray-500">PDF, JPG, PNG (Max 10MB)</p>
                   </div>
                 </div>
-              \`).join('')}
-            </div>
-            
-            <div class="mt-6 cyan-light rounded-xl p-4">
-              <h3 class="text-base font-semibold cyan-text mb-3">Upload New Report</h3>
-              <div class="border-2 border-dashed cyan-border rounded-lg p-4 text-center file-upload-area cursor-pointer" onclick="openUploadReportModal()">
-                <i class="fas fa-cloud-upload-alt text-2xl cyan-text mb-2"></i>
-                <p class="cyan-text text-sm mb-1">Click to upload</p>
-                <p class="text-xs text-gray-500">PDF, JPG, PNG (Max 10MB)</p>
-              </div>
-            </div>
-          \`;
+              \`;
+            } else {
+              console.error('Failed to fetch reports, status:', response.status);
+            }
+          } catch (error) {
+            console.error('Error fetching reports:', error);
+          }
         }
         
         async function loadPrescriptionsContent() {
@@ -2329,7 +2338,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         window.openSettings = openSettings;
         
         // Make doctorsData available globally for reschedule modal
-        const doctorsData = ${JSON.stringify(doctors)};
+        const doctorsData = [];
       </script>
     </body>
     </html>

@@ -514,52 +514,156 @@ app.get('/api/reviews/filters', async (req, res) => {
 // ============================================
 
 // Upload a new report
-app.post('/api/reports', authenticate, authorize('patient'), async (req, res) => {
+// ============================================
+// REPORTS API ROUTES - FIXED WITH FILE UPLOAD
+// ============================================
+
+// Upload a new report with file
+app.post('/api/reports', authenticate, authorize('patient'), upload.single('report'), async (req, res) => {
+  const client = await getClient();
   try {
-    const { test_type, test_date, notes } = req.body;
+    await client.query('BEGIN');
+    
+    // Get form data from req.body (multer parses text fields)
+    const { test_type, test_date, notes, patient_id } = req.body;
+    
+    console.log('Upload request received:', { test_type, test_date, notes, patient_id, file: req.file ? 'File present' : 'No file' });
     
     // Validate input
     if (!test_type || !test_date) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Test type and date are required' });
     }
     
-    // Get patient_id from authenticated user
-    const patientResult = await query(
-      'SELECT patient_id FROM patients WHERE user_id = $1',
-      [req.user.id]
-    );
-    
-    if (patientResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Patient profile not found' });
+    // Get patient_id from authenticated user if not provided in body
+    let patientId = patient_id;
+    if (!patientId) {
+      const patientResult = await client.query(
+        'SELECT patient_id FROM patients WHERE user_id = $1',
+        [req.user.id]
+      );
+      
+      if (patientResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Patient profile not found' });
+      }
+      
+      patientId = patientResult.rows[0].patient_id;
     }
     
-    const patientId = patientResult.rows[0].patient_id;
+    // Handle file upload if present
+    let fileUrl = null;
+    if (req.file) {
+      // Move file from temp to reports folder
+      const reportsDir = path.join(__dirname, 'uploads', 'reports');
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir, { recursive: true });
+      }
+      
+      // Generate unique filename to prevent overwrites
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const fileExt = path.extname(req.file.originalname);
+      const fileName = `report_${timestamp}_${randomStr}${fileExt}`;
+      const destPath = path.join(reportsDir, fileName);
+      
+      // Move file from temp to final destination
+      fs.renameSync(req.file.path, destPath);
+      fileUrl = `/uploads/reports/${fileName}`;
+      
+      console.log('File saved:', fileUrl);
+    }
     
-    // Insert report (without file for now - you can add file upload later)
-    const result = await query(
-      `INSERT INTO lab_reports (
-        patient_id, 
-        test_type, 
-        test_date, 
-        results, 
-        findings, 
-        file_url, 
-        created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      RETURNING *`,
-      [
-        patientId, 
-        test_type, 
-        test_date, 
-        'Pending', // Default results
-        notes || 'No findings recorded', 
-        '/uploads/placeholder.pdf' // Placeholder file URL
-      ]
-    );
+    // Insert report with file URL
+    // Insert report with file URL
+const result = await client.query(
+  `INSERT INTO lab_reports (
+    patient_id, 
+    test_type, 
+    test_date, 
+    results, 
+    findings, 
+    file_url, 
+    shared_with,
+    created_at
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+  RETURNING *`,
+  [
+    patientId, 
+    test_type, 
+    test_date, 
+    'Pending', 
+    notes || 'No findings recorded', 
+    fileUrl,
+    'patient'  // This tells the system that the patient can see this report
+  ]
+);
     
-    res.status(201).json(result.rows[0]);
+    await client.query('COMMIT');
+    
+    console.log('Report saved successfully:', result.rows[0].report_id);
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Report uploaded successfully',
+      report: result.rows[0] 
+    });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error uploading report:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get reports for a patient
+app.get('/api/reports', authenticate, async (req, res) => {
+  try {
+    const { patient_id } = req.query;
+    
+    let result;
+    if (req.user.role === 'patient') {
+      // If patient, get their own reports
+      const patientResult = await query(
+        'SELECT patient_id FROM patients WHERE user_id = $1',
+        [req.user.id]
+      );
+      
+      const patientId = patientResult.rows[0]?.patient_id;
+      
+      if (!patientId) {
+        return res.json([]);
+      }
+      
+      result = await query(
+        `SELECT r.* FROM lab_reports r
+         WHERE r.patient_id = $1
+         AND r.shared_with IN ('patient', 'both')
+         ORDER BY r.created_at DESC`,
+        [patientId]
+      );
+    } else if (patient_id) {
+      // If admin/doctor and patient_id provided, get that patient's reports
+      result = await query(
+        `SELECT r.*, p.full_name as patient_name FROM lab_reports r
+         JOIN patients p ON r.patient_id = p.patient_id
+         WHERE r.patient_id = $1
+         ORDER BY r.created_at DESC`,
+        [patient_id]
+      );
+    } else {
+      // Get all reports (for admin/doctor)
+      result = await query(
+        `SELECT r.*, p.full_name as patient_name FROM lab_reports r
+         JOIN patients p ON r.patient_id = p.patient_id
+         ORDER BY r.created_at DESC`
+      );
+    }
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2000,6 +2104,7 @@ app.post('/api/doctor/report/upload', authenticate, authorize('doctor'), upload.
             const reportsDir = path.join(__dirname, 'uploads', 'reports');
             if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
             const destPath = path.join(reportsDir, req.file.filename);
+
             fs.renameSync(req.file.path, destPath);
             file_url = `/uploads/reports/${req.file.filename}`;
         }
@@ -2957,7 +3062,7 @@ function generateHTML() {
       if (taglineEl) {
         const parts = (config.tagline || defaultConfig.tagline).split(',');
         taglineEl.innerHTML = parts.length > 1
-          ? \`\${parts[0]},<br><span class="gradient-text">\${parts.slice(1).join(',').trim()}</span>\`
+          ? parts[0] + ',<br><span class="gradient-text">' + parts.slice(1).join(',').trim() + '</span>'
           : config.tagline;
       }
       const aboutEl = document.getElementById('about-text');
@@ -3014,24 +3119,24 @@ function generateHTML() {
         const initials = r.reviewer_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
         const stars = '★'.repeat(r.rating)+'☆'.repeat(5-r.rating);
         const verified = r.is_verified ? '<span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Verified Patient</span>' : '';
-        return \`<div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-          <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#0056b3] to-[#0088cc] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">\${initials}</div>
-            <div class="flex-1">
-              <div class="flex flex-wrap items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">\${r.reviewer_name}</span>\${verified}<div class="flex text-yellow-400 text-sm ml-auto">\${stars}</div></div>
-              \${r.title ? '<h4 class="font-semibold text-gray-800 mb-2">'+r.title+'</h4>' : ''}
-              <p class="text-gray-600 text-sm leading-relaxed">"\${r.content}"</p>
-              <div class="flex flex-wrap items-center justify-between mt-3">
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-gray-400">\${r.formatted_date}</span>
-                  \${r.hospital_name ? '<span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">'+r.hospital_name+'</span>' : ''}
-                  \${r.doctor_name ? '<span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">'+r.doctor_name+'</span>' : ''}
-                </div>
-                <button class="helpful-btn text-xs text-gray-500 hover:text-[#0088cc] transition-colors" data-id="\${r.review_id}">👍 Helpful (\${r.helpful_count})</button>
-              </div>
-            </div>
-          </div>
-        </div>\`;
+        return '<div class="review-bubble bg-white p-6 rounded-2xl shadow-lg border border-gray-100">' +
+          '<div class="flex items-start gap-4">' +
+            '<div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#0056b3] to-[#0088cc] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">' + initials + '</div>' +
+            '<div class="flex-1">' +
+              '<div class="flex flex-wrap items-center gap-2 mb-2"><span class="font-semibold text-[#1a365d]">' + r.reviewer_name + '</span>' + verified + '<div class="flex text-yellow-400 text-sm ml-auto">' + stars + '</div></div>' +
+              (r.title ? '<h4 class="font-semibold text-gray-800 mb-2">' + r.title + '</h4>' : '') +
+              '<p class="text-gray-600 text-sm leading-relaxed">"' + r.content + '"</p>' +
+              '<div class="flex flex-wrap items-center justify-between mt-3">' +
+                '<div class="flex items-center gap-4">' +
+                  '<span class="text-xs text-gray-400">' + r.formatted_date + '</span>' +
+                  (r.hospital_name ? '<span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">' + r.hospital_name + '</span>' : '') +
+                  (r.doctor_name ? '<span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">' + r.doctor_name + '</span>' : '') +
+                '</div>' +
+                '<button class="helpful-btn text-xs text-gray-500 hover:text-[#0088cc] transition-colors" data-id="' + r.review_id + '">👍 Helpful (' + r.helpful_count + ')</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
       }).join('');
       document.querySelectorAll('.helpful-btn').forEach(btn => btn.addEventListener('click', function() {
         fetch('/api/reviews/'+this.dataset.id+'/helpful',{method:'POST'}).then(r=>r.json()).then(d => { if(d.success) this.innerHTML='👍 Helpful ('+d.helpful_count+')'; });
