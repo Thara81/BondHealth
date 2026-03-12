@@ -1377,10 +1377,9 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         console.warn('sessionStorage unavailable:', storageErr);
                     }
 
-                    // Show success
-                    form.style.display = 'none';
-                    const successMessage = document.getElementById('successMessage');
-                    successMessage.style.display = 'block';
+     form.style.display = 'none';
+const successMessage = document.getElementById('successMessage');
+successMessage.style.display = 'block';
 
                 } catch (error) {
                     console.error('Registration error:', error);
@@ -1395,9 +1394,35 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         // ─────────────────────────────────────────
         // ✅ FIX #3 & GLOBAL: goToDashboard / resetForm defined at global scope
         // ─────────────────────────────────────────
-        function goToDashboard() {
-            window.location.href = '/';
+        async function goToDashboard() {
+         try {
+        const adminEmail = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+        
+        // Sign in automatically
+        const res = await fetch('/api/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: adminEmail,
+                password: password,
+                role: 'admin'
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            window.location.href = '/hospital-dashboard';
+        } else {
+            alert('Auto login failed. Please sign in manually.');
+            window.location.href = '/signin';
         }
+    } catch (err) {
+        console.error('Auto login error:', err);
+        window.location.href = '/signin';
+    }
+       }
 
         function resetForm() {
             document.getElementById('successMessage').style.display        = 'none';
