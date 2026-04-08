@@ -965,16 +965,20 @@ app.post('/api/hospital/add/doctor', authenticate, authorize('admin'), async (re
     
     // Create username from email
     const username = email ? email.split('@')[0] : `doctor_${Date.now()}`;
-    
+    const rawPassword = req.body.password || req.body.doctorPassword;
+    if (!rawPassword || rawPassword.trim().length < 6) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({ success: false, error: 'Password is required and must be at least 6 characters' });
+    }
     // Create temporary password (you might want to generate a random one)
     const salt = await bcrypt.genSalt(10);
-    const tempPassword = await bcrypt.hash('Welcome@123', salt);
+    const hashedPassword = await bcrypt.hash(rawPassword.trim(), salt);
     
     // Create user account for doctor
     const userResult = await client.query(
-      `INSERT INTO users (username, email, password_hash, role, hospital_id) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
-      [username, email || `${username}@bondhealth.com`, tempPassword, 'doctor', hospitalId]
+        `INSERT INTO users (username, email, password_hash, role, hospital_id, must_change_password) 
+        VALUES ($1, $2, $3, $4, $5, true) RETURNING user_id`,
+        [username, email || `${username}@bondhealth.com`, hashedPassword, 'doctor', hospitalId]
     );
     
     const userId = userResult.rows[0].user_id;
@@ -1048,32 +1052,34 @@ app.post('/api/hospital/add/lab', authenticate, async (req, res) => {
       'SELECT hospital_id FROM hospital_admins WHERE user_id = $1',
       [req.user.id]
     );
-    
     const hospitalId = adminResult.rows[0]?.hospital_id;
-    
     if (!hospitalId) {
       return res.status(404).json({ success: false, error: 'Hospital not found' });
     }
-    
+
     const labData = req.body;
-    
-    // Create user for lab technician
+    const rawPassword = labData.password || labData.labPassword;
+    if (!rawPassword || rawPassword.trim().length < 6) {
+      return res.status(400).json({ success: false, error: 'Password is required and must be at least 6 characters' });
+    }
+
     const salt = await bcrypt.genSalt(10);
-    const tempPassword = await bcrypt.hash('Welcome@123', salt);
-    
+    const hashedPassword = await bcrypt.hash(rawPassword.trim(), salt);
+    const username = labData.name.replace(/\s+/g, '').toLowerCase();
+    const email = labData.headInCharge?.email || labData.email || `${username}@bondhealth.com`;
+
     const userResult = await query(
-      `INSERT INTO users (username, email, password_hash, role, hospital_id) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
-      [labData.name.replace(/\s+/g, '').toLowerCase(), labData.email || `${labData.name}@bondhealth.com`, tempPassword, 'lab', hospitalId]
+      `INSERT INTO users (username, email, password_hash, role, hospital_id, must_change_password) 
+       VALUES ($1, $2, $3, 'lab', $4, true) RETURNING user_id`,
+      [username, email, hashedPassword, hospitalId]
     );
-    
+
     const result = await query(
       `INSERT INTO lab_technicians (user_id, hospital_id, full_name, employee_id, phone, email)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [userResult.rows[0].user_id, hospitalId, labData.name, labData.licenseNumber, labData.phone, labData.email]
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [userResult.rows[0].user_id, hospitalId, labData.name, labData.licenseNumber, labData.headInCharge?.phone || labData.phone, email]
     );
-    
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error adding lab:', error);
@@ -1244,11 +1250,14 @@ app.post('/api/signin', async (req, res) => {
         res.cookie('token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
 
         const redirectMap = { admin: '/admin-dashboard', doctor: '/doctor-dashboard', lab: '/lab-dashboard', patient: '/patient-dashboard' };
+        // Check if this user must change their password on first login
+        const mustChange = user.must_change_password === true || user.must_change_password === 't';
+
         res.json({
             success: true,
             message: 'Sign in successful!',
             user: { id: user.user_id, username: user.username, email: user.email, role: user.role },
-            redirectTo: redirectMap[user.role] || '/'
+            redirectTo: mustChange ? '/change-password' : (redirectMap[user.role] || '/')
         });
     } catch (error) {
         console.error('Sign in error:', error);
@@ -1295,6 +1304,193 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
     }
 });
 
+
+// Change Password page (shown on first login)
+app.get('/change-password', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.redirect('/signin');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Change Password - BondHealth</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #f0f9ff, #e0ffff); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: white; border-radius: 20px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0,188,212,0.15); border: 2px solid #e0f7fa; }
+    input { width: 100%; padding: 12px; border: 2px solid #e0f2fe; border-radius: 10px; font-size: 1rem; transition: border-color 0.3s; box-sizing: border-box; }
+    input:focus { outline: none; border-color: #00bcd4; }
+    .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #00bcd4, #00acc1); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,188,212,0.3); }
+    .error { color: #ef4444; font-size: 0.875rem; margin-top: 4px; display: none; }
+    .strength { height: 4px; border-radius: 2px; margin-top: 6px; transition: all 0.3s; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#00bcd4,#00acc1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <i class="fas fa-lock" style="color:white;font-size:1.5rem;"></i>
+      </div>
+      <h1 style="color:#006064;font-size:1.5rem;font-weight:700;margin:0 0 6px;">Set Your New Password</h1>
+      <p style="color:#666;font-size:0.9rem;margin:0;">Your account requires a password change before you can continue.</p>
+    </div>
+
+    <form id="changeForm">
+      <div style="margin-bottom:18px;">
+        <label style="display:block;margin-bottom:6px;color:#006064;font-weight:500;font-size:0.9rem;">New Password</label>
+        <div style="position:relative;">
+          <input type="password" id="newPassword" placeholder="Enter new password (min 8 chars)" required>
+          <button type="button" onclick="toggleVis('newPassword','eyeNew')" 
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#999;">
+            <i class="fas fa-eye" id="eyeNew"></i>
+          </button>
+        </div>
+        <div class="strength" id="strengthBar" style="background:#e5e7eb;"></div>
+        <p style="font-size:0.75rem;color:#999;margin-top:4px;" id="strengthLabel">Enter a password</p>
+        <p class="error" id="newPassError">Password must be at least 8 characters.</p>
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label style="display:block;margin-bottom:6px;color:#006064;font-weight:500;font-size:0.9rem;">Confirm Password</label>
+        <div style="position:relative;">
+          <input type="password" id="confirmPassword" placeholder="Re-enter new password" required>
+          <button type="button" onclick="toggleVis('confirmPassword','eyeConf')" 
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#999;">
+            <i class="fas fa-eye" id="eyeConf"></i>
+          </button>
+        </div>
+        <p class="error" id="confirmError">Passwords do not match.</p>
+      </div>
+
+      <div style="background:#e0f7fa;border-radius:10px;padding:12px;margin-bottom:20px;font-size:0.8rem;color:#006064;">
+        <strong>Password requirements:</strong>
+        <ul style="margin:6px 0 0 16px;padding:0;">
+          <li id="req-len" style="color:#999;">At least 8 characters</li>
+          <li id="req-upper" style="color:#999;">One uppercase letter</li>
+          <li id="req-num" style="color:#999;">One number</li>
+        </ul>
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">
+        <i class="fas fa-check-circle" style="margin-right:8px;"></i>Set New Password
+      </button>
+
+      <p id="statusMsg" style="text-align:center;margin-top:12px;font-size:0.875rem;display:none;"></p>
+    </form>
+  </div>
+
+  <script>
+    function toggleVis(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon  = document.getElementById(iconId);
+      if (input.type === 'password') { input.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+      else { input.type = 'password'; icon.className = 'fas fa-eye'; }
+    }
+
+    function checkStrength(pwd) {
+      let score = 0;
+      if (pwd.length >= 8)  score++;
+      if (/[A-Z]/.test(pwd)) score++;
+      if (/[0-9]/.test(pwd)) score++;
+      if (/[^A-Za-z0-9]/.test(pwd)) score++;
+      return score;
+    }
+
+    document.getElementById('newPassword').addEventListener('input', function() {
+      const pwd   = this.value;
+      const score = checkStrength(pwd);
+      const bar   = document.getElementById('strengthBar');
+      const label = document.getElementById('strengthLabel');
+      const colors = ['#ef4444','#f97316','#eab308','#22c55e'];
+      const labels = ['Weak','Fair','Good','Strong'];
+      bar.style.width   = (score * 25) + '%';
+      bar.style.background = colors[score - 1] || '#e5e7eb';
+      label.textContent = score > 0 ? labels[score - 1] : 'Enter a password';
+      label.style.color = colors[score - 1] || '#999';
+
+      document.getElementById('req-len').style.color   = pwd.length >= 8   ? '#22c55e' : '#999';
+      document.getElementById('req-upper').style.color = /[A-Z]/.test(pwd) ? '#22c55e' : '#999';
+      document.getElementById('req-num').style.color   = /[0-9]/.test(pwd) ? '#22c55e' : '#999';
+    });
+
+    document.getElementById('changeForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const newPwd  = document.getElementById('newPassword').value;
+      const confPwd = document.getElementById('confirmPassword').value;
+      const newErr  = document.getElementById('newPassError');
+      const confErr = document.getElementById('confirmError');
+      const status  = document.getElementById('statusMsg');
+      const btn     = document.getElementById('submitBtn');
+
+      newErr.style.display  = 'none';
+      confErr.style.display = 'none';
+      status.style.display  = 'none';
+
+      if (newPwd.length < 8)      { newErr.style.display = 'block'; return; }
+      if (newPwd !== confPwd)      { confErr.style.display = 'block'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      try {
+        const res  = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword: newPwd })
+        });
+        const data = await res.json();
+        if (data.success) {
+          status.textContent   = '✅ Password updated! Redirecting…';
+          status.style.color   = '#22c55e';
+          status.style.display = 'block';
+          setTimeout(() => window.location.href = data.redirectTo || '/', 1500);
+        } else {
+          status.textContent   = '❌ ' + (data.message || 'Failed to update password.');
+          status.style.color   = '#ef4444';
+          status.style.display = 'block';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check-circle" style="margin-right:8px;"></i>Set New Password';
+        }
+      } catch(err) {
+        status.textContent   = '❌ Network error. Please try again.';
+        status.style.color   = '#ef4444';
+        status.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle" style="margin-right:8px;"></i>Set New Password';
+      }
+    });
+  </script>
+</body>
+</html>`);
+});
+
+// API: Change password (clears must_change_password flag)
+app.post('/api/auth/change-password', authenticate, async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+        }
+        const salt   = await bcrypt.genSalt(10);
+        const hashed = await bcrypt.hash(newPassword, salt);
+
+        await query(
+            'UPDATE users SET password_hash = $1, must_change_password = false WHERE user_id = $2',
+            [hashed, req.user.id]
+        );
+
+        // Determine redirect based on role
+        const redirectMap = { admin: '/admin-dashboard', doctor: '/doctor-dashboard', lab: '/lab-dashboard', patient: '/patient-dashboard' };
+        res.json({ success: true, message: 'Password changed successfully', redirectTo: redirectMap[req.user.role] || '/' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
 // ============================================
 // FILE UPLOAD ROUTES (Lab)
 // ============================================
@@ -2392,75 +2588,7 @@ app.get('/api/hospital/data', authenticate, async (req, res) => {
     }
 });
 
-// Add doctor
-app.post('/api/hospital/add/doctor', authenticate, authorize('admin'), async (req, res) => {
-    const client = await getClient();
-    try {
-        await client.query('BEGIN');
-        const { name, speciality, phone, email, designation, education } = req.body;
-        const adminResult = await client.query('SELECT hospital_id FROM hospital_admins WHERE user_id = $1', [req.user.id]);
-        const hospitalId = adminResult.rows[0]?.hospital_id;
-        if (!hospitalId) { await client.query('ROLLBACK'); return res.status(404).json({ success: false, error: 'Hospital not found' }); }
 
-        const username = email ? email.split('@')[0] : `doctor_${Date.now()}`;
-        const tempPassword = await bcrypt.hash('Welcome@123', await bcrypt.genSalt(10));
-        const userResult = await client.query(
-            'INSERT INTO users (username, email, password_hash, role, hospital_id) VALUES ($1,$2,$3,$4,$5) RETURNING user_id',
-            [username, email || `${username}@bondhealth.com`, tempPassword, 'doctor', hospitalId]
-        );
-        const doctorResult = await client.query(
-            `INSERT INTO doctors (user_id, hospital_id, doctor_uuid, full_name, specialization, phone, email, designation, qualification, status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [userResult.rows[0].user_id, hospitalId, `DR-${Date.now()}`, name, speciality, phone, email, designation || 'Consultant', education || 'MBBS', 'Available']
-        );
-        await client.query('COMMIT');
-        res.json({ success: true, message: 'Doctor registered successfully', data: doctorResult.rows[0] });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ success: false, error: error.message });
-    } finally {
-        client.release();
-    }
-});
-
-// Add medicine
-app.post('/api/hospital/add/medicine', authenticate, authorize('admin'), async (req, res) => {
-    try {
-        const adminResult = await query('SELECT hospital_id FROM hospital_admins WHERE user_id = $1', [req.user.id]);
-        const hospitalId = adminResult.rows[0]?.hospital_id;
-        if (!hospitalId) return res.status(404).json({ success: false, error: 'Hospital not found' });
-        const { name, quantity, price, expiry } = req.body;
-        const result = await query(
-            'INSERT INTO medicines (hospital_id, name, quantity, price, expiry_date) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-            [hospitalId, name, quantity, price, expiry]
-        );
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Add lab technician
-app.post('/api/hospital/add/lab', authenticate, authorize('admin'), async (req, res) => {
-    try {
-        const adminResult = await query('SELECT hospital_id FROM hospital_admins WHERE user_id = $1', [req.user.id]);
-        const hospitalId = adminResult.rows[0]?.hospital_id;
-        if (!hospitalId) return res.status(404).json({ success: false, error: 'Hospital not found' });
-        const labData = req.body;
-        const tempPassword = await bcrypt.hash('Welcome@123', await bcrypt.genSalt(10));
-        const userResult = await query(
-            'INSERT INTO users (username, email, password_hash, role, hospital_id) VALUES ($1,$2,$3,$4,$5) RETURNING user_id',
-            [labData.name.replace(/\s+/g, '').toLowerCase(), labData.email || `${labData.name}@bondhealth.com`, tempPassword, 'lab', hospitalId]
-        );
-        const result = await query(
-            'INSERT INTO lab_technicians (user_id, hospital_id, full_name, employee_id, phone, email) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-            [userResult.rows[0].user_id, hospitalId, labData.name, labData.licenseNumber, labData.phone, labData.email]
-        );
-        res.json({ success: true, data: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
 
 // ============================================
 // LEAVE MANAGEMENT ROUTES

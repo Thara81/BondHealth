@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) NOT NULL CHECK (role IN ('patient', 'doctor', 'admin', 'lab')),
     hospital_id UUID,
     is_active BOOLEAN DEFAULT true,
+    must_change_password BOOLEAN NOT NULL DEFAULT false,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -92,6 +93,7 @@ CREATE TABLE IF NOT EXISTS doctor_leave (
     from_date DATE NOT NULL,
     to_date DATE NOT NULL,
     reason TEXT,
+    type VARCHAR(50) DEFAULT 'other',
     status VARCHAR(50) DEFAULT 'Approved',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

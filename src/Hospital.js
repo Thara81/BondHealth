@@ -2201,6 +2201,15 @@ function getAddDoctorHTML() {
             </div>
             
             <div class="form-group">
+                <label for="doctorEmail" class="required">Email Address</label>
+                <input type="email" id="doctorEmail" name="doctorEmail" 
+                    placeholder="doctor@hospital.com" required>
+                <small style="color:#666;font-size:.85rem;">
+                    This will be the doctor's login username.
+                </small>
+            </div>
+
+            <div class="form-group">
                 <label for="dateOfBirth" class="required">Date of Birth</label>
                 <input type="date" id="dateOfBirth" name="dateOfBirth" required>
             </div>
@@ -2333,6 +2342,24 @@ function getAddDoctorHTML() {
                 <input type="text" id="designation" name="designation" placeholder="e.g., Senior Consultant, Head of Department" required>
             </div>
             
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="doctorPassword" class="required">Initial Password</label>
+                    <input type="text" id="doctorPassword" name="doctorPassword"
+                           placeholder="Set a password for the doctor"
+                           autocomplete="new-password" required>
+                    <small style="color:#666;font-size:.85rem;">
+                        This password will be shared with the doctor for first login.
+                    </small>
+                </div>
+                <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <button type="button" onclick="generatePassword()"
+                            style="background:var(--primary);color:white;border:none;padding:12px 16px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:500;white-space:nowrap;transition:all .3s ease;">
+                        🔀 Generate Password
+                    </button>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="appointmentLetter" class="required">Appointment Letter</label>
                 <div class="file-upload-container">
@@ -2383,52 +2410,55 @@ function getAddDoctorHTML() {
     </div>
 
     <script>
-        const fileInputs = {
-            doctorImage: 'imagePreview',
-            qualificationCertificate: 'qualificationPreview',
-            specializationCertificate: 'specializationPreview',
-            govtIdDocument: 'govtIdPreview',
-            appointmentLetter: 'appointmentPreview'
-        };
-        
-        Object.keys(fileInputs).forEach(inputId => {
-            const input = document.getElementById(inputId);
-            const preview = document.getElementById(fileInputs[inputId]);
-            
-            input.addEventListener('change', function(e) {
-                if (this.files && this.files[0]) {
-                    const file = this.files[0];
-                    const fileSize = (file.size / (1024 * 1024)).toFixed(2);
-                    
-                    const maxSize = inputId === 'doctorImage' ? 5 : 10;
-                    
-                    if (fileSize > maxSize) {
-                        alert(\`File size exceeds \${maxSize}MB limit. Please upload a smaller file.\`);
-                        this.value = '';
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInputs = {
+                doctorImage: 'imagePreview',
+                qualificationCertificate: 'qualificationPreview',
+                specializationCertificate: 'specializationPreview',
+                govtIdDocument: 'govtIdPreview',
+                appointmentLetter: 'appointmentPreview'
+            };
+
+            Object.keys(fileInputs).forEach(inputId => {
+                const input = document.getElementById(inputId);
+                const preview = document.getElementById(fileInputs[inputId]);
+                if (!input || !preview) return;
+
+                input.addEventListener('change', function() {
+                    if (this.files && this.files[0]) {
+                        const file = this.files[0];
+                        const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+
+                        const maxSize = inputId === 'doctorImage' ? 5 : 10;
+
+                        if (fileSize > maxSize) {
+                            alert(\`File size exceeds \${maxSize}MB limit. Please upload a smaller file.\`);
+                            this.value = '';
+                            preview.style.display = 'none';
+                            return;
+                        }
+
+                        const validExtensions = inputId === 'doctorImage' ?
+                            ['.jpg', '.jpeg', '.png'] :
+                            ['.pdf', '.jpg', '.jpeg', '.png'];
+
+                        const fileName = file.name.toLowerCase();
+                        const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+
+                        if (!isValidExtension) {
+                            alert(\`Invalid file type. Please upload: \${validExtensions.join(', ')}\`);
+                            this.value = '';
+                            preview.style.display = 'none';
+                            return;
+                        }
+
+                        preview.textContent = \`Selected: \${file.name} (\${fileSize} MB)\`;
+                        preview.style.display = 'block';
+                        preview.className = 'file-preview success';
+                    } else {
                         preview.style.display = 'none';
-                        return;
                     }
-                    
-                    const validExtensions = inputId === 'doctorImage' ? 
-                        ['.jpg', '.jpeg', '.png'] : 
-                        ['.pdf', '.jpg', '.jpeg', '.png'];
-                    
-                    const fileName = file.name.toLowerCase();
-                    const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
-                    
-                    if (!isValidExtension) {
-                        alert(\`Invalid file type. Please upload: \${validExtensions.join(', ')}\`);
-                        this.value = '';
-                        preview.style.display = 'none';
-                        return;
-                    }
-                    
-                    preview.textContent = \`Selected: \${file.name} (\${fileSize} MB)\`;
-                    preview.style.display = 'block';
-                    preview.className = 'file-preview success';
-                } else {
-                    preview.style.display = 'none';
-                }
+                });
             });
         });
         
@@ -2476,6 +2506,7 @@ function getAddDoctorHTML() {
             
             const formData = {
                 name: document.getElementById('fullName').value,
+                email: document.getElementById('doctorEmail').value,
                 speciality: document.getElementById('speciality').value,
                 phone: document.getElementById('phoneNumber').value,
                 dateOfBirth: document.getElementById('dateOfBirth').value,
@@ -2486,6 +2517,7 @@ function getAddDoctorHTML() {
                 idNumber: document.getElementById('govtIdNumber').value,
                 appointmentDate: document.getElementById('appointmentDate').value,
                 designation: document.getElementById('designation').value,
+                password: document.getElementById('doctorPassword').value,  // ← ADD THIS
                 registeredOn: new Date().toISOString(),
                 status: 'active'
             };
@@ -2498,7 +2530,16 @@ function getAddDoctorHTML() {
                 });
                 
                 if (response.ok) {
-                    alert('Doctor registered successfully!');
+                    const result = await response.json();
+                    const pwd = result.initialPassword || document.getElementById('doctorPassword').value;
+                    const email = document.getElementById('doctorEmail').value;
+                    alert(
+                        '✅ Doctor registered successfully!\n\n' +
+                        '📋 Please share these login credentials with the doctor:\n' +
+                        '   Email:    ' + email + '\n' +
+                        '   Password: ' + pwd + '\n\n' +
+                        '⚠️  Ask the doctor to change their password after first login.'
+                    );
                     this.reset();
                     
                     Object.values(fileInputs).forEach(previewId => {
@@ -2550,6 +2591,13 @@ function getAddDoctorHTML() {
                 console.error('Error loading specialities:', error);
             }
         });
+        function generatePassword() {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+            let pwd = '';
+            for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+            document.getElementById('doctorPassword').value = pwd;
+            document.getElementById('doctorPassword').type = 'text';
+        }
     </script>
 </body>
 </html>`;
@@ -3122,7 +3170,26 @@ function getAddLabHTML() {
                     <option value="New Setup">New Setup</option>
                 </select>
             </div>
-            
+            <div class="section-title">
+                <i class="fas fa-lock"></i> Login Credentials
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="labPassword" class="required">Initial Password</label>
+                    <input type="text" id="labPassword" name="labPassword" 
+                        placeholder="Set a password for the lab technician" required>
+                    <small style="color:#666;font-size:.85rem;">
+                        Share this password with the lab technician for first login.
+                    </small>
+                </div>
+                <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <button type="button" onclick="generateLabPassword()"
+                            style="background:var(--primary);color:white;border:none;padding:12px 16px;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:500;white-space:nowrap;">
+                        🔀 Generate Password
+                    </button>
+                </div>
+            </div>
             <button type="submit" class="btn-submit">
                 <i class="fas fa-plus"></i> Add Laboratory
             </button>
@@ -3135,6 +3202,7 @@ function getAddLabHTML() {
             
             const labData = {
                 name: document.getElementById('name').value.trim(),
+                password: document.getElementById('labPassword').value.trim(),
                 type: document.getElementById('type').value,
                 licenseNumber: document.getElementById('licenseNumber').value.trim(),
                 
@@ -3200,6 +3268,13 @@ function getAddLabHTML() {
         
         document.getElementById('openingTime').value = '08:00';
         document.getElementById('closingTime').value = '18:00';
+
+        function generateLabPassword() {
+            const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+            let pwd = '';
+            for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+            document.getElementById('labPassword').value = pwd;
+        }
     </script>
 </body>
 </html>`;
