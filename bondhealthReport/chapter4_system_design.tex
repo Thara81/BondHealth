@@ -9,17 +9,13 @@
 
 \section{System Architecture}
 
-\justifying
-\noindent The BondHealth platform uses a robust three-tier architecture ensuring scalability, maintainability, and security with clear separation between presentation, business logic, and data persistence. Each tier operates independently through well-defined interfaces, allowing any layer to be scaled or modified without disrupting others. This pattern has proven effective in enterprise healthcare systems where reliability and uptime are critical.
+\begin{itemize}
+    \item \textbf{Presentation Layer (Client Tier):} This is the user interface for all stakeholders, using server-side rendered HTML with Tailwind CSS for responsive, mobile-first design. Key advantages include fast initial page loads, improved SEO, and enhanced security by keeping business logic on the server. The interface is organized into role-specific dashboards: patient dashboards focus on appointment management, doctor dashboards prioritize clinical workflow, admin dashboards provide hospital management, and lab technician dashboards streamline test processing.
 
-\justifying
-\noindent \textbf{Presentation Layer (Client Tier):} This is the user interface for all stakeholders, using server-side rendered HTML with Tailwind CSS for responsive, mobile-first design. Key advantages include fast initial page loads, improved SEO, and enhanced security by keeping business logic on the server. The interface is organized into role-specific dashboards: patient dashboards focus on appointment management, doctor dashboards prioritize clinical workflow, admin dashboards provide hospital management, and lab technician dashboards streamline test processing.
+    \item \textbf{Application Layer (Business Tier):} This layer implements all business logic, validation, and security controls using Node.js with Express. It exposes RESTful API endpoints and enforces security at every request boundary. JWT-based authentication validates tokens, while Role-Based Access Control (RBAC) ensures users only perform permitted operations. A dedicated validation layer rejects malformed payloads before they reach business logic. Centralized error handling returns consistent, structured responses, and request rate limiting protects against denial-of-service conditions.
 
-\justifying
-\noindent \textbf{Application Layer (Business Tier):} This layer implements all business logic, validation, and security controls using Node.js with Express. It exposes RESTful API endpoints and enforces security at every request boundary. JWT-based authentication validates tokens, while Role-Based Access Control (RBAC) ensures users only perform permitted operations. A dedicated validation layer rejects malformed payloads before they reach business logic. Centralized error handling returns consistent, structured responses, and request rate limiting protects against denial-of-service conditions.
-
-\justifying
-\noindent \textbf{Data Layer (Database Tier):} This layer manages persistent storage using Neon PostgreSQL, a serverless solution offering automatic scaling. Connections use the \texttt{@neondatabase/serverless} pooling adapter to eliminate per-request overhead. All primary keys use UUID v4. Native PostgreSQL arrays support multi-value attributes, and foreign key constraints enforce referential integrity. The serverless architecture eliminates database maintenance overhead while providing built-in high availability and automated backups.
+    \item \textbf{Data Layer (Database Tier):} This layer manages persistent storage using Neon PostgreSQL, a serverless solution offering automatic scaling. Connections use the serverless pooling adapter to eliminate per-request overhead. All primary keys use UUID v4. Native PostgreSQL arrays support multi-value attributes, and foreign key constraints enforce referential integrity. The serverless architecture eliminates database maintenance overhead while providing built-in high availability and automated backups.
+\end{itemize}
 
 \begin{figure}[H]
 \centering
@@ -29,6 +25,7 @@
 \end{figure}
 \noindent Figure~\ref{fig:ch4-architecture} illustrates the three-tier architecture of the BondHealth platform. This architectural pattern separates presentation, application, and data layers, enabling independent scaling and maintenance of each component. The clear separation of concerns ensures that changes to the user interface do not affect business logic or database operations, improving overall system maintainability.
 \FloatBarrier
+
 % =============================================================================
 % 4.2 MAJOR SYSTEM WORKFLOWS
 % =============================================================================
@@ -38,8 +35,9 @@
 \justifying
 \noindent Data Flow Diagrams (DFDs) show how information moves through the platform, capturing inputs, transformations, and outputs at each workflow stage. This section describes three critical workflows that represent the core operational loops defining the platform's value to its users.
 
-\justifying
-\noindent \textbf{Appointment Booking Flow:} Patients authenticate via JWT and search for doctors by specialization and availability. After selecting a time slot, database transactions prevent double-booking. The patient completes payment through an integrated gateway. Confirmation is dispatched via email, SMS, and in-app notifications. Both patient and doctor dashboards update immediately. This end-to-end flow typically completes in under thirty seconds.
+\begin{itemize}
+    \item \textbf{Appointment Booking Flow:} Patients authenticate via JWT and search for doctors by specialization and availability. After selecting a time slot, database transactions prevent double-booking. The patient completes payment through an integrated gateway. Confirmation is dispatched via email, SMS, and in-app notifications. Both patient and doctor dashboards update immediately. This end-to-end flow typically completes in under thirty seconds.
+\end{itemize}
 
 \begin{figure}[H]
 \centering
@@ -49,11 +47,12 @@
 \end{figure}
 \noindent Figure~\ref{fig:chapter4-appointment-flow} presents the data flow diagram for the appointment booking workflow. The diagram shows how patient requests flow through authentication, doctor search, slot selection, payment processing, and confirmation stages. This end-to-end workflow typically completes in under thirty seconds, demonstrating the platform's efficiency in handling real-time booking operations.
 \FloatBarrier
-\justifying
-\noindent \textbf{Lab Report Processing Flow:} Lab technicians authenticate with a \texttt{lab} role and locate patients via UUID, name, or QR code. They select test types and enter results validated against reference ranges. Critical values trigger immediate alerts. A priority level is assigned to each report, and supporting files are virus-scanned before storage. Notifications are scaled to the priority level, ensuring urgent results are delivered without delay. This workflow reduces result delivery time from days to minutes.
 
-\justifying
-\noindent \textbf{Payment Processing Flow:} The payment workflow starts upon booking or post-consultation billing. The system calculates the amount due and presents payment options (card, insurance, UPI). Transactions use 3D Secure authentication. Each transaction is recorded with a unique UUID and the gateway's reference ID. All payment information is handled by PCI-compliant gateways, ensuring sensitive financial data never touches BondHealth servers directly. On success, the appointment status updates to confirmed, an invoice PDF is generated, and a receipt is emailed. Asynchronous gateway events are handled via webhook endpoints, reconciling transaction state without requiring the user to stay on the page.
+\begin{itemize}
+    \item \textbf{Lab Report Processing Flow:} Lab technicians authenticate with a lab role and locate patients via UUID, name, or QR code. They select test types and enter results validated against reference ranges. Critical values trigger immediate alerts. A priority level is assigned to each report, and supporting files are virus-scanned before storage. Notifications are scaled to the priority level, ensuring urgent results are delivered without delay. This workflow reduces result delivery time from days to minutes.
+
+    \item \textbf{Payment Processing Flow:} The payment workflow starts upon booking or post-consultation billing. The system calculates the amount due and presents payment options (card, insurance, UPI). Transactions use 3D Secure authentication. Each transaction is recorded with a unique UUID and the gateway's reference ID. All payment information is handled by PCI-compliant gateways, ensuring sensitive financial data never touches BondHealth servers directly. On success, the appointment status updates to confirmed, an invoice PDF is generated, and a receipt is emailed. Asynchronous gateway events are handled via webhook endpoints, reconciling transaction state without requiring the user to stay on the page.
+\end{itemize}
 
 % =============================================================================
 % 4.3 DATABASE SCHEMA DESIGN
@@ -71,19 +70,20 @@
 \label{fig:schema}
 \end{figure}
 \justifying
-\noindent The entity-relationship diagram shown in Figure~\ref{fig:schema} provides a complete visual representation of the BondHealth database structure. The diagram highlights the central role of the \texttt{users} table, which anchors authentication for all four system roles, and shows how foreign key relationships connect clinical records such as appointments, prescriptions, and lab reports. This schema design follows third normal form to eliminate redundancy while maintaining query performance through strategic indexes.
+\noindent The entity-relationship diagram shown in Figure~\ref{fig:schema} provides a complete visual representation of the BondHealth database structure. The diagram highlights the central role of the users table, which anchors authentication for all four system roles, and shows how foreign key relationships connect clinical records such as appointments, prescriptions, and lab reports. This schema design follows third normal form to eliminate redundancy while maintaining query performance through strategic indexes.
 \FloatBarrier
-\justifying
-\noindent The \texttt{hospitals} table acts as the second major anchoring entity, grouping doctors, medicines, and lab technicians under a specific healthcare facility. The \texttt{appointments} table sits at the intersection of patients and doctors, linking them with scheduling, status tracking, and payment information. Clinical output tables such as \texttt{lab\_reports} and \texttt{prescriptions} similarly bridge patients and doctors, capturing the results of medical encounters. The \texttt{payments} table maintains a one-to-one relationship with appointments, recording the complete financial transaction lifecycle from intent through settlement. Operational tables like \texttt{doctor\_leave} and \texttt{medicines} serve narrower but equally critical purposes, supporting leave management and pharmacy inventory respectively.
 
 \justifying
-\noindent The relationships between tables are enforced through foreign key constraints with carefully chosen cascade rules. Deleting a \texttt{users} record cascades to the corresponding role-specific profile row, ensuring no orphaned patient or doctor records remain after account removal. By contrast, \texttt{appointments} and \texttt{lab\_reports} use restrict rules on their patient and doctor foreign keys, preventing accidental data loss for clinically significant records. This combination of cascade and restrict rules reflects the differing retention requirements across the schema. The diagram also shows how PostgreSQL's native array type is used for multi-value attributes such as a doctor's available weekdays and a patient's known allergies, reducing join complexity for the most frequent read queries.
+\noindent The hospitals table acts as the second major anchoring entity, grouping doctors, medicines, and lab technicians under a specific healthcare facility. The appointments table sits at the intersection of patients and doctors, linking them with scheduling, status tracking, and payment information. Clinical output tables such as lab reports and prescriptions similarly bridge patients and doctors, capturing the results of medical encounters. The payments table maintains a one-to-one relationship with appointments, recording the complete financial transaction lifecycle from intent through settlement. Operational tables like doctor leave and medicines serve narrower but equally critical purposes, supporting leave management and pharmacy inventory respectively.
 
 \justifying
-\noindent The schema follows third normal form (3NF) and uses \texttt{created\_at} and \texttt{updated\_at} timestamps for audit compliance. Strategic indexes on frequently queried columns optimize performance. Sensitive fields like \texttt{password\_hash} are never exposed via APIs. Referential integrity uses foreign key constraints with deliberate cascade rules. Deleting a \texttt{users} record cascades to role-specific profiles, but \texttt{appointments} and \texttt{lab\_reports} use restrict rules to prevent accidental loss of clinical data.
+\noindent The relationships between tables are enforced through foreign key constraints with carefully chosen cascade rules. Deleting a users record cascades to the corresponding role-specific profile row, ensuring no orphaned patient or doctor records remain after account removal. By contrast, appointments and lab reports use restrict rules on their patient and doctor foreign keys, preventing accidental data loss for clinically significant records. This combination of cascade and restrict rules reflects the differing retention requirements across the schema. The diagram also shows how PostgreSQL's native array type is used for multi-value attributes such as a doctor's available weekdays and a patient's known allergies, reducing join complexity for the most frequent read queries.
 
 \justifying
-\noindent PostgreSQL arrays store multi-value attributes like doctor availability and patient allergies, reducing join complexity for common read queries. Status fields use constrained string enumerations (e.g., \texttt{pending\_payment}, \texttt{confirmed}) enforced by \texttt{CHECK} constraints. All timestamps use \texttt{TIMESTAMPTZ} storing UTC values, with the application converting to local timezones for multi-facility support.
+\noindent The schema follows third normal form (3NF) and uses created at and updated at timestamps for audit compliance. Strategic indexes on frequently queried columns optimize performance. Sensitive fields like password hash are never exposed via APIs. Referential integrity uses foreign key constraints with deliberate cascade rules. Deleting a users record cascades to role-specific profiles, but appointments and lab reports use restrict rules to prevent accidental loss of clinical data.
+
+\justifying
+\noindent PostgreSQL arrays store multi-value attributes like doctor availability and patient allergies, reducing join complexity for common read queries. Status fields use constrained string enumerations enforced by check constraints. All timestamps store UTC values, with the application converting to local timezones for multi-facility support.
 
 \noindent The schema comprises ten core tables summarized below. This table count strikes an optimal balance between modularity and complexity.
 
@@ -97,32 +97,35 @@
 \hline
 \textbf{Table Name} & \textbf{Description} & \textbf{Primary Fields} \\
 \hline
-users & Authentication credentials for all system users. & user\_id (UUID), username, email, password\_hash, role \\
+users & Authentication credentials for all system users. & user ID (UUID), username, email, password hash, role \\
 \hline
-hospitals & Healthcare facility information. & hospital\_id (UUID), name, type, city, phone \\
+hospitals & Healthcare facility information. & hospital ID (UUID), name, type, city, phone \\
 \hline
-patients & Patient medical info and emergency contacts. & patient\_id (UUID), user\_id, full\_name, blood\_type, conditions[] \\
+patients & Patient medical info and emergency contacts. & patient ID (UUID), user ID, full name, blood type, conditions \\
 \hline
-doctors & Professional details and availability. & doctor\_id (UUID), user\_id, hospital\_id, specialization, fee \\
+doctors & Professional details and availability. & doctor ID (UUID), user ID, hospital ID, specialization, fee \\
 \hline
-appointments & Patient-doctor appointment records. & appointment\_id (UUID), patient\_id, doctor\_id, date, time, status \\
+appointments & Patient-doctor appointment records. & appointment ID (UUID), patient ID, doctor ID, date, time, status \\
 \hline
-lab\_reports & Laboratory test results with file attachments. & report\_id (UUID), patient\_id, doctor\_id, test\_type, results \\
+lab\_reports & Laboratory test results with file attachments. & report ID (UUID), patient ID, doctor ID, test type, results \\
 \hline
-prescriptions & Medication prescriptions and refill info. & prescription\_id (UUID), patient\_id, doctor\_id, medicine\_name \\
+prescriptions & Medication prescriptions and refill info. & prescription ID (UUID), patient ID, doctor ID, medicine name \\
 \hline
-doctor\_leave & Doctor leave applications and approvals. & leave\_id (UUID), doctor\_id, from\_date, to\_date, reason \\
+doctor\_leave & Doctor leave applications and approvals. & leave ID (UUID), doctor ID, from date, to date, reason \\
 \hline
-medicines & Pharmacy inventory with stock levels. & medicine\_id (UUID), hospital\_id, name, quantity, price \\
+medicines & Pharmacy inventory with stock levels. & medicine ID (UUID), hospital ID, name, quantity, price \\
 \hline
-payments & Financial transactions and gateway references. & payment\_id (UUID), appointment\_id, patient\_id, amount, status \\
+payments & Financial transactions and gateway references. & payment ID (UUID), appointment ID, patient ID, amount, status \\
 \hline
 \end{tabular}
 \end{table}
 \noindent Table~\ref{tab:database-schema} summarizes the ten core tables that constitute the BondHealth database schema. Each table serves a specific purpose in the healthcare management workflow, from user authentication and hospital management to clinical records and payment tracking. The table also indicates how UUID primary keys and foreign key constraints maintain referential integrity across the relational structure.
 \FloatBarrier
+
 \vspace{0.3cm}
-\noindent \textbf{Database Indexes:} Strategic indexes speed up \texttt{WHERE} clauses and joins. \texttt{CREATE INDEX idx\_users\_email ON users(email)} accelerates login. \texttt{CREATE INDEX idx\_doctors\_specialization ON doctors(specialization)} supports rapid discovery. \texttt{CREATE INDEX idx\_appointments\_date ON appointments(appointment\_date)} ensures date-range queries run without full table scans. Additional composite indexes are defined for common query patterns involving multiple filter conditions.
+\begin{itemize}
+    \item \textbf{Database Indexes:} Strategic indexes speed up database queries and joins. Indexes on user email accelerate login operations. Indexes on doctor specialization support rapid discovery of healthcare providers. Indexes on appointment dates ensure date-range queries run efficiently without scanning entire tables. Additional composite indexes are defined for common query patterns involving multiple filter conditions.
+\end{itemize}
 
 % =============================================================================
 % 4.4 API DESIGN
@@ -134,10 +137,10 @@ payments & Financial transactions and gateway references. & payment\_id (UUID), 
 \noindent The BondHealth API follows RESTful best practices with resource-oriented endpoints, plural nouns, appropriate HTTP methods, and consistent JSON responses. Protected endpoints require a valid JWT token in an HTTP-only cookie, enabling horizontal scaling without server-side session storage.
 
 \justifying
-\noindent The API is organized into logical groups: authentication, patient management, doctor operations, appointments, lab workflows, prescriptions, and administration. Middleware for role verification, validation, and rate limiting is applied at the router level. List endpoints support \texttt{page} and \texttt{limit} parameters, returning a standardized envelope with metadata. API versioning (\texttt{/api/v1/...}) supports future changes.
+\noindent The API is organized into logical groups: authentication, patient management, doctor operations, appointments, lab workflows, prescriptions, and administration. Middleware for role verification, validation, and rate limiting is applied at the router level. List endpoints support pagination parameters, returning a standardized envelope with metadata. API versioning supports future changes.
 
 \justifying
-\noindent Error responses use a consistent JSON structure with an error code and message. HTTP status codes are standard: \texttt{200} (success), \texttt{201} (created), \texttt{400} (validation error), \texttt{401} (unauthenticated), \texttt{403} (forbidden), \texttt{404} (not found). Rate limiting protects sensitive endpoints like login and payment. Background operations return \texttt{202 Accepted} immediately, while synchronous operations return a definitive outcome. The table below lists core endpoints.
+\noindent Error responses use a consistent JSON structure with an error code and message. HTTP status codes are standard: success codes for successful operations, validation error codes for malformed input, authentication error codes for unauthenticated requests, forbidden error codes for unauthorized access, and not found error codes for missing resources. Rate limiting protects sensitive endpoints like login and payment. Background operations return an accepted response immediately, while synchronous operations return a definitive outcome. The table below lists core endpoints.
 
 \begin{table}[H]
 \small
@@ -193,8 +196,9 @@ POST & /api/messages & Send message & Patient/Doctor \\
 \hline
 \end{tabular}
 \end{table}
-\noindent Table~\ref{tab:api-endpoints} lists the core RESTful API endpoints exposed by the BondHealth platform. The endpoints are organized by functionality—authentication, patient operations, doctor operations, appointments, lab workflows, and administration—with each entry specifying the HTTP method, endpoint path, description, and required access level. All protected endpoints require a valid JWT token, and the API follows consistent versioning and error response conventions.
+\noindent Table~\ref{tab:api-endpoints} lists the core RESTful API endpoints exposed by the BondHealth platform. The endpoints are organized by functionality authentication, patient operations, doctor operations, appointments, lab workflows, and administration with each entry specifying the HTTP method, endpoint path, description, and required access level. All protected endpoints require a valid JWT token, and the API follows consistent versioning and error response conventions.
 \FloatBarrier
+
 % =============================================================================
 % 4.5 MODULE-WISE DETAILED DESIGN
 % =============================================================================
@@ -207,7 +211,7 @@ POST & /api/messages & Send message & Patient/Doctor \\
 \subsection{Authentication Module}
 
 \justifying
-\noindent The authentication module verifies identities, manages sessions, and enforces access controls. A JWT Token Service generates HS256-signed tokens expiring after seven days, delivered via HTTP-only cookies with \texttt{HttpOnly}, \texttt{Secure}, and \texttt{SameSite=Strict} flags. Server-side session state is maintained in Redis for instant revocation. Passwords are hashed with bcrypt (10 rounds). RBAC middleware enforces least privilege on every route. This multi-layered security approach protects against common attack vectors including XSS, CSRF, and credential theft, while the Redis-backed session store enables immediate token invalidation without waiting for natural expiry.
+\noindent The authentication module verifies identities, manages sessions, and enforces access controls. A JWT Token Service generates signed tokens expiring after seven days, delivered via HTTP-only cookies with appropriate security flags. Server-side session state is maintained in Redis for instant revocation. Passwords are hashed with bcrypt. RBAC middleware enforces least privilege on every route. This multi-layered security approach protects against common attack vectors including XSS, CSRF, and credential theft, while the Redis-backed session store enables immediate token invalidation without waiting for natural expiry.
 
 \subsection{Patient Dashboard Module}
 
@@ -217,7 +221,7 @@ POST & /api/messages & Send message & Patient/Doctor \\
 \subsection{Doctor Dashboard Module}
 
 \justifying
-\noindent The doctor dashboard prioritizes clinical workflow efficiency. A header displays statistics and a status toggle (available/unavailable). Today's Schedule shows appointments with action buttons. A searchable Patient List Sidebar allows rapid access. A priority-based Lab Reports Queue ensures critical results are reviewed first. The Prescription interface includes drug interaction checking. A Leave Management Widget allows submitting and tracking leave. The dashboard also integrates a clinical notes section for documenting SOAP notes directly within the patient consultation context, reducing the need to switch between different application views during patient encounters.
+\noindent The doctor dashboard prioritizes clinical workflow efficiency. A header displays statistics and a status toggle for availability. Today's Schedule shows appointments with action buttons. A searchable Patient List Sidebar allows rapid access. A priority-based Lab Reports Queue ensures critical results are reviewed first. The Prescription interface includes drug interaction checking. A Leave Management Widget allows submitting and tracking leave. The dashboard also integrates a clinical notes section for documenting SOAP notes directly within the patient consultation context, reducing the need to switch between different application views during patient encounters.
 
 \subsection{Admin Dashboard Module}
 
@@ -247,6 +251,7 @@ POST & /api/messages & Send message & Patient/Doctor \\
 
 \justifying
 \noindent BondHealth uses defense-in-depth security at every layer. Principles include Least Privilege, Secure by Default, and Complete Mediation. Security measures are applied at the network boundary, application layer, database tier, and file storage layer. The table below summarizes these measures. This layered approach ensures that compromising any single control does not grant an attacker full system access, as additional controls remain in place at other layers.
+
 \begin{table}[H]
 \small
 \centering
@@ -257,73 +262,43 @@ POST & /api/messages & Send message & Patient/Doctor \\
 \hline
 \textbf{Security Layer} & \textbf{Implementation} & \textbf{Description} \\
 \hline
-Authentication & JWT + HTTP-only cookies & Tokens with HttpOnly, Secure flags. 7-day expiry. \\
+Authentication & JWT + HTTP-only cookies & Tokens with secure flags. 7-day expiry. \\
 \hline
-Password Security & Bcrypt (10 rounds) & Salted hashes. Rate limiting: 5 attempts then lockout. \\
+Password Security & Bcrypt & Salted hashes. Rate limiting prevents brute force. \\
 \hline
-Database Security & SSL/TLS + Neon PostgreSQL & TLS 1.2+ encryption. Credentials in environment variables. \\
+Database Security & SSL/TLS + Neon PostgreSQL & Encrypted connections. Credentials in environment variables. \\
 \hline
-Session Management & Redis server-side store & Auto expiration. Max 5 concurrent sessions. \\
+Session Management & Redis server-side store & Auto expiration. Limited concurrent sessions. \\
 \hline
 Role-Based Access & RBAC middleware & Permission inheritance. Hospital-scoped isolation. \\
 \hline
-Data Encryption & HTTPS/TLS 1.3 & HSTS headers. Perfect forward secrecy. \\
+Data Encryption & HTTPS/TLS & Secure headers. Perfect forward secrecy. \\
 \hline
-Input Validation & JSON schema validation & SQL injection prevention via parameterized queries. \\
+Input Validation & Schema validation & SQL injection prevention via parameterized queries. \\
 \hline
-Audit Logging & DB triggers & 7-year retention. Logs auth attempts and data access. \\
+Audit Logging & Database triggers & Long-term retention. Logs all access attempts. \\
 \hline
-File Security & ClamAV scanning & Type validation by magic numbers. Size limits enforced. \\
+File Security & Virus scanning & Type validation. Size limits enforced. \\
 \hline
 \end{tabular}
 \end{table}
 \noindent Table~\ref{tab:ch4-security} provides a comprehensive summary of security features implemented across all layers of the BondHealth platform. The table details authentication mechanisms using JWT with HTTP-only cookies, password security with bcrypt hashing, database encryption with TLS, session management using Redis, role-based access control middleware, input validation for SQL injection prevention, audit logging for compliance, and file security with virus scanning. This defense-in-depth approach ensures that compromising any single control does not grant full system access.
 \FloatBarrier
-\justifying
-\noindent \textbf{Data Encryption:} Data at rest uses Transparent Data Encryption (AES-256). Sensitive fields receive additional application-level encryption (AES-256-GCM). Files in object storage are encrypted server-side. Data in transit requires TLS 1.3 with certificate validation. All API endpoints use HSTS and perfect forward secrecy.
 
-\justifying
-\noindent \textbf{Compliance and Audit:} The platform satisfies HIPAA requirements with access controls, audit trails, and encryption covering all PHI. Sessions terminate after 15 minutes of inactivity. All security events are written to an immutable audit log, retained for seven years.
+\begin{itemize}
+    \item \textbf{Data Encryption:} Data at rest uses Transparent Data Encryption. Sensitive fields receive additional application-level encryption. Files in object storage are encrypted server-side. Data in transit requires TLS with certificate validation. All API endpoints use HSTS and perfect forward secrecy.
+
+    \item \textbf{Compliance and Audit:} The platform satisfies HIPAA requirements with access controls, audit trails, and encryption covering all PHI. Sessions terminate after 15 minutes of inactivity. All security events are written to an immutable audit log, retained for the required period.
+\end{itemize}
 
 \subsection{Database Connection Design}
 
 \justifying
-\noindent The database connection architecture uses connection pooling, strict SSL configuration, and disciplined credential management. Connection pooling maintains a cache of reusable connections, eliminating TCP handshake overhead per request. The pool is configured with a minimum of 5 connections, a maximum of 20, a connection timeout of 10 seconds, an idle timeout of 30 seconds, and a maximum connection lifetime of 30 minutes.
+\noindent The database connection architecture uses connection pooling, strict SSL configuration, and disciplined credential management. Connection pooling maintains a cache of reusable connections, eliminating TCP handshake overhead per request. The pool is configured with appropriate minimum and maximum connections, connection timeout, idle timeout, and maximum connection lifetime parameters.
 
-\begin{lstlisting}[language=JavaScript,
-caption={Database Connection Configuration},
-label={lst:dbconfig},
-breaklines=true,
-columns=flexible,
-keepspaces=true]
-const { Pool } = require('@neondatabase/serverless');
-
-const pool = new Pool({
-connectionString: process.env.DATABASE_URL,
-ssl: { require: true, rejectUnauthorized: true },
-max: 20,
-idleTimeoutMillis: 30000,
-connectionTimeoutMillis: 10000,
-});
-
-const query = async (text, params) => {
-const start = Date.now();
-try {
-const res = await pool.query(text, params);
-const duration = Date.now() - start;
-if (duration > 100) {
-console.warn('Slow query detected:', { text, duration });
-}
-return res;
-} catch (error) {
-console.error('Database query error:', error);
-throw error;
-}
-};
-\end{lstlisting}
-
-\justifying
-\noindent \textbf{Connection Security:} All connections use SSL mode \texttt{require} with certificate validation (TLSv1.2+). The connection string is stored in environment variables. Credentials are rotated quarterly. The application uses a dedicated service account with only \texttt{SELECT}, \texttt{INSERT}, \texttt{UPDATE}, \texttt{DELETE} privileges. Query parameters are always passed separately, eliminating SQL injection.
+\begin{itemize}
+    \item \textbf{Connection Security:} All connections use SSL mode with certificate validation. The connection string is stored in environment variables. Credentials are rotated regularly. The application uses a dedicated service account with only necessary database privileges. Query parameters are always passed separately, eliminating SQL injection.
+\end{itemize}
 
 \subsection{Third-party Integrations}
 
@@ -343,33 +318,38 @@ throw error;
 \hline
 \textbf{Integration} & \textbf{Purpose} & \textbf{Implementation} \\
 \hline
-Stripe/Razorpay & Payment gateway & Webhooks for async notifications. PCI DSS Level 1 compliant. \\
+Payment Gateway & Payment processing & Webhooks for async notifications. PCI DSS Level 1 compliant. \\
 \hline
-Twilio/MessageBird & SMS alerts & Templates for reminders. Delivery tracking enabled. \\
+SMS Service & SMS alerts & Templates for reminders. Delivery tracking enabled. \\
 \hline
-SendGrid/NodeMailer & Email service & Transactional emails. DKIM/SPF configured. \\
+Email Service & Email delivery & Transactional emails. Proper authentication configured. \\
 \hline
-AWS S3/Azure Blob & File storage & AES-256 encryption. Signed URLs (5-min expiry). \\
+Cloud Storage & File storage & Encryption. Signed URLs with short expiry. \\
 \hline
 Socket.io & Real-time chat & Redis adapter for scaling. Room-based messaging. \\
 \hline
-Google Calendar API & Calendar sync & OAuth 2.0. Create/update events with reminders. \\
+Calendar API & Calendar sync & OAuth authentication. Create and update events with reminders. \\
 \hline
-Firebase Cloud Messaging & Push notifications & Cross-platform support. Topic-based subscriptions. \\
+Push Notification Service & Push notifications & Cross-platform support. Topic-based subscriptions. \\
 \hline
-Google Maps API & Location services & Distance calculation. Address autocomplete. \\
+Maps API & Location services & Distance calculation. Address autocomplete. \\
 \hline
 \end{tabular}
 \end{table}
-\noindent Table~\ref{tab:integrations} outlines the third-party services integrated with the BondHealth platform. These integrations extend core functionality to include payment processing via Stripe or Razorpay, SMS alerts through Twilio, email delivery using SendGrid, file storage on AWS S3 or Azure Blob, real-time messaging with Socket.io, calendar synchronization through Google Calendar API, push notifications via Firebase Cloud Messaging, and location services using Google Maps API. Each integration is abstracted behind a service wrapper with credentials stored securely in environment variables, allowing providers to be swapped without changes to application code.
+\noindent Table~\ref{tab:integrations} outlines the third-party services integrated with the BondHealth platform. These integrations extend core functionality to include payment processing, SMS alerts, email delivery, file storage, real-time messaging, calendar synchronization, push notifications, and location services. Each integration is abstracted behind a service wrapper with credentials stored securely in environment variables, allowing providers to be swapped without changes to application code.
 \FloatBarrier
+
 \subsection{Performance Optimization}
 
-\justifying
-\noindent BondHealth implements optimization strategies across all stack layers. \textbf{Database:} Strategic indexing and connection pooling reduce latency. \texttt{EXPLAIN} analyzes query plans. Reporting queries use read replicas. Large tables are partitioned by date. \textbf{Caching:} Redis caches frequently read data and session data. Public endpoints use CDN response caching. Expensive query results are cached to prevent redundant computation.
+\begin{itemize}
+    \item \textbf{Database:} Strategic indexing and connection pooling reduce latency. Query analysis tools examine query plans. Reporting queries use read replicas. Large tables are partitioned by date.
 
-\justifying
-\noindent \textbf{API \& Frontend:} List endpoints use pagination. Gzip/Brotli compression reduces response sizes by 70-80\%. HTTP/2 multiplexing enables parallel requests. Images are lazy-loaded. JS bundles are code-split. Static assets come from a CDN. A service worker enables offline capability. \textbf{Infrastructure:} The stateless application scales horizontally behind an NGINX load balancer. Auto-scaling groups respond to CPU/memory metrics. Performance monitoring alerts when 95th-percentile latency exceeds 500ms.
+    \item \textbf{Caching:} Redis caches frequently read data and session data. Public endpoints use CDN response caching. Expensive query results are cached to prevent redundant computation.
+
+    \item \textbf{API \& Frontend:} List endpoints use pagination. Compression reduces response sizes significantly. HTTP/2 multiplexing enables parallel requests. Images are lazy-loaded. JavaScript bundles are code-split. Static assets come from a CDN. A service worker enables offline capability. \
+    
+    \item \textbf{Infrastructure:} The stateless application scales horizontally behind a load balancer. Auto-scaling groups respond to CPU and memory metrics. Performance monitoring alerts when latency exceeds thresholds.
+\end{itemize}
 
 % =============================================================================
 % 4.7 SUMMARY
