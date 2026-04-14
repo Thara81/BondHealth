@@ -2229,7 +2229,16 @@ function getAddDoctorHTML() {
                 
                 <div class="form-group">
                     <label for="phoneNumber" class="required">Phone Number</label>
-                    <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="+91 XXXXXXXXXX" pattern="[0-9]{10}" required>
+                    <div style="display:flex;gap:8px;">
+                        <select id="phoneCountryCode" style="max-width:130px;">
+                            <option value="+91" selected>+91 (IN)</option>
+                            <option value="+1">+1 (US/CA)</option>
+                            <option value="+44">+44 (UK)</option>
+                            <option value="+61">+61 (AU)</option>
+                            <option value="+971">+971 (UAE)</option>
+                        </select>
+                        <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="9876543210" required inputmode="numeric">
+                    </div>
                 </div>
             </div>
             
@@ -2489,6 +2498,12 @@ function getAddDoctorHTML() {
         const maxDate = new Date(today.getFullYear() - 24, today.getMonth(), today.getDate());
         document.getElementById('dateOfBirth').max = maxDate.toISOString().split('T')[0];
         document.getElementById('appointmentDate').min = new Date().toISOString().split('T')[0];
+        const doctorPhoneInput = document.getElementById('phoneNumber');
+        if (doctorPhoneInput) {
+            doctorPhoneInput.addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '');
+            });
+        }
         
         // Form submission - Using FormData for file upload
         document.getElementById('doctorForm').addEventListener('submit', async function(e) {
@@ -2526,7 +2541,9 @@ function getAddDoctorHTML() {
             formData.append('name', document.getElementById('fullName').value);
             formData.append('email', document.getElementById('doctorEmail').value);
             formData.append('speciality', document.getElementById('speciality').value);
-            formData.append('phone', document.getElementById('phoneNumber').value);
+            const phoneCode = document.getElementById('phoneCountryCode').value || '+91';
+            const phoneDigits = document.getElementById('phoneNumber').value.replace(/\D/g, '');
+            formData.append('phone', phoneDigits ? `${phoneCode}${phoneDigits}` : '');
             formData.append('dateOfBirth', document.getElementById('dateOfBirth').value);
             formData.append('education', document.getElementById('educationQualification').value);
             formData.append('medicalCouncil', document.getElementById('medicalCouncil').value);

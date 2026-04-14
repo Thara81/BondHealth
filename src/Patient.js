@@ -1117,7 +1117,16 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Phone</label>
-                  <input type="tel" id="editPhone" value="${patient.contact}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <div class="flex gap-2">
+                    <select id="editPhoneCountryCode" class="px-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                      <option value="+91">+91 (IN)</option>
+                      <option value="+1">+1 (US/CA)</option>
+                      <option value="+44">+44 (UK)</option>
+                      <option value="+61">+61 (AU)</option>
+                      <option value="+971">+971 (UAE)</option>
+                    </select>
+                    <input type="tel" id="editPhone" value="${patient.contact}" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" inputmode="numeric">
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Gender</label>
@@ -1164,7 +1173,16 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 </div>
                 <div class="md:col-span-2">
                   <label class="block text-sm font-medium cyan-text mb-2">Emergency Phone</label>
-                  <input type="tel" id="editEmergencyPhone" value="${patient.emergencyContactPhone}" placeholder="+91 98765 43210 (or any international number)" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                  <div class="flex gap-2">
+                    <select id="editEmergencyPhoneCountryCode" class="px-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                      <option value="+91">+91 (IN)</option>
+                      <option value="+1">+1 (US/CA)</option>
+                      <option value="+44">+44 (UK)</option>
+                      <option value="+61">+61 (AU)</option>
+                      <option value="+971">+971 (UAE)</option>
+                    </select>
+                    <input type="tel" id="editEmergencyPhone" value="${patient.emergencyContactPhone}" placeholder="9876543210" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500" inputmode="numeric">
+                  </div>
                 </div>
               </div>
               
@@ -1847,6 +1865,37 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               previewWrap.innerHTML = '<i id="editPhotoFallbackIcon" class="fas fa-user text-cyan-600"></i>';
             }
           });
+
+          const parsePhoneValue = (value) => {
+            const raw = String(value || '').trim();
+            const match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
+            if (match) {
+              return { code: match[1], number: match[2].replace(/\D/g, '') };
+            }
+            return { code: '+91', number: raw.replace(/\D/g, '') };
+          };
+          const composePhoneValue = (codeElId, phoneElId) => {
+            const code = document.getElementById(codeElId)?.value || '+91';
+            const number = (document.getElementById(phoneElId)?.value || '').replace(/\D/g, '');
+            return number ? `${code}${number}` : '';
+          };
+          const bindIntlPhoneInput = (codeElId, phoneElId, initialValue) => {
+            const parsed = parsePhoneValue(initialValue);
+            const codeEl = document.getElementById(codeElId);
+            const phoneEl = document.getElementById(phoneElId);
+            if (codeEl && parsed.code) {
+              const hasOption = Array.from(codeEl.options).some(o => o.value === parsed.code);
+              codeEl.value = hasOption ? parsed.code : '+91';
+            }
+            if (phoneEl) {
+              phoneEl.value = parsed.number;
+              phoneEl.addEventListener('input', () => {
+                phoneEl.value = phoneEl.value.replace(/\D/g, '');
+              });
+            }
+          };
+          bindIntlPhoneInput('editPhoneCountryCode', 'editPhone', document.getElementById('editPhone')?.value || '');
+          bindIntlPhoneInput('editEmergencyPhoneCountryCode', 'editEmergencyPhone', document.getElementById('editEmergencyPhone')?.value || '');
           
           document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -1854,13 +1903,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             const payload = new FormData();
             payload.append('full_name', document.getElementById('editName').value);
             payload.append('email', document.getElementById('editEmail').value);
-            payload.append('phone', document.getElementById('editPhone').value);
+            payload.append('phone', composePhoneValue('editPhoneCountryCode', 'editPhone'));
             payload.append('gender', document.getElementById('editGender').value);
             payload.append('blood_type', document.getElementById('editBloodType').value);
             payload.append('date_of_birth', document.getElementById('editDob').value);
             payload.append('address', document.getElementById('editAddress').value);
             payload.append('emergency_contact_name', document.getElementById('editEmergencyName').value);
-            payload.append('emergency_contact_phone', document.getElementById('editEmergencyPhone').value);
+            payload.append('emergency_contact_phone', composePhoneValue('editEmergencyPhoneCountryCode', 'editEmergencyPhone'));
             payload.append('emergency_relation', document.getElementById('editEmergencyRelation').value);
             payload.append('medical_conditions', JSON.stringify(document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c)));
             payload.append('allergies', JSON.stringify(document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a)));

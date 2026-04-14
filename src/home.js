@@ -331,7 +331,7 @@ app.get('/api/hospital/data', authenticate, async (req, res) => {
 // ============================================
 
 // Get all approved reviews with sorting and filtering
-app.get('/api/reviews', async (req, res) => {
+app.get('/api/legacy/reviews', async (req, res) => {
   try {
     const { 
       sort = 'recent', 
@@ -462,7 +462,7 @@ app.get('/api/reviews', async (req, res) => {
 });
 
 // Submit a new review (authenticated users only)
-app.post('/api/reviews', authenticate, async (req, res) => {
+app.post('/api/legacy/reviews', authenticate, async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
@@ -536,7 +536,7 @@ app.post('/api/reviews', authenticate, async (req, res) => {
 });
 
 // Mark a review as helpful
-app.post('/api/reviews/:id/helpful', async (req, res) => {
+app.post('/api/legacy/reviews/:id/helpful', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -564,7 +564,7 @@ app.post('/api/reviews/:id/helpful', async (req, res) => {
 });
 
 // Get unique hospitals and doctors for filters
-app.get('/api/reviews/filters', async (req, res) => {
+app.get('/api/legacy/reviews/filters', async (req, res) => {
   try {
     const hospitalsResult = await query(
       `SELECT DISTINCT hospital_name 
@@ -1626,27 +1626,37 @@ async function buildMailTransporter() {
 }
 
 async function sendPasswordResetOtpEmail(email, otpCode) {
-    const mail = await buildMailTransporter();
+    let mail;
+    try {
+        mail = await buildMailTransporter();
+    } catch (_) {
+        return { mode: 'console-unavailable' };
+    }
 
     if (mail.mode === 'console') {
         return { mode: 'console-unavailable' };
     }
 
-    const info = await mail.transporter.sendMail({
-        from: mail.from,
-        to: email,
-        subject: 'BondHealth Password Reset OTP',
-        text: `Your BondHealth OTP is ${otpCode}. It expires in 10 minutes.`,
-        html: `<div style="font-family:Segoe UI,Arial,sans-serif;line-height:1.5">
-          <h2 style="color:#0e7490">BondHealth Password Reset</h2>
-          <p>Your one-time password (OTP) is:</p>
-          <p style="font-size:28px;font-weight:700;letter-spacing:4px;color:#0f766e">${otpCode}</p>
-          <p>This OTP is valid for 10 minutes.</p>
-          <p>If you did not request this, please ignore this email.</p>
-        </div>`
-    });
+    try {
+        const info = await mail.transporter.sendMail({
+            from: mail.from,
+            to: email,
+            subject: 'BondHealth Password Reset OTP',
+            text: `Your BondHealth OTP is ${otpCode}. It expires in 10 minutes.`,
+            html: `<div style="font-family:Segoe UI,Arial,sans-serif;line-height:1.5">
+              <h2 style="color:#0e7490">BondHealth Password Reset</h2>
+              <p>Your one-time password (OTP) is:</p>
+              <p style="font-size:28px;font-weight:700;letter-spacing:4px;color:#0f766e">${otpCode}</p>
+              <p>This OTP is valid for 10 minutes.</p>
+              <p>If you did not request this, please ignore this email.</p>
+            </div>`
+        });
 
-    return { mode: 'smtp', info };
+        return { mode: 'smtp', info };
+    } catch (error) {
+        console.error('SMTP send failed:', error?.message || error);
+        return { mode: 'smtp-failed' };
+    }
 }
 
 async function sendPasswordResetOtpSms(phone, otpCode) {
@@ -1664,14 +1674,19 @@ async function sendPasswordResetOtpSms(phone, otpCode) {
         return { mode: 'sms-unavailable' };
     }
 
-    const client = twilioClientFactory(accountSid, authToken);
-    const toPhone = String(phone).trim();
-    const msg = await client.messages.create({
-        from: fromPhone,
-        to: toPhone,
-        body: `Your BondHealth OTP is ${otpCode}. It expires in 10 minutes.`
-    });
-    return { mode: 'sms', sid: msg.sid };
+    try {
+        const client = twilioClientFactory(accountSid, authToken);
+        const toPhone = String(phone).trim();
+        const msg = await client.messages.create({
+            from: fromPhone,
+            to: toPhone,
+            body: `Your BondHealth OTP is ${otpCode}. It expires in 10 minutes.`
+        });
+        return { mode: 'sms', sid: msg.sid };
+    } catch (error) {
+        console.error('SMS send failed:', error?.message || error);
+        return { mode: 'sms-failed' };
+    }
 }
 
 async function issuePasswordResetOtp(loginId, isResend = false) {
@@ -1722,11 +1737,28 @@ async function issuePasswordResetOtp(loginId, isResend = false) {
     }
 
     if (delivery.mode !== 'smtp' && delivery.mode !== 'sms') {
+        const allowDevFallback = String(process.env.OTP_DEV_FALLBACK || process.env.NODE_ENV !== 'production').toLowerCase() !== 'false';
+        if (!allowDevFallback) {
+            return {
+                status: 503,
+                body: {
+                    success: false,
+                    message: 'OTP delivery is not configured. Please configure SMTP for email or Twilio for SMS.'
+                }
+            };
+        }
+
         return {
-            status: 503,
+            status: 200,
             body: {
-                success: false,
-                message: 'OTP delivery is not configured. Please configure SMTP for email or Twilio for SMS.'
+                success: true,
+                message: isResend
+                    ? 'OTP regenerated in local mode. Use the OTP shown below.'
+                    : 'OTP generated in local mode. Use the OTP shown below.',
+                email: user.email || null,
+                phone: user.phone || null,
+                channel: 'dev',
+                dev_otp: otpCode
             }
         };
     }
@@ -4645,11 +4677,22 @@ app.get('/_sdk/data_sdk.js', (req, res) => {
 // ============================================
 // PAGE ROUTES
 // ============================================
+const HOMEPAGE_CACHE_TTL_MS = Number(process.env.HOMEPAGE_CACHE_TTL_MS || 60000);
+let homepageHtmlCache = { html: null, builtAt: 0 };
+
 app.get('/', async (req, res) => {
     try {
-        res.send(await generateHTML());
+        const now = Date.now();
+        if (homepageHtmlCache.html && (now - homepageHtmlCache.builtAt) < HOMEPAGE_CACHE_TTL_MS) {
+            return res.send(homepageHtmlCache.html);
+        }
+
+        const html = await generateHTML();
+        homepageHtmlCache = { html, builtAt: now };
+        res.send(html);
     } catch (error) {
         console.error('Homepage render error:', error);
+        if (homepageHtmlCache.html) return res.send(homepageHtmlCache.html);
         res.status(500).send('<h1>500</h1><p>Failed to load homepage</p>');
     }
 });
@@ -4824,6 +4867,14 @@ app.get('/add-lab',        requireAuth('admin'), (req, res) => { try { res.setHe
 // ============================================
 // HOMEPAGE HTML
 // ============================================
+let homepageSchemaEnsured = false;
+async function ensureHomepageSchema() {
+    if (homepageSchemaEnsured) return;
+    await query("ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS main_photo_filename TEXT");
+    await query("ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS logo_filename TEXT");
+    homepageSchemaEnsured = true;
+}
+
 async function generateHTML() {
     let networkStats = {
         hospitals: '0',
@@ -4833,8 +4884,7 @@ async function generateHTML() {
     };
     let homepageHospitals = [];
     try {
-        await query("ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS main_photo_filename TEXT");
-        await query("ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS logo_filename TEXT");
+        await ensureHomepageSchema();
         const [hospitalsCount, patientsCount, doctorsCount, labsCount, frequentHospitals] = await Promise.all([
             query('SELECT COUNT(*)::int AS total FROM hospitals'),
             query("SELECT COUNT(*)::int AS total FROM users WHERE role = 'patient' AND is_active = true"),
@@ -4845,8 +4895,7 @@ async function generateHTML() {
                  FROM hospitals h
                  LEFT JOIN appointments a ON a.hospital_id = h.hospital_id
                  GROUP BY h.hospital_id, h.name, h.city, h.main_photo_filename, h.logo_filename
-                 ORDER BY appointment_count DESC, h.name ASC
-                 LIMIT 4`
+                 ORDER BY appointment_count DESC, h.name ASC`
             )
         ]);
         networkStats = {
@@ -4860,16 +4909,11 @@ async function generateHTML() {
         console.error('Homepage dynamic data fetch failed:', error.message);
     }
 
-    const frequentlyVisitedHospitalsHtml = (homepageHospitals.length ? homepageHospitals : [
-        { name: 'City General Hospital', city: 'Downtown' },
-        { name: 'St. Mary Medical', city: 'Westside' },
-        { name: 'Regional Health Center', city: 'North District' },
-        { name: 'Unity Care Hospital', city: 'East End' }
-    ]).map((h) => {
+    const frequentlyVisitedHospitalsHtml = homepageHospitals.map((h, idx) => {
         const photoUrl = h.main_photo_filename
             ? `/uploads/hospitals/photos/${h.main_photo_filename}`
             : (h.logo_filename ? `/uploads/hospitals/logos/${h.logo_filename}` : '');
-        return `<div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+        return `<div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover hospital-slide-item ${idx >= 4 ? 'hidden' : ''}" data-index="${idx}">
           <div class="aspect-video bg-gradient-to-br from-[#0088cc] to-[#00aadd] flex items-center justify-center overflow-hidden">
             ${photoUrl
                 ? `<img src="${photoUrl}" alt="${h.name}" class="w-full h-full object-cover">`
@@ -4882,6 +4926,7 @@ async function generateHTML() {
           </div>
         </div>`;
     }).join('');
+    const showHospitalControls = homepageHospitals.length > 4;
 
     return `<!doctype html>
 <html lang="en" class="h-full">
@@ -4993,9 +5038,13 @@ async function generateHTML() {
 
    <section id="hospitals" class="py-20 bg-gradient-to-b from-gray-50 to-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-     <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-[#1a365d] mb-4">Frequently Visited Hospitals</h2><p class="text-gray-600 max-w-2xl mx-auto">Find and book appointments at our partner facilities</p></div>
+     <div class="text-center mb-12"><h2 class="text-3xl md:text-4xl font-bold text-[#1a365d] mb-4">Frequently Visited Hospitals</h2><p class="text-gray-600 max-w-2xl mx-auto">Top registered hospitals by activity</p></div>
+     ${showHospitalControls ? `<div class="flex justify-center gap-3 mb-4">
+       <button id="hospitalPrevBtn" class="px-3 py-1.5 rounded-lg border border-cyan-400 text-cyan-700 hover:bg-cyan-50">Prev</button>
+       <button id="hospitalNextBtn" class="px-3 py-1.5 rounded-lg border border-cyan-400 text-cyan-700 hover:bg-cyan-50">Next</button>
+     </div>` : ''}
      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      ${frequentlyVisitedHospitalsHtml}
+      ${frequentlyVisitedHospitalsHtml || '<div class="col-span-4 text-center py-10 text-gray-500">No registered hospitals yet.</div>'}
      </div>
     </div>
    </section>
@@ -5005,7 +5054,7 @@ async function generateHTML() {
      <div class="text-center mb-8"><h2 class="text-3xl md:text-4xl font-bold text-[#1a365d] mb-4">What Our Users Say</h2><p class="text-gray-600 max-w-2xl mx-auto">Real experiences from patients across the state</p></div>
      <div id="rating-summary" class="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-lg border border-blue-100 mb-8">
       <div class="flex flex-col md:flex-row items-center gap-8">
-       <div class="text-center"><div id="average-rating" class="text-5xl font-bold text-[#0088cc]">4.8</div><div class="text-2xl mt-2">★★★★★</div><div id="total-reviews" class="text-sm text-gray-600 mt-1">Based on 0 reviews</div></div>
+       <div class="text-center"><div id="average-rating" class="text-5xl font-bold text-[#0088cc]">0.0</div><div class="text-2xl mt-2">☆☆☆☆☆</div><div id="total-reviews" class="text-sm text-gray-600 mt-1">Based on 0 reviews</div></div>
        <div class="flex-1 grid grid-cols-1 sm:grid-cols-5 gap-2 w-full">
         <div class="col-span-1 flex items-center gap-2"><span class="text-sm font-medium w-12">5 ★</span><div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div id="five-star-bar" class="h-full bg-green-500" style="width:0%"></div></div><span id="five-star-count" class="text-sm text-gray-600 w-10">0</span></div>
         <div class="col-span-1 flex items-center gap-2"><span class="text-sm font-medium w-12">4 ★</span><div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div id="four-star-bar" class="h-full bg-green-400" style="width:0%"></div></div><span id="four-star-count" class="text-sm text-gray-600 w-10">0</span></div>
@@ -5192,7 +5241,9 @@ async function generateHTML() {
 
     function updateRatingStats(stats) {
       if (!stats) return;
-      document.getElementById('average-rating').textContent = parseFloat(stats.average_rating).toFixed(1);
+      const avg = parseFloat(stats.average_rating || 0);
+      document.getElementById('average-rating').textContent = avg.toFixed(1);
+      document.querySelector('#rating-summary .text-2xl').textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg));
       document.getElementById('total-reviews').textContent = 'Based on '+stats.total_reviews+' reviews';
       const total = parseInt(stats.total_reviews)||1;
       ['five','four','three','two','one'].forEach((name,i) => {
@@ -5280,6 +5331,25 @@ async function generateHTML() {
     });
 
     document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',function(e){e.preventDefault();const t=document.querySelector(this.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth'});}));
+    const allHospitalItems = Array.from(document.querySelectorAll('.hospital-slide-item'));
+    if (allHospitalItems.length > 4) {
+      let hospitalOffset = 0;
+      const redrawHospitalSlides = () => {
+        allHospitalItems.forEach((el, idx) => {
+          el.classList.toggle('hidden', idx < hospitalOffset || idx >= hospitalOffset + 4);
+        });
+      };
+      const prevBtn = document.getElementById('hospitalPrevBtn');
+      const nextBtn = document.getElementById('hospitalNextBtn');
+      if (prevBtn) prevBtn.addEventListener('click', () => {
+        hospitalOffset = (hospitalOffset - 4 + allHospitalItems.length) % allHospitalItems.length;
+        redrawHospitalSlides();
+      });
+      if (nextBtn) nextBtn.addEventListener('click', () => {
+        hospitalOffset = (hospitalOffset + 4) % allHospitalItems.length;
+        redrawHospitalSlides();
+      });
+    }
     onConfigChange(config);
   </script>
  </body>

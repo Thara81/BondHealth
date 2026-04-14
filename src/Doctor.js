@@ -561,7 +561,19 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
         <div><label class="block text-sm font-medium cyan-text mb-1">Experience</label><input type="text" id="editExperience" value="${esc(doctorData.experience)}" class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Qualification</label><input type="text" id="editQualification" value="${esc(doctorData.qualification)}" class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Email</label><input type="email" id="editEmail" value="${esc(doctorData.email)}" class="form-input" required></div>
-        <div><label class="block text-sm font-medium cyan-text mb-1">Contact</label><input type="text" id="editContact" value="${esc(doctorData.contact)}" class="form-input"></div>
+        <div>
+          <label class="block text-sm font-medium cyan-text mb-1">Contact</label>
+          <div class="flex gap-2">
+            <select id="editContactCode" class="form-select max-w-[120px]">
+              <option value="+91">+91 (IN)</option>
+              <option value="+1">+1 (US/CA)</option>
+              <option value="+44">+44 (UK)</option>
+              <option value="+61">+61 (AU)</option>
+              <option value="+971">+971 (UAE)</option>
+            </select>
+            <input type="tel" id="editContact" value="${esc(doctorData.contact)}" class="form-input" inputmode="numeric">
+          </div>
+        </div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Consultation Fee</label><input type="text" id="editFee" value="${esc(doctorData.consultation_fee)}" class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Available Days</label><input type="text" id="editDays" value="${esc(availDaysStr)}" class="form-input" placeholder="Mon, Wed, Fri"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Available Time</label><input type="text" id="editTime" value="${esc(doctorData.available_time)}" class="form-input" placeholder="9:00 AM - 5:00 PM"></div>
@@ -774,7 +786,19 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div><label class="block text-sm font-medium cyan-text mb-1">Full Name *</label><input type="text" id="newPatientName" required class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Email *</label><input type="email" id="newPatientEmail" required class="form-input"></div>
-        <div><label class="block text-sm font-medium cyan-text mb-1">Phone *</label><input type="tel" id="newPatientPhone" required class="form-input"></div>
+        <div>
+          <label class="block text-sm font-medium cyan-text mb-1">Phone *</label>
+          <div class="flex gap-2">
+            <select id="newPatientPhoneCode" class="form-select max-w-[120px]">
+              <option value="+91" selected>+91 (IN)</option>
+              <option value="+1">+1 (US/CA)</option>
+              <option value="+44">+44 (UK)</option>
+              <option value="+61">+61 (AU)</option>
+              <option value="+971">+971 (UAE)</option>
+            </select>
+            <input type="tel" id="newPatientPhone" required class="form-input" inputmode="numeric">
+          </div>
+        </div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Date of Birth *</label><input type="date" id="newPatientDob" required class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Password *</label><input type="password" id="newPatientPassword" minlength="8" required class="form-input" placeholder="Min 8 characters"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Confirm Password *</label><input type="password" id="newPatientPasswordConfirm" minlength="8" required class="form-input" placeholder="Re-enter password"></div>
@@ -786,7 +810,19 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
         <h3 class="text-base font-semibold cyan-text mb-3">Emergency Contact</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label class="block text-sm font-medium cyan-text mb-1">Name</label><input type="text" id="newPatientEmergencyName" class="form-input"></div>
-          <div><label class="block text-sm font-medium cyan-text mb-1">Phone</label><input type="tel" id="newPatientEmergencyPhone" class="form-input"></div>
+          <div>
+            <label class="block text-sm font-medium cyan-text mb-1">Phone</label>
+            <div class="flex gap-2">
+              <select id="newPatientEmergencyPhoneCode" class="form-select max-w-[120px]">
+                <option value="+91" selected>+91 (IN)</option>
+                <option value="+1">+1 (US/CA)</option>
+                <option value="+44">+44 (UK)</option>
+                <option value="+61">+61 (AU)</option>
+                <option value="+971">+971 (UAE)</option>
+              </select>
+              <input type="tel" id="newPatientEmergencyPhone" class="form-input" inputmode="numeric">
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex justify-end gap-3 pt-2">
@@ -1350,6 +1386,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('editProfileHeaderBtn')?.addEventListener('click', () => openModal('editProfileModal'));
   document.getElementById('editFromProfileBtn')?.addEventListener('click', () => { closeModal('profileModal'); openModal('editProfileModal'); });
   document.getElementById('logoutFromProfileBtn')?.addEventListener('click', () => { closeModal('profileModal'); openModal('logoutConfirmModal'); });
+  const parseIntlPhoneValue = (value) => {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
+    if (match) return { code: match[1], number: match[2].replace(/\D/g, '') };
+    return { code: '+91', number: raw.replace(/\D/g, '') };
+  };
+  const initialDoctorContact = parseIntlPhoneValue(document.getElementById('editContact')?.value || '');
+  const editContactCodeEl = document.getElementById('editContactCode');
+  if (editContactCodeEl) {
+    editContactCodeEl.value = Array.from(editContactCodeEl.options).some(o => o.value === initialDoctorContact.code)
+      ? initialDoctorContact.code
+      : '+91';
+  }
+  const editContactEl = document.getElementById('editContact');
+  if (editContactEl) {
+    editContactEl.value = initialDoctorContact.number;
+    editContactEl.addEventListener('input', () => {
+      editContactEl.value = editContactEl.value.replace(/\D/g, '');
+    });
+  }
 
   document.getElementById('editProfileForm')?.addEventListener('submit', async e => {
     e.preventDefault();
@@ -1374,7 +1430,11 @@ document.addEventListener('DOMContentLoaded', () => {
       experience:       document.getElementById('editExperience').value.trim(),
       qualification:    document.getElementById('editQualification').value.trim(),
       email,
-      contact:          document.getElementById('editContact').value.trim(),
+      contact:          (() => {
+        const code = document.getElementById('editContactCode')?.value || '+91';
+        const digits = (document.getElementById('editContact')?.value || '').replace(/\D/g, '');
+        return digits ? `${code}${digits}` : '';
+      })(),
       consultation_fee: document.getElementById('editFee').value.trim(),
       available_days:   document.getElementById('editDays').value.trim(),
       available_time:   document.getElementById('editTime').value.trim(),
@@ -1680,6 +1740,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ─── Add Patient ──────────────────────────────────
   document.getElementById('addPatientBtn')?.addEventListener('click', () => openModal('addPatientModal'));
+  const normalizePhoneDigits = (value) => String(value || '').replace(/\D/g, '');
+  const intlPhone = (codeId, numberId) => {
+    const code = document.getElementById(codeId)?.value || '+91';
+    const digits = normalizePhoneDigits(document.getElementById(numberId)?.value || '');
+    return digits ? `${code}${digits}` : '';
+  };
+  ['newPatientPhone', 'newPatientEmergencyPhone'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        el.value = normalizePhoneDigits(el.value);
+      });
+    }
+  });
   document.getElementById('addPatientForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     const email = document.getElementById('newPatientEmail').value.trim();
@@ -1695,13 +1769,13 @@ document.addEventListener('DOMContentLoaded', () => {
           full_name:       document.getElementById('newPatientName').value.trim(),
           email,
           password,
-          phone:           document.getElementById('newPatientPhone').value.trim(),
+          phone:           intlPhone('newPatientPhoneCode', 'newPatientPhone'),
           dob:             document.getElementById('newPatientDob').value,
           gender:          document.getElementById('newPatientGender').value,
           blood_group:     document.getElementById('newPatientBloodGroup').value,
           address:         document.getElementById('newPatientAddress').value.trim(),
           emergency_name:  document.getElementById('newPatientEmergencyName').value.trim(),
-          emergency_phone: document.getElementById('newPatientEmergencyPhone').value.trim()
+          emergency_phone: intlPhone('newPatientEmergencyPhoneCode', 'newPatientEmergencyPhone')
         })
       });
       if (res.ok) {

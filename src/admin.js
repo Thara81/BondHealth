@@ -511,13 +511,37 @@ function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}
                         <div><label class="block text-gray-700 mb-1 text-sm">Hospital Name</label><input id="editHospitalName" class="w-full p-3 border border-gray-300 rounded-lg" required></div>
                         <div><label class="block text-gray-700 mb-1 text-sm">Hospital Type</label><input id="editHospitalType" class="w-full p-3 border border-gray-300 rounded-lg"></div>
                         <div><label class="block text-gray-700 mb-1 text-sm">City</label><input id="editHospitalCity" class="w-full p-3 border border-gray-300 rounded-lg"></div>
-                        <div><label class="block text-gray-700 mb-1 text-sm">Hospital Phone</label><input id="editHospitalPhone" class="w-full p-3 border border-gray-300 rounded-lg"></div>
+                        <div>
+                          <label class="block text-gray-700 mb-1 text-sm">Hospital Phone</label>
+                          <div class="flex gap-2">
+                            <select id="editHospitalPhoneCode" class="p-3 border border-gray-300 rounded-lg max-w-[120px]">
+                              <option value="+91">+91 (IN)</option>
+                              <option value="+1">+1 (US/CA)</option>
+                              <option value="+44">+44 (UK)</option>
+                              <option value="+61">+61 (AU)</option>
+                              <option value="+971">+971 (UAE)</option>
+                            </select>
+                            <input id="editHospitalPhone" class="w-full p-3 border border-gray-300 rounded-lg" inputmode="numeric">
+                          </div>
+                        </div>
                         <div class="md:col-span-2"><label class="block text-gray-700 mb-1 text-sm">Hospital Email</label><input id="editHospitalEmail" type="email" class="w-full p-3 border border-gray-300 rounded-lg"></div>
                     </div>
                     <div class="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-gray-700 mb-1 text-sm">Admin Name</label><input id="editAdminName" class="w-full p-3 border border-gray-300 rounded-lg"></div>
                         <div><label class="block text-gray-700 mb-1 text-sm">Designation</label><input id="editAdminDesignation" class="w-full p-3 border border-gray-300 rounded-lg"></div>
-                        <div><label class="block text-gray-700 mb-1 text-sm">Admin Phone</label><input id="editAdminPhone" class="w-full p-3 border border-gray-300 rounded-lg"></div>
+                        <div>
+                          <label class="block text-gray-700 mb-1 text-sm">Admin Phone</label>
+                          <div class="flex gap-2">
+                            <select id="editAdminPhoneCode" class="p-3 border border-gray-300 rounded-lg max-w-[120px]">
+                              <option value="+91">+91 (IN)</option>
+                              <option value="+1">+1 (US/CA)</option>
+                              <option value="+44">+44 (UK)</option>
+                              <option value="+61">+61 (AU)</option>
+                              <option value="+971">+971 (UAE)</option>
+                            </select>
+                            <input id="editAdminPhone" class="w-full p-3 border border-gray-300 rounded-lg" inputmode="numeric">
+                          </div>
+                        </div>
                         <div><label class="block text-gray-700 mb-1 text-sm">Admin Email</label><input id="editAdminEmail" type="email" class="w-full p-3 border border-gray-300 rounded-lg"></div>
                     </div>
                     <div class="border-t pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -672,14 +696,26 @@ function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}
         }
 
         function openAdminProfileModal() {
+            const splitIntlPhone = (value) => {
+                const raw = String(value || '').trim();
+                const match = raw.match(/^(\+\d{1,4})\s*(.*)$/);
+                if (match) return { code: match[1], number: match[2].replace(/\D/g, '') };
+                return { code: '+91', number: raw.replace(/\D/g, '') };
+            };
             document.getElementById('editHospitalName').value = adminProfileSeed.hospitalName || '';
             document.getElementById('editHospitalType').value = adminProfileSeed.hospitalType || '';
             document.getElementById('editHospitalCity').value = adminProfileSeed.hospitalCity || '';
-            document.getElementById('editHospitalPhone').value = adminProfileSeed.hospitalPhone || '';
+            const hospitalPhone = splitIntlPhone(adminProfileSeed.hospitalPhone || '');
+            const adminPhone = splitIntlPhone(adminProfileSeed.adminPhone || '');
+            const hospitalCodeEl = document.getElementById('editHospitalPhoneCode');
+            const adminCodeEl = document.getElementById('editAdminPhoneCode');
+            hospitalCodeEl.value = Array.from(hospitalCodeEl.options).some(o => o.value === hospitalPhone.code) ? hospitalPhone.code : '+91';
+            adminCodeEl.value = Array.from(adminCodeEl.options).some(o => o.value === adminPhone.code) ? adminPhone.code : '+91';
+            document.getElementById('editHospitalPhone').value = hospitalPhone.number;
             document.getElementById('editHospitalEmail').value = adminProfileSeed.hospitalEmail || '';
             document.getElementById('editAdminName').value = adminProfileSeed.adminName || '';
             document.getElementById('editAdminDesignation').value = adminProfileSeed.adminDesignation || '';
-            document.getElementById('editAdminPhone').value = adminProfileSeed.adminPhone || '';
+            document.getElementById('editAdminPhone').value = adminPhone.number;
             document.getElementById('editAdminEmail').value = adminProfileSeed.adminEmail || '';
             document.getElementById('adminProfileModal').style.display = 'flex';
         }
@@ -695,11 +731,15 @@ function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}
                 fd.append('hospital_name', document.getElementById('editHospitalName').value.trim());
                 fd.append('hospital_type', document.getElementById('editHospitalType').value.trim());
                 fd.append('hospital_city', document.getElementById('editHospitalCity').value.trim());
-                fd.append('hospital_phone', document.getElementById('editHospitalPhone').value.trim());
+                const hospitalPhoneDigits = document.getElementById('editHospitalPhone').value.replace(/\D/g, '');
+                const adminPhoneDigits = document.getElementById('editAdminPhone').value.replace(/\D/g, '');
+                const hospitalPhoneCode = document.getElementById('editHospitalPhoneCode').value || '+91';
+                const adminPhoneCode = document.getElementById('editAdminPhoneCode').value || '+91';
+                fd.append('hospital_phone', hospitalPhoneDigits ? `${hospitalPhoneCode}${hospitalPhoneDigits}` : '');
                 fd.append('hospital_email', document.getElementById('editHospitalEmail').value.trim());
                 fd.append('admin_full_name', document.getElementById('editAdminName').value.trim());
                 fd.append('admin_position', document.getElementById('editAdminDesignation').value.trim());
-                fd.append('admin_phone', document.getElementById('editAdminPhone').value.trim());
+                fd.append('admin_phone', adminPhoneDigits ? `${adminPhoneCode}${adminPhoneDigits}` : '');
                 fd.append('admin_email', document.getElementById('editAdminEmail').value.trim());
 
                 const logoFile = document.getElementById('editHospitalLogo').files?.[0];

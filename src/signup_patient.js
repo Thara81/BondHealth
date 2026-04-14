@@ -263,7 +263,16 @@ function generateSignUpHTML() {
        <!-- Phone Number (MODIFIED for Indian format) -->
        <div>
         <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-        <input type="tel" id="phone" name="phone" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="+91 98765 43210" pattern="[+][9][1][0-9]{10}" title="Please enter +91 followed by 10 digits">
+        <div class="flex gap-2">
+         <select id="phoneCountryCode" class="form-input px-3 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200 max-w-[120px]">
+          <option value="+91" selected>+91 (IN)</option>
+          <option value="+1">+1 (US/CA)</option>
+          <option value="+44">+44 (UK)</option>
+          <option value="+61">+61 (AU)</option>
+          <option value="+971">+971 (UAE)</option>
+         </select>
+         <input type="tel" id="phone" name="phone" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200" placeholder="9876543210" inputmode="numeric">
+        </div>
        </div>
        
        <!-- Address -->
@@ -345,14 +354,9 @@ function generateSignUpHTML() {
   ${togglePassword()}
   
   <script>
-    // Simple phone number formatting for Indian numbers (ADDED)
-    document.getElementById('phone').addEventListener('input', function(e) {
-      let value = this.value.replace(/\\D/g, '');
-      if (value.length > 0 && !this.value.startsWith('+')) {
-        if (value.length <= 10) {
-          this.value = '+91' + value;
-        }
-      }
+    const phoneInput = document.getElementById('phone');
+    phoneInput.addEventListener('input', function() {
+      this.value = this.value.replace(/\\D/g, '');
     });
 
     document.getElementById('signup-form').addEventListener('submit', function(e) {
@@ -360,7 +364,8 @@ function generateSignUpHTML() {
       
       const password = document.getElementById('password').value;
       const confirmPassword = document.getElementById('confirm-password').value;
-      const phone = document.getElementById('phone').value;
+      const phoneDigits = document.getElementById('phone').value.replace(/\\D/g, '');
+      const phoneCode = document.getElementById('phoneCountryCode').value || '+91';
       const errorEl = document.getElementById('password-error');
       
       if (password !== confirmPassword) {
@@ -375,10 +380,8 @@ function generateSignUpHTML() {
         return;
       }
       
-      // Indian phone number validation (ADDED)
-      const phoneRegex = /^\\+91[0-9]{10}$/;
-      if (!phoneRegex.test(phone)) {
-        errorEl.textContent = 'Phone number must be +91 followed by 10 digits';
+      if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+        errorEl.textContent = 'Phone number must be 7 to 15 digits';
         errorEl.classList.remove('hidden');
         return;
       }
@@ -397,7 +400,7 @@ function generateSignUpHTML() {
       formData.append('gender', document.querySelector('input[name="gender"]:checked')?.value || '');
       formData.append('blood_type', document.getElementById('blood_type').value);
       formData.append('email', document.getElementById('email').value);
-      formData.append('phone', document.getElementById('phone').value);
+      formData.append('phone', phoneCode + phoneDigits);
       formData.append('address', document.getElementById('address').value);
       formData.append('password', document.getElementById('password').value);
       formData.append('confirmPassword', document.getElementById('confirm-password').value);

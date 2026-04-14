@@ -919,17 +919,25 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     <div class="row">
                         <div class="col-md-6 mb-4">
                             <label for="contactNo" class="form-label required">Contact Number</label>
-                            <input type="tel" class="form-control" id="contactNo" placeholder="+91 9876543210"
-                                   pattern="[0-9]{10}" maxlength="10"
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
-                            <div class="invalid-feedback" id="contactNoError">Please enter a valid 10-digit contact number.</div>
-                            <small class="text-muted">Enter 10-digit mobile number without country code</small>
+                            <div class="d-flex gap-2">
+                                <select id="contactNoCode" class="form-control" style="max-width: 140px;">
+                                    <option value="+91" selected>+91 (IN)</option>
+                                    <option value="+1">+1 (US/CA)</option>
+                                    <option value="+44">+44 (UK)</option>
+                                    <option value="+61">+61 (AU)</option>
+                                    <option value="+971">+971 (UAE)</option>
+                                </select>
+                                <input type="tel" class="form-control" id="contactNo" placeholder="9876543210"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
+                            </div>
+                            <div class="invalid-feedback" id="contactNoError">Please enter a valid phone number (7-15 digits).</div>
+                            <small class="text-muted">Choose country code and enter phone number</small>
                         </div>
 
                         <div class="col-md-6 mb-4">
                             <label for="officialEmail" class="form-label required">Official Email</label>
-                            <input type="email" class="form-control" id="officialEmail" placeholder="hospital@example.com" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false">
-                            <div class="invalid-feedback" id="officialEmailError">Please enter a valid email address.</div>
+                            <input type="text" class="form-control" id="officialEmail" placeholder="hospital@example.com" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false">
+                            <div class="invalid-feedback" id="officialEmailError">Please enter official email.</div>
                         </div>
                     </div>
                 </div>
@@ -954,8 +962,8 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
                     <div class="mb-4">
                         <label for="adminEmail" class="form-label required">Admin Email</label>
-                        <input type="email" class="form-control" id="adminEmail" placeholder="admin@example.com" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false">
-                        <div class="invalid-feedback" id="adminEmailError">Please enter a valid email address.</div>
+                        <input type="text" class="form-control" id="adminEmail" placeholder="admin@example.com" autocomplete="off" inputmode="email" autocapitalize="none" spellcheck="false">
+                        <div class="invalid-feedback" id="adminEmailError">Please enter admin email.</div>
                     </div>
 
                     <div class="mb-4">
@@ -1137,9 +1145,6 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 input.addEventListener('input', () => clearError(errorId));
                 input.addEventListener('blur', () => {
                     input.value = sanitizeEmail(input.value);
-                    if (input.value && !isValidEmail(input.value)) {
-                        showError(errorId, 'Please enter a valid email address.');
-                    }
                 });
             };
             bindEmailInput('officialEmail', 'officialEmailError');
@@ -1647,12 +1652,12 @@ successMessage.style.display = 'block';
             }
 
             // Contact Number
-            const contactNo = document.getElementById('contactNo').value.trim();
+            const contactNo = document.getElementById('contactNo').value.replace(/[^0-9]/g, '');
             if (!contactNo) {
                 showError('contactNoError', 'Please enter contact number.');
                 isValid = false;
-            } else if (!/^[0-9]{10}$/.test(contactNo)) {
-                showError('contactNoError', 'Please enter a valid 10-digit number.');
+            } else if (!/^[0-9]{7,15}$/.test(contactNo)) {
+                showError('contactNoError', 'Please enter a valid phone number (7-15 digits).');
                 isValid = false;
             }
 
@@ -1662,9 +1667,6 @@ successMessage.style.display = 'block';
             officialEmailInput.value = officialEmail;
             if (!officialEmail) {
                 showError('officialEmailError', 'Please enter official email.');
-                isValid = false;
-            } else if (!isValidEmail(officialEmail)) {
-                showError('officialEmailError', 'Please enter a valid email address.');
                 isValid = false;
             }
 
@@ -1686,9 +1688,6 @@ successMessage.style.display = 'block';
             adminEmailInput.value = adminEmail;
             if (!adminEmail) {
                 showError('adminEmailError', 'Please enter admin email.');
-                isValid = false;
-            } else if (!isValidEmail(adminEmail)) {
-                showError('adminEmailError', 'Please enter a valid email address.');
                 isValid = false;
             }
 
@@ -1756,7 +1755,11 @@ successMessage.style.display = 'block';
                 hospitalType:       document.querySelector('input[name="hospType"]:checked')?.value,
                 registrationNumber: document.getElementById('registrationNumber').value,
                 city:               document.getElementById('city').value,
-                contactNo:          document.getElementById('contactNo').value,
+                contactNo:          (() => {
+                    const code = document.getElementById('contactNoCode').value || '+91';
+                    const number = document.getElementById('contactNo').value.replace(/[^0-9]/g, '');
+                    return number ? `${code}${number}` : '';
+                })(),
                 officialEmail:      document.getElementById('officialEmail').value,
                 adminName:          document.getElementById('adminName').value,
                 designation:        document.getElementById('designation').value,

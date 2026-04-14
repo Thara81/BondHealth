@@ -408,8 +408,10 @@ const SIGNIN_TEMPLATE = `<!doctype html>
     fpModal.addEventListener('mousedown', e => {
       fpBackdropMouseDown = (e.target === fpModal);
     });
-    fpModal.addEventListener('click', e => {
-      if (e.target === fpModal && fpBackdropMouseDown) closeForgotModal();
+    fpModal.addEventListener('mouseup', e => {
+      // Close only when both mouse down and up happened on backdrop.
+      // This prevents accidental close while selecting text in the card.
+      if (fpBackdropMouseDown && e.target === fpModal) closeForgotModal();
       fpBackdropMouseDown = false;
     });
 
