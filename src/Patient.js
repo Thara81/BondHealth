@@ -140,6 +140,14 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         notes: apt.notes || ''
     }));
 
+    const chatDoctors = Array.from(
+      new Map(
+        appointments
+          .filter(apt => apt.doctor_id)
+          .map(apt => [apt.doctor_id, { doctor_id: apt.doctor_id, doctor_name: apt.doctor }])
+      ).values()
+    );
+
     // Map reports data
     const reports = reportsData.map(rep => ({
         id: rep.report_uuid || rep.report_id,
@@ -665,6 +673,17 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                   </div>
                   <span class="ml-auto cyan-dark text-white text-xs px-2 py-1 rounded-full">${prescriptions.length}</span>
                 </button>
+                
+                <button class="menu-item w-full text-left p-4 rounded-xl flex items-center space-x-4" data-section="messages">
+                  <div class="w-12 h-12 cyan-light rounded-xl flex items-center justify-center">
+                    <i class="fas fa-comments text-xl cyan-text"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold cyan-text">Messages</p>
+                    <p class="text-sm cyan-text opacity-75">Chat with your doctors</p>
+                  </div>
+                  <span id="messagesUnreadBadge" class="ml-auto cyan-dark text-white text-xs px-2 py-1 rounded-full">0</span>
+                </button>
               </div>
               
               <div class="mt-8 pt-6 border-t border-gray-200">
@@ -750,6 +769,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               <div id="bookContent" class="hidden"></div>
               <div id="reportsContent" class="hidden"></div>
               <div id="prescriptionsContent" class="hidden"></div>
+              <div id="messagesContent" class="hidden"></div>
             </div>
           </div>
         </div>
@@ -1236,8 +1256,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         let selectedFile = null;
         
         const reportsData = ${JSON.stringify(reports)};
+        const chatDoctorsData = ${JSON.stringify(chatDoctors)};
         let currentReports = [...reportsData];
         const prescriptionsData = ${JSON.stringify(prescriptions)};
+        let activeChatDoctorId = null;
+        let chatRefreshTimer = null;
+        let unreadMessagesTimer = null;
+        let isSendingPatientChat = false;
 
         function normalizeReport(report) {
           const id = report?.id || report?.report_uuid || report?.report_id;
@@ -1267,12 +1292,14 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             appointments: document.getElementById('appointmentsContent'),
             book: document.getElementById('bookContent'),
             reports: document.getElementById('reportsContent'),
-            prescriptions: document.getElementById('prescriptionsContent')
+            prescriptions: document.getElementById('prescriptionsContent'),
+            messages: document.getElementById('messagesContent')
           };
           
           loadBookContent();
           loadReportsContent();
           loadPrescriptionsContent();
+          loadMessagesContent();
           
           menuItems.forEach(item => {
             item.addEventListener('click', function() {
@@ -1284,6 +1311,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               Object.values(contentSections).forEach(sec => sec.classList.add('hidden'));
               contentSections[section].classList.remove('hidden');
               contentSections[section].classList.add('fade-in');
+
+              if (section === 'messages') {
+                loadMessagesContent();
+              } else if (chatRefreshTimer) {
+                clearInterval(chatRefreshTimer);
+                chatRefreshTimer = null;
+              }
               
               setTimeout(() => {
                 contentSections[section].classList.remove('fade-in');
@@ -2303,6 +2337,181 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             });
           });
         }
+
+        function escapeHtmlText(value) {
+          return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function renderPatientChatMessages(messages) {
+          const chatMessages = document.getElementById('patientChatMessages');
+          if (!chatMessages) return;
+
+          if (!messages.length) {
+            chatMessages.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">No messages yet. Start the conversation.</p>';
+            return;
+          }
+
+          chatMessages.innerHTML = messages.map(m => {
+            const isPatient = m.sender === 'patient';
+            const alignClass = isPatient ? 'flex justify-end' : 'flex justify-start';
+            const bubbleClass = isPatient ? 'cyan-dark text-white' : 'white-card cyan-text';
+            return '<div class="' + alignClass + '"><div class="' + bubbleClass + ' rounded-xl px-3 py-2 max-w-[80%] text-sm">' + escapeHtmlText(m.message) + '</div></div>';
+          }).join('');
+
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function loadPatientChatHistory(doctorId) {
+          if (!doctorId) return;
+          try {
+            const response = await fetch('/api/patient/chat/' + doctorId + '/history');
+            if (!response.ok) return;
+            const messages = await response.json();
+            renderPatientChatMessages(Array.isArray(messages) ? messages : []);
+          } catch (error) {
+            console.error('Error loading patient chat history:', error);
+          }
+        }
+
+        async function refreshPatientUnreadBadge() {
+          try {
+            const response = await fetch('/api/patient/chat/unread');
+            if (!response.ok) return;
+            const data = await response.json();
+            const totalUnread = Number(data.totalUnread || 0);
+            const badge = document.getElementById('messagesUnreadBadge');
+            if (!badge) return;
+            badge.textContent = String(totalUnread);
+            badge.style.display = 'inline-block';
+            badge.classList.toggle('bg-red-500', totalUnread > 0);
+            badge.classList.toggle('cyan-dark', totalUnread <= 0);
+          } catch (error) {
+            console.error('Error loading unread badge:', error);
+          }
+        }
+
+        async function markPatientChatAsRead(doctorId) {
+          try {
+            await fetch('/api/patient/chat/' + doctorId + '/read', { method: 'POST' });
+          } catch (error) {
+            console.error('Error marking patient chat as read:', error);
+          }
+        }
+
+        async function loadMessagesContent() {
+          const messagesContent = document.getElementById('messagesContent');
+          const hasDoctors = chatDoctorsData.length > 0;
+
+          if (!activeChatDoctorId && hasDoctors) {
+            activeChatDoctorId = chatDoctorsData[0].doctor_id;
+          }
+
+          const doctorButtonsHtml = chatDoctorsData.map(doc => {
+            const isActive = String(doc.doctor_id) === String(activeChatDoctorId);
+            const buttonClass = isActive ? 'cyan-light' : 'hover:bg-gray-50';
+            return '<button class="patient-doctor-chat-btn w-full text-left px-3 py-2 rounded-lg ' + buttonClass + '" data-doctor-id="' + escapeHtmlText(doc.doctor_id) + '">' +
+              '<p class="text-sm font-semibold cyan-text">' + escapeHtmlText(doc.doctor_name || 'Doctor') + '</p>' +
+              '<p class="text-xs text-gray-500">Tap to open chat</p>' +
+              '</button>';
+          }).join('');
+
+          const activeDoctor = chatDoctorsData.find(d => String(d.doctor_id) === String(activeChatDoctorId));
+          const chatPanelHtml =
+            '<div class="grid grid-cols-1 md:grid-cols-3 gap-4">' +
+              '<div class="white-card rounded-xl p-3 md:col-span-1">' +
+                '<p class="text-sm font-semibold cyan-text mb-3">Your Doctors</p>' +
+                '<div class="space-y-2" id="patientDoctorsList">' + doctorButtonsHtml + '</div>' +
+              '</div>' +
+              '<div class="white-card rounded-xl p-3 md:col-span-2">' +
+                '<div class="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">' +
+                  '<p class="text-sm font-semibold cyan-text" id="activeDoctorChatTitle">' + escapeHtmlText(activeDoctor?.doctor_name || 'Doctor') + '</p>' +
+                '</div>' +
+                '<div id="patientChatMessages" class="space-y-2 h-72 overflow-y-auto pr-1"></div>' +
+                '<form id="patientChatForm" class="mt-3 flex gap-2">' +
+                  '<input id="patientChatInput" type="text" class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm" placeholder="Type your message...">' +
+                  '<button type="submit" class="px-4 py-2 btn-cyan rounded-lg text-sm"><i class="fas fa-paper-plane"></i></button>' +
+                '</form>' +
+              '</div>' +
+            '</div>';
+
+          const emptyHtml =
+            '<div class="white-card rounded-xl p-8 text-center">' +
+              '<i class="fas fa-comments text-2xl cyan-text mb-2"></i>' +
+              '<p class="text-sm text-gray-600">No doctor conversations yet. Book an appointment to start chatting.</p>' +
+            '</div>';
+
+          messagesContent.innerHTML =
+            '<h2 class="text-xl font-bold mb-4 cyan-text">Messages</h2>' +
+            (hasDoctors ? chatPanelHtml : emptyHtml);
+
+          if (!hasDoctors) return;
+
+          const attachDoctorClickHandlers = () => {
+            document.querySelectorAll('.patient-doctor-chat-btn').forEach(btn => {
+              btn.addEventListener('click', async function() {
+                activeChatDoctorId = this.dataset.doctorId;
+                await loadMessagesContent();
+              });
+            });
+          };
+
+          attachDoctorClickHandlers();
+          await loadPatientChatHistory(activeChatDoctorId);
+          await markPatientChatAsRead(activeChatDoctorId);
+          await refreshPatientUnreadBadge();
+
+          const form = document.getElementById('patientChatForm');
+          if (form) form.onsubmit = async function(e) {
+            e.preventDefault();
+            if (isSendingPatientChat) return;
+            const input = document.getElementById('patientChatInput');
+            const message = input.value.trim();
+            if (!message || !activeChatDoctorId) return;
+            isSendingPatientChat = true;
+            const sendBtn = form.querySelector('button[type="submit"]');
+            input.disabled = true;
+            if (sendBtn) sendBtn.disabled = true;
+
+            try {
+              const response = await fetch('/api/patient/chat/' + activeChatDoctorId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+              });
+
+              if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                showToast('Error', err.error || 'Failed to send message', 'error');
+                isSendingPatientChat = false;
+                input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                return;
+              }
+
+              input.value = '';
+              await loadPatientChatHistory(activeChatDoctorId);
+              await refreshPatientUnreadBadge();
+            } catch (error) {
+              console.error('Error sending patient chat message:', error);
+              showToast('Error', 'Network error while sending message', 'error');
+            } finally {
+              isSendingPatientChat = false;
+              input.disabled = false;
+              if (sendBtn) sendBtn.disabled = false;
+              input.focus();
+            }
+          };
+
+          if (chatRefreshTimer) clearInterval(chatRefreshTimer);
+          chatRefreshTimer = setInterval(() => {
+            if (activeChatDoctorId) loadPatientChatHistory(activeChatDoctorId);
+          }, 5000);
+        }
         
         function viewReport(reportId) {
           const report = getReportById(reportId);
@@ -2452,6 +2661,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         }
         
         window.openUploadReportModal = openUploadReportModal;
+
+        refreshPatientUnreadBadge();
+        if (unreadMessagesTimer) clearInterval(unreadMessagesTimer);
+        unreadMessagesTimer = setInterval(refreshPatientUnreadBadge, 8000);
         
         function openOrderMedicinesModal() {
           if (prescriptionsData.length === 0) {

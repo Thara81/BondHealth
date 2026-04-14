@@ -186,9 +186,10 @@ function buildPatientCardHTML(p) {
             title="Online Consult" data-patient-id="${esc(p.patient_id)}" data-patient-name="${esc(p.full_name)}">
             <i class="fas fa-video text-sm"></i>
           </button>
-          <button class="w-9 h-9 cyan-dark rounded-full flex items-center justify-center text-white message-patient-btn"
+          <button class="w-9 h-9 cyan-dark rounded-full flex items-center justify-center text-white message-patient-btn relative"
             title="Message" data-patient-id="${esc(p.patient_id)}" data-patient-name="${esc(p.full_name)}">
             <i class="fas fa-comment text-sm"></i>
+            <span class="unread-dot hidden absolute -top-2 -right-2 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] leading-4 text-center rounded-full font-bold">0</span>
           </button>
           <button class="w-9 h-9 btn-white rounded-full flex items-center justify-center cyan-text prescribe-btn"
             title="Prescribe" data-patient-id="${esc(p.patient_id)}" data-patient-name="${esc(p.full_name)}">
@@ -1402,6 +1403,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
 
   // ─── Chat ──────────────────────────────────────────
+  async function refreshUnreadChatDots() {
+    try {
+      const res = await fetch('/api/doctor/chat/unread');
+      if (!res.ok) return;
+      const data = await res.json();
+      const unreadMap = data.unreadByPatient || {};
+      document.querySelectorAll('.message-patient-btn').forEach(btn => {
+        const dot = btn.querySelector('.unread-dot');
+        if (!dot) return;
+        const unreadCount = Number(unreadMap[btn.dataset.patientId] || 0);
+        dot.textContent = String(unreadCount);
+        dot.classList.toggle('hidden', unreadCount <= 0);
+      });
+    } catch (e) {
+      console.error('refreshUnreadChatDots error:', e);
+    }
+  }
+
+  async function markChatAsRead(patientId) {
+    try {
+      await fetch('/api/doctor/chat/' + patientId + '/read', { method: 'POST' });
+    } catch (e) {
+      console.error('markChatAsRead error:', e);
+    }
+  }
+
+  let isSendingDoctorChat = false;
+
   window.openChat = function(patientId, patientName) {
     document.getElementById('chatPatientId').value                = patientId;
     document.getElementById('chatPatientNameDisplay').textContent = patientName;
@@ -1409,6 +1438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('chatMessages').innerHTML             = '';
     openModal('chatModal');
     loadChatHistory(patientId);
+    markChatAsRead(patientId).then(refreshUnreadChatDots);
   };
   async function loadChatHistory(patientId) {
     try {
@@ -1418,33 +1448,42 @@ document.addEventListener('DOMContentLoaded', () => {
       const el = document.getElementById('chatMessages');
       el.innerHTML = msgs.map(m => \`<div class="\${m.sender==='doctor'?'chat-msg-dr':'chat-msg-pt'}"><span>\${escHTML(m.message)}</span></div>\`).join('');
       el.scrollTop = el.scrollHeight;
+      refreshUnreadChatDots();
     } catch(e) { console.error('loadChatHistory error:', e); }
   }
   document.querySelectorAll('.message-patient-btn').forEach(b => b.addEventListener('click', function(){
     window.openChat(this.dataset.patientId, this.dataset.patientName);
   }));
-  document.getElementById('chatForm')?.addEventListener('submit', async e => {
+  const doctorChatForm = document.getElementById('chatForm');
+  doctorChatForm && (doctorChatForm.onsubmit = async e => {
     e.preventDefault();
+    if (isSendingDoctorChat) return;
     const patientId = document.getElementById('chatPatientId').value;
     const message   = document.getElementById('chatInput').value.trim();
     if (!message) return;
-    const el = document.getElementById('chatMessages');
-    const div = document.createElement('div');
-    div.className = 'chat-msg-dr';
-    const span = document.createElement('span');
-    span.textContent = message; // textContent is safe
-    div.appendChild(span);
-    el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
+    isSendingDoctorChat = true;
+    const inputEl = document.getElementById('chatInput');
+    const sendBtn = doctorChatForm.querySelector('button[type="submit"]');
+    inputEl.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
     document.getElementById('chatInput').value = '';
     try {
       await fetch(\`/api/doctor/chat/\${patientId}\`, {
         method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message })
       });
+      await loadChatHistory(patientId);
     } catch {
       showToast('Warning', 'Message may not have been delivered', 'warning');
+      inputEl.value = message;
+    } finally {
+      isSendingDoctorChat = false;
+      inputEl.disabled = false;
+      if (sendBtn) sendBtn.disabled = false;
+      inputEl.focus();
     }
   });
+  refreshUnreadChatDots();
+  setInterval(refreshUnreadChatDots, 8000);
 
   // ─── Online Consult ───────────────────────────────
   document.querySelectorAll('.online-consult-btn').forEach(b => {

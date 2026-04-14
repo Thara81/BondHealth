@@ -1885,6 +1885,132 @@ app.get('/api/patient', authenticate, authorize('patient'), async (req, res) => 
     }
 });
 
+// Patient chat history with a doctor
+app.get('/api/patient/chat/:doctorId/history', authenticate, authorize('patient'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
+        const patientRes = await query('SELECT patient_id FROM patients WHERE user_id = $1', [req.user.id]);
+        if (!patientRes.rows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+        const patientId = patientRes.rows[0].patient_id;
+        const { doctorId } = req.params;
+        const roomId = [doctorId, patientId].sort().join('_');
+
+        const result = await query(
+            `SELECT m.sender_id, m.message, m.created_at, u.role AS sender_role
+             FROM chat_messages m
+             JOIN users u ON u.user_id = m.sender_id
+             WHERE m.room_id = $1
+             ORDER BY m.created_at ASC
+             LIMIT 200`,
+            [roomId]
+        );
+
+        await query(
+            `INSERT INTO chat_read_state (user_id, room_id, last_read_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id, room_id)
+             DO UPDATE SET last_read_at = EXCLUDED.last_read_at`,
+            [req.user.id, roomId]
+        );
+
+        res.json(result.rows.map(row => ({
+            sender: row.sender_role === 'patient' ? 'patient' : 'doctor',
+            message: row.message,
+            created_at: row.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Patient sends message to a doctor
+app.post('/api/patient/chat/:doctorId', authenticate, authorize('patient'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
+        const { message } = req.body;
+        if (!message || !String(message).trim()) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        const patientRes = await query('SELECT patient_id FROM patients WHERE user_id = $1', [req.user.id]);
+        if (!patientRes.rows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+        const patientId = patientRes.rows[0].patient_id;
+        const { doctorId } = req.params;
+        const roomId = [doctorId, patientId].sort().join('_');
+
+        await query(
+            `INSERT INTO chat_messages (room_id, sender_id, message, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [roomId, req.user.id, String(message).trim()]
+        );
+
+        res.json({ success: true, message: 'Message sent' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/patient/chat/unread', authenticate, authorize('patient'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
+        const patientRes = await query('SELECT patient_id FROM patients WHERE user_id = $1', [req.user.id]);
+        if (!patientRes.rows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+        const patientId = patientRes.rows[0].patient_id;
+        const result = await query(
+            `SELECT
+                CASE
+                  WHEN split_part(m.room_id, '_', 1) = $1::text THEN split_part(m.room_id, '_', 2)
+                  ELSE split_part(m.room_id, '_', 1)
+                END AS doctor_id,
+                COUNT(*)::int AS unread_count
+             FROM chat_messages m
+             JOIN users su ON su.user_id = m.sender_id
+             LEFT JOIN chat_read_state rs ON rs.user_id = $2 AND rs.room_id = m.room_id
+             WHERE (split_part(m.room_id, '_', 1) = $1::text OR split_part(m.room_id, '_', 2) = $1::text)
+               AND su.role = 'doctor'
+               AND (rs.last_read_at IS NULL OR m.created_at > rs.last_read_at)
+             GROUP BY 1`,
+            [patientId, req.user.id]
+        );
+
+        const unreadByDoctor = {};
+        let totalUnread = 0;
+        result.rows.forEach(row => {
+            const count = Number(row.unread_count || 0);
+            unreadByDoctor[row.doctor_id] = count;
+            totalUnread += count;
+        });
+
+        res.json({ success: true, unreadByDoctor, totalUnread });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/patient/chat/:doctorId/read', authenticate, authorize('patient'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
+        const patientRes = await query('SELECT patient_id FROM patients WHERE user_id = $1', [req.user.id]);
+        if (!patientRes.rows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+        const roomId = [req.params.doctorId, patientRes.rows[0].patient_id].sort().join('_');
+        await query(
+            `INSERT INTO chat_read_state (user_id, room_id, last_read_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id, room_id)
+             DO UPDATE SET last_read_at = EXCLUDED.last_read_at`,
+            [req.user.id, roomId]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.put('/api/patient', authenticate, authorize('patient'), async (req, res) => {
     try {
         const { 
@@ -2611,24 +2737,153 @@ app.post('/api/doctor/prescription/create', authenticate, authorize('doctor'), a
     }
 });
 
-// Chat history (GET)
-app.get('/api/doctor/chat/:patientId/history', authenticate, async (req, res) => {
+let ensureChatTablesPromise = null;
+async function ensureChatMessagesTable() {
+    if (!ensureChatTablesPromise) {
+        ensureChatTablesPromise = (async () => {
+            await query(`
+              CREATE TABLE IF NOT EXISTS chat_messages (
+                id BIGSERIAL PRIMARY KEY,
+                room_id TEXT NOT NULL,
+                sender_id UUID NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )
+            `);
+
+            await query(`
+              CREATE TABLE IF NOT EXISTS chat_read_state (
+                user_id UUID NOT NULL,
+                room_id TEXT NOT NULL,
+                last_read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, room_id)
+              )
+            `);
+        })().catch(err => {
+            ensureChatTablesPromise = null;
+            throw err;
+        });
+    }
+    return ensureChatTablesPromise;
+}
+
+app.get('/api/doctor/chat/unread', authenticate, authorize('doctor'), async (req, res) => {
     try {
-        // Placeholder — wire up to your messages table when ready
-        res.json({ success: true, messages: [] });
+        await ensureChatMessagesTable();
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+
+        const doctorId = doctorRes.rows[0].doctor_id;
+        const result = await query(
+            `SELECT
+                CASE
+                  WHEN split_part(m.room_id, '_', 1) = $1::text THEN split_part(m.room_id, '_', 2)
+                  ELSE split_part(m.room_id, '_', 1)
+                END AS patient_id,
+                COUNT(*)::int AS unread_count
+             FROM chat_messages m
+             JOIN users su ON su.user_id = m.sender_id
+             LEFT JOIN chat_read_state rs ON rs.user_id = $2 AND rs.room_id = m.room_id
+             WHERE (split_part(m.room_id, '_', 1) = $1::text OR split_part(m.room_id, '_', 2) = $1::text)
+               AND su.role = 'patient'
+               AND (rs.last_read_at IS NULL OR m.created_at > rs.last_read_at)
+             GROUP BY 1`,
+            [doctorId, req.user.id]
+        );
+
+        const unreadByPatient = {};
+        result.rows.forEach(row => {
+            unreadByPatient[row.patient_id] = row.unread_count;
+        });
+        res.json({ success: true, unreadByPatient });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Send chat message (POST)
-app.post('/api/doctor/chat/:patientId', authenticate, async (req, res) => {
+// Chat history (doctor view)
+app.get('/api/doctor/chat/:patientId/history', authenticate, authorize('doctor'), async (req, res) => {
     try {
+        await ensureChatMessagesTable();
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+
+        const doctorId = doctorRes.rows[0].doctor_id;
         const { patientId } = req.params;
+        const roomId = [doctorId, patientId].sort().join('_');
+
+        const result = await query(
+            `SELECT m.sender_id, m.message, m.created_at, u.role AS sender_role
+             FROM chat_messages m
+             JOIN users u ON u.user_id = m.sender_id
+             WHERE m.room_id = $1
+             ORDER BY m.created_at ASC
+             LIMIT 200`,
+            [roomId]
+        );
+
+        await query(
+            `INSERT INTO chat_read_state (user_id, room_id, last_read_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id, room_id)
+             DO UPDATE SET last_read_at = EXCLUDED.last_read_at`,
+            [req.user.id, roomId]
+        );
+
+        res.json(result.rows.map(row => ({
+            sender: row.sender_role === 'doctor' ? 'doctor' : 'patient',
+            message: row.message,
+            created_at: row.created_at
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Send chat message (doctor -> patient)
+app.post('/api/doctor/chat/:patientId', authenticate, authorize('doctor'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
         const { message } = req.body;
-        console.log(`Doctor ${req.user.id} → patient ${patientId}: ${message}`);
-        // Wire up to messages table when ready
+        if (!message || !String(message).trim()) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+
+        const doctorId = doctorRes.rows[0].doctor_id;
+        const { patientId } = req.params;
+        const roomId = [doctorId, patientId].sort().join('_');
+
+        await query(
+            `INSERT INTO chat_messages (room_id, sender_id, message, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [roomId, req.user.id, String(message).trim()]
+        );
+
         res.json({ success: true, message: 'Message sent' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/doctor/chat/:patientId/read', authenticate, authorize('doctor'), async (req, res) => {
+    try {
+        await ensureChatMessagesTable();
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+
+        const doctorId = doctorRes.rows[0].doctor_id;
+        const roomId = [doctorId, req.params.patientId].sort().join('_');
+        await query(
+            `INSERT INTO chat_read_state (user_id, room_id, last_read_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id, room_id)
+             DO UPDATE SET last_read_at = EXCLUDED.last_read_at`,
+            [req.user.id, roomId]
+        );
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -2707,9 +2962,9 @@ app.post('/api/doctor/leave/apply', authenticate, authorize('doctor'), async (re
         );
         if (overlap.rows.length) return res.status(409).json({ error: 'You already have a leave request covering these dates' });
         const result = await query(
-            `INSERT INTO doctor_leave (doctor_id, from_date, to_date, reason, type, status, created_at)
-             VALUES ($1, $2, $3, $4, $5, 'Pending', NOW()) RETURNING *`,
-            [doctorId, from, to, reason, type || 'other']
+            `INSERT INTO doctor_leave (doctor_id, from_date, to_date, reason, status, created_at)
+             VALUES ($1, $2, $3, $4, 'Pending', NOW()) RETURNING *`,
+            [doctorId, from, to, reason]
         );
         res.json({ success: true, leave: result.rows[0] });
     } catch (error) {
