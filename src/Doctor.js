@@ -165,8 +165,10 @@ function buildPatientCardHTML(p) {
   return `
     <div class="cyan-light rounded-xl p-5 hover-lift patient-card" data-id="${esc(p.patient_id)}">
       <div class="flex items-center space-x-4 mb-4">
-        <div class="w-14 h-14 cyan-bg rounded-full flex items-center justify-center flex-shrink-0">
-          <i class="fas fa-user-injured text-xl text-white"></i>
+        <div class="w-14 h-14 cyan-bg rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+          ${p.profile_photo_url
+            ? `<img src="${esc(p.profile_photo_url)}" alt="${esc(p.full_name)}" class="w-full h-full object-cover">`
+            : `<i class="fas fa-user-injured text-xl text-white"></i>`}
         </div>
         <div>
           <h3 class="text-base font-bold cyan-text patient-name">${esc(p.full_name)}</h3>
@@ -540,7 +542,7 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
               <i class="fas fa-trash"></i> Remove
             </button>
           </div>
-          <p class="text-xs text-gray-400 mt-1">JPG, PNG or GIF · max 2 MB</p>
+          <p class="text-xs text-gray-400 mt-1">JPG, PNG or GIF · max 10 MB</p>
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1316,9 +1318,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('editProfileForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('editName').value.trim();
-    const email = document.getElementById('editEmail').value.trim();
+    const emailInput = document.getElementById('editEmail');
+    let email = (emailInput?.value || '').trim();
+    if (email.toLowerCase().startsWith('mailto:')) email = email.slice(7).trim();
+    email = email.replace(/\s+/g, '');
     if (!name) { showToast('Error', 'Full name is required', 'error'); return; }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Error', 'Valid email is required', 'error'); return; }
+    if (emailInput) emailInput.value = email;
+    if (!emailInput || !emailInput.checkValidity()) {
+      showToast('Error', 'Valid email is required', 'error');
+      emailInput?.focus();
+      return;
+    }
 
     const photoFile = document.getElementById('editPhotoFile')?.files[0];
     const body = {
@@ -1768,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('editPhotoFile')?.addEventListener('change', function() {
     const file = this.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { showToast('Error', 'Image must be under 2 MB', 'error'); this.value = ''; return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('Error', 'Image must be under 10 MB', 'error'); this.value = ''; return; }
     const reader = new FileReader();
     reader.onload = e => {
       const wrap = document.getElementById('photoPreviewWrap');

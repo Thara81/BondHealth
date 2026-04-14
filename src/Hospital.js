@@ -200,6 +200,8 @@ function getMainDashboardHTML(hospitalData = null, doctors = [], medicines = [],
     const currentHospitalData = {
         hospitalName: hospitalData?.name || 'City General Hospital',
         hospitalId: hospitalData?.hospital_uuid || 'HOS-12345',
+        logoFilename: hospitalData?.logo_filename || '',
+        mainPhotoFilename: hospitalData?.main_photo_filename || '',
         stats: {
             total_doctors: doctors.length,
             total_medicines: medicines.length,
@@ -268,6 +270,33 @@ function getMainDashboardHTML(hospitalData = null, doctors = [], medicines = [],
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .title-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--light);
+            border: 2px solid rgba(30, 136, 229, 0.2);
+            color: var(--dark);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .title-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .title h1 {
@@ -686,8 +715,15 @@ function getMainDashboardHTML(hospitalData = null, doctors = [], medicines = [],
     <div class="container">
         <div class="header">
             <div class="title">
-                <h1>🏥 Hospital Management</h1>
-                <p>Manage all healthcare services</p>
+                <div class="title-avatar">
+                    ${(currentHospitalData.mainPhotoFilename || currentHospitalData.logoFilename)
+                        ? `<img src="${currentHospitalData.mainPhotoFilename ? `/uploads/hospitals/photos/${currentHospitalData.mainPhotoFilename}` : `/uploads/hospitals/logos/${currentHospitalData.logoFilename}`}" alt="Hospital Profile">`
+                        : '<i class="fas fa-hospital"></i>'}
+                </div>
+                <div>
+                    <h1>🏥 Hospital Management</h1>
+                    <p>Manage all healthcare services</p>
+                </div>
             </div>
             <div class="hospital-info">
                 <div class="hospital-name" id="hospitalName">${currentHospitalData.hospitalName}</div>

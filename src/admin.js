@@ -53,6 +53,10 @@ function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}
   const allAppointments = getAllAppointments(appointmentsData);
   const hospitalName = hospitalData.name || 'Hospital Dashboard';
   const hospitalType = hospitalData.type || 'Admin Dashboard';
+  const hospitalLogoUrl = hospitalData.logo_filename
+    ? `/uploads/hospitals/logos/${hospitalData.logo_filename}`
+    : '';
+  const adminPhotoUrl = hospitalData.admin_photo_url || '';
 
   return `
 <!DOCTYPE html>
@@ -141,7 +145,13 @@ function generateHTML(doctorsData = [], appointmentsData = [], hospitalData = {}
         </div>
         <div class="absolute bottom-6 left-6 right-6 space-y-3">
             <div class="flex items-center gap-3 p-3 bg-cyan-50 rounded-lg">
-                <div class="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center"><i class="fas fa-user-cog text-cyan-600"></i></div>
+                <div class="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center overflow-hidden">
+                    ${adminPhotoUrl
+                      ? `<img src="${adminPhotoUrl}" alt="Admin Photo" class="w-full h-full object-cover">`
+                      : (hospitalLogoUrl
+                      ? `<img src="${hospitalLogoUrl}" alt="Hospital Logo" class="w-full h-full object-cover">`
+                      : '<i class="fas fa-user-cog text-cyan-600"></i>')}
+                </div>
                 <div><p class="font-medium text-gray-800">Admin Manager</p><p class="text-sm text-gray-500">Hospital Administrator</p></div>
             </div>
             <button onclick="logout()" class="logout-btn w-full text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
@@ -786,8 +796,11 @@ module.exports = async function renderAdminDashboard(userId) {
     );
 
  const hospitalResult = await query(
-      `SELECT name, type, city FROM hospitals WHERE hospital_id = $1`,
-      [hospitalId]
+      `SELECT h.name, h.type, h.city, h.logo_filename, h.main_photo_filename, ha.photo_url AS admin_photo_url
+       FROM hospitals h
+       LEFT JOIN hospital_admins ha ON ha.hospital_id = h.hospital_id AND ha.user_id = $2
+       WHERE h.hospital_id = $1`,
+      [hospitalId, userId]
     );
 
     const pendingLeavesResult = await query(

@@ -840,6 +840,20 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     </div>
 
                     <div class="mt-4">
+                        <label class="form-label required">Primary Hospital Photo</label>
+                        <p class="file-note">This photo is used as the hospital profile image in dashboards.</p>
+                        <div class="file-upload-area" id="hospitalMainPhotoArea">
+                            <input type="file" class="file-input" id="hospitalMainPhoto" accept=".jpg,.jpeg,.png">
+                            <label for="hospitalMainPhoto" class="file-label">
+                                <i class="fas fa-image"></i><br>
+                                Click to upload Primary Hospital Photo
+                            </label>
+                            <span class="file-name" id="hospitalMainPhotoName">No file chosen</span>
+                        </div>
+                        <div class="invalid-feedback" id="hospitalMainPhotoError"></div>
+                    </div>
+
+                    <div class="mt-4">
                         <label class="form-label">Additional Hospital Photos (Optional)</label>
                         <p class="file-note">Upload photos of hospital building, reception, waiting area, etc.</p>
                         <div class="file-upload-area" id="hospitalPhotosArea">
@@ -942,6 +956,19 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         <label for="adminEmail" class="form-label required">Admin Email</label>
                         <input type="text" class="form-control" id="adminEmail" placeholder="admin@example.com" autocomplete="off">
                         <div class="invalid-feedback" id="adminEmailError">Please enter a valid email address.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="adminPhoto" class="form-label required">Admin Profile Photo</label>
+                        <div class="file-upload-area" id="adminPhotoArea">
+                            <input type="file" class="file-input" id="adminPhoto" accept=".jpg,.jpeg,.png">
+                            <label for="adminPhoto" class="file-label">
+                                <i class="fas fa-user-circle"></i><br>
+                                Click to upload Admin Photo
+                            </label>
+                            <span class="file-name" id="adminPhotoName">No file chosen</span>
+                        </div>
+                        <div class="invalid-feedback" id="adminPhotoError"></div>
                     </div>
 
                     <!-- ✅ FIX #4: Added Password & Confirm Password fields -->
@@ -1140,6 +1167,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
             const hospitalPhotosInput = document.getElementById('hospitalPhotos');
             const hospitalPhotosPreview = document.getElementById('hospitalPhotosPreview');
             const hospitalPhotosName  = document.getElementById('hospitalPhotosName');
+            const hospitalMainPhotoInput = document.getElementById('hospitalMainPhoto');
+            const hospitalMainPhotoName = document.getElementById('hospitalMainPhotoName');
+            const adminPhotoInput = document.getElementById('adminPhoto');
+            const adminPhotoName = document.getElementById('adminPhotoName');
 
             // --- Logo file change ---
             logoInput.addEventListener('change', function () {
@@ -1216,6 +1247,28 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                         };
                     })(file);
                     reader.readAsDataURL(file);
+                }
+            });
+
+            hospitalMainPhotoInput.addEventListener('change', function () {
+                if (this.files.length > 0) {
+                    hospitalMainPhotoName.textContent = this.files[0].name;
+                    hospitalMainPhotoName.style.color = '#1565c0';
+                    clearError('hospitalMainPhotoError');
+                } else {
+                    hospitalMainPhotoName.textContent = 'No file chosen';
+                    hospitalMainPhotoName.style.color = '';
+                }
+            });
+
+            adminPhotoInput.addEventListener('change', function () {
+                if (this.files.length > 0) {
+                    adminPhotoName.textContent = this.files[0].name;
+                    adminPhotoName.style.color = '#1565c0';
+                    clearError('adminPhotoError');
+                } else {
+                    adminPhotoName.textContent = 'No file chosen';
+                    adminPhotoName.style.color = '';
                 }
             });
 
@@ -1374,11 +1427,21 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     }
 
                     // Add hospital photos files
+                    const mainPhotoFile = document.getElementById('hospitalMainPhoto').files[0];
+                    if (mainPhotoFile) {
+                        formDataObj.append('hospitalMainPhoto', mainPhotoFile);
+                    }
+
                     const photosInput = document.getElementById('hospitalPhotos');
                     if (photosInput && photosInput.files.length > 0) {
                         Array.from(photosInput.files).forEach(file => {
                             formDataObj.append('hospitalPhotos', file);
                         });
+                    }
+
+                    const adminPhotoFile = document.getElementById('adminPhoto').files[0];
+                    if (adminPhotoFile) {
+                        formDataObj.append('adminPhoto', adminPhotoFile);
                     }
 
                     // Add documents
@@ -1596,6 +1659,16 @@ successMessage.style.display = 'block';
                 isValid = false;
             }
 
+            if (!document.getElementById('hospitalMainPhoto').files.length) {
+                showError('hospitalMainPhotoError', 'Please upload the primary hospital photo.');
+                isValid = false;
+            }
+
+            if (!document.getElementById('adminPhoto').files.length) {
+                showError('adminPhotoError', 'Please upload admin profile photo.');
+                isValid = false;
+            }
+
             // Required document uploads
             [
                 { id: 'regCertificate',  errorId: 'regCertificateError',  label: 'registration certificate' },
@@ -1634,7 +1707,9 @@ successMessage.style.display = 'block';
                 ].filter(s => s.trim() !== ''),
                 departments:        selectedDepartments,
                 hospitalLogo:       hospitalLogoData?.name || null,
+                hospitalMainPhoto:  document.getElementById('hospitalMainPhoto').files[0]?.name || null,
                 hospitalPhotos:     hospitalPhotosData.map(p => p.name),
+                adminPhoto:         document.getElementById('adminPhoto').files[0]?.name || null,
                 documents: {
                     regCertificate:  document.getElementById('regCertificate').files[0]?.name,
                     hospitalLicense: document.getElementById('hospitalLicense').files[0]?.name,
@@ -1682,7 +1757,7 @@ successMessage.style.display = 'block';
 // ============================================
 // API ENDPOINT HANDLER (used by home.js / router)
 // ============================================
-async function handleHospitalRegistration(reqBody, logoFile, photosFiles) {
+async function handleHospitalRegistration(reqBody, logoFile, mainPhotoFile, photosFiles, adminPhotoFile) {
     const client = await getClient();
     const fs = require('fs');
     const path = require('path');
@@ -1706,10 +1781,13 @@ async function handleHospitalRegistration(reqBody, logoFile, photosFiles) {
             documents 
         } = reqBody;
 
+        await client.query(`ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS main_photo_filename VARCHAR(255)`);
+        await client.query(`ALTER TABLE hospital_admins ADD COLUMN IF NOT EXISTS photo_url TEXT`);
+
         // ✅ SAVE HOSPITAL LOGO TO DISK
         let logoFilename = null;
         if (logoFile) {
-            const logoDir = path.join(__dirname, 'uploads', 'hospitals', 'logos');
+            const logoDir = path.join(__dirname, '..', 'uploads', 'hospitals', 'logos');
             if (!fs.existsSync(logoDir)) {
                 fs.mkdirSync(logoDir, { recursive: true });
             }
@@ -1724,9 +1802,23 @@ async function handleHospitalRegistration(reqBody, logoFile, photosFiles) {
         }
 
         // ✅ SAVE HOSPITAL PHOTOS TO DISK
+        let mainPhotoFilename = null;
+        if (mainPhotoFile) {
+            const mainPhotoDir = path.join(__dirname, '..', 'uploads', 'hospitals', 'photos');
+            if (!fs.existsSync(mainPhotoDir)) {
+                fs.mkdirSync(mainPhotoDir, { recursive: true });
+            }
+            const timestamp = Date.now();
+            const ext = path.extname(mainPhotoFile.originalname);
+            mainPhotoFilename = `hospital_main_${timestamp}${ext}`;
+            const mainPhotoPath = path.join(mainPhotoDir, mainPhotoFilename);
+            fs.writeFileSync(mainPhotoPath, mainPhotoFile.buffer);
+        }
+
+        // ✅ SAVE HOSPITAL PHOTOS TO DISK
         let photoFilenames = [];
         if (photosFiles && photosFiles.length > 0) {
-            const photosDir = path.join(__dirname, 'uploads', 'hospitals', 'photos');
+            const photosDir = path.join(__dirname, '..', 'uploads', 'hospitals', 'photos');
             if (!fs.existsSync(photosDir)) {
                 fs.mkdirSync(photosDir, { recursive: true });
             }
@@ -1747,10 +1839,10 @@ async function handleHospitalRegistration(reqBody, logoFile, photosFiles) {
 
         // Insert hospital record
         const hospitalResult = await client.query(
-            `INSERT INTO hospitals (hospital_uuid, name, type, registration_number, city, phone, email, departments, faculty_services, logo_filename, photo_filenames, doc_reg_certificate, doc_hospital_license, doc_trade_license, doc_pan_card)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `INSERT INTO hospitals (hospital_uuid, name, type, registration_number, city, phone, email, departments, faculty_services, logo_filename, main_photo_filename, photo_filenames, doc_reg_certificate, doc_hospital_license, doc_trade_license, doc_pan_card)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING hospital_id, hospital_uuid`,
-            ['HOSP-' + Date.now(), hospitalName, hospitalType, registrationNumber || null, city, contactNo || null, officialEmail, departments || [], facultyServices || [], logoFilename, photoFilenames, documents?.regCertificate || null, documents?.hospitalLicense || null, documents?.tradeLicense || null, documents?.panCard || null]
+            ['HOSP-' + Date.now(), hospitalName, hospitalType, registrationNumber || null, city, contactNo || null, officialEmail, departments || [], facultyServices || [], logoFilename, mainPhotoFilename, photoFilenames, documents?.regCertificate || null, documents?.hospitalLicense || null, documents?.tradeLicense || null, documents?.panCard || null]
         );
 
         const hospitalId = hospitalResult.rows[0].hospital_id;
@@ -1771,10 +1863,23 @@ async function handleHospitalRegistration(reqBody, logoFile, photosFiles) {
         );
         const userId = userResult.rows[0].user_id;
         // Insert hospital admin profile
+        let adminPhotoUrl = null;
+        if (adminPhotoFile) {
+            const adminPhotosDir = path.join(__dirname, '..', 'uploads', 'admins', 'photos');
+            if (!fs.existsSync(adminPhotosDir)) {
+                fs.mkdirSync(adminPhotosDir, { recursive: true });
+            }
+            const timestamp = Date.now();
+            const ext = path.extname(adminPhotoFile.originalname);
+            const adminFilename = `admin_photo_${timestamp}${ext}`;
+            fs.writeFileSync(path.join(adminPhotosDir, adminFilename), adminPhotoFile.buffer);
+            adminPhotoUrl = `/uploads/admins/photos/${adminFilename}`;
+        }
+
         await client.query(
-            `INSERT INTO hospital_admins (user_id, hospital_id, full_name, position, phone, email)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [userResult.rows[0].user_id, hospitalId, adminName, designation, contactNo, adminEmail]
+            `INSERT INTO hospital_admins (user_id, hospital_id, full_name, position, phone, email, photo_url)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [userResult.rows[0].user_id, hospitalId, adminName, designation, contactNo, adminEmail, adminPhotoUrl]
         );
 
         await client.query('COMMIT');

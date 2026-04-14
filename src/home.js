@@ -41,6 +41,7 @@ const uploadDirs = [
     path.join(UPLOADS_ROOT, 'photos'),
     path.join(UPLOADS_ROOT, 'hospitals', 'logos'),
     path.join(UPLOADS_ROOT, 'hospitals', 'photos'),
+    path.join(UPLOADS_ROOT, 'admins', 'photos'),
 ];
 uploadDirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
@@ -183,7 +184,7 @@ const requireAuth = (role) => (req, res, next) => {
 // ============================================
 
 // Register (patient self-signup)
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', upload.single('profile_photo'), async (req, res) => {
   console.log('📝 Registration attempt:', req.body);
   const client = await getClient();
   try {
@@ -219,21 +220,46 @@ app.post('/api/auth/register', async (req, res) => {
     const user = userResult.rows[0];
     console.log('✅ User created:', user);
 
-    // Insert patient profile (without emergency contact fields since they're not in the form)
+    let profilePhotoUrl = null;
+    if (req.file) {
+      const photosDir = path.join(UPLOADS_ROOT, 'photos');
+      if (!fs.existsSync(photosDir)) fs.mkdirSync(photosDir, { recursive: true });
+      const destPath = path.join(photosDir, req.file.filename);
+      if (req.file.path !== destPath) fs.renameSync(req.file.path, destPath);
+      profilePhotoUrl = '/uploads/photos/' + req.file.filename;
+    }
+
+    // Insert patient profile
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const patient_uuid = `PT-${year}${month}${day}-${random}`
-    await client.query(
-      `INSERT INTO patients (
-         user_id, patient_uuid, full_name, email, phone, address, date_of_birth, gender, blood_type
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        user.user_id,patient_uuid, name, email, phone, address, dob, gender, blood_type
-      ]
-    );
+    try {
+      await client.query(
+        `INSERT INTO patients (
+           user_id, patient_uuid, full_name, email, phone, address, date_of_birth, gender, blood_type, profile_photo_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          user.user_id, patient_uuid, name, email, phone, address, dob, gender, blood_type, profilePhotoUrl
+        ]
+      );
+    } catch (patientInsertError) {
+      // Backward compatibility for DBs that do not yet have patients.profile_photo_url
+      if (patientInsertError && patientInsertError.code === '42703') {
+        await client.query(
+          `INSERT INTO patients (
+             user_id, patient_uuid, full_name, email, phone, address, date_of_birth, gender, blood_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            user.user_id, patient_uuid, name, email, phone, address, dob, gender, blood_type
+          ]
+        );
+      } else {
+        throw patientInsertError;
+      }
+    }
     console.log('✅ Patient profile created');
 
     await client.query('COMMIT');
@@ -250,6 +276,7 @@ app.post('/api/auth/register', async (req, res) => {
       user: { id: user.user_id, username, email, role: user.role }
     });
   } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
     console.error('Sign in error FULL:', error.message, error.stack);
     res.status(500).json({ success: false, message: error.message });
   } finally {
@@ -1355,14 +1382,18 @@ const hospitalUpload = multer({
 app.post('/api/hospitals/register', 
     hospitalUpload.fields([
         { name: 'hospitalLogo', maxCount: 1 },
-        { name: 'hospitalPhotos', maxCount: 5 }
+        { name: 'hospitalMainPhoto', maxCount: 1 },
+        { name: 'hospitalPhotos', maxCount: 5 },
+        { name: 'adminPhoto', maxCount: 1 }
     ]), 
     async (req, res) => {
         try {
             const logoFile = req.files?.hospitalLogo?.[0] || null;
+            const mainPhotoFile = req.files?.hospitalMainPhoto?.[0] || null;
             const photosFiles = req.files?.hospitalPhotos || [];
+            const adminPhotoFile = req.files?.adminPhoto?.[0] || null;
             
-            const result = await handleRegistration(req.body, logoFile, photosFiles);
+            const result = await handleRegistration(req.body, logoFile, mainPhotoFile, photosFiles, adminPhotoFile);
             res.status(result.success ? 200 : 400).json(result);
         } catch (err) {
             console.error('Route error /api/hospitals/register:', err.message);
@@ -2104,34 +2135,93 @@ app.post('/api/patient/chat/:doctorId/read', authenticate, authorize('patient'),
     }
 });
 
-app.put('/api/patient', authenticate, authorize('patient'), async (req, res) => {
+app.put('/api/patient', authenticate, authorize('patient'), upload.single('profile_photo'), async (req, res) => {
     try {
+        const parseMaybeJsonArray = (value) => {
+            if (Array.isArray(value)) return value;
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) return null;
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return Array.isArray(parsed) ? parsed : null;
+                } catch {
+                    return trimmed.split(',').map(v => v.trim()).filter(Boolean);
+                }
+            }
+            return null;
+        };
+
         const { 
             full_name, phone, address,
             emergency_contact_name, emergency_contact_phone,
-            medical_conditions, allergies, blood_type, gender
+            medical_conditions, allergies, blood_type, gender, remove_profile_photo
         } = req.body;
 
-        const result = await query(
-            `UPDATE patients
-             SET full_name                = COALESCE($1, full_name),
-                 phone                    = COALESCE($2, phone),
-                 address                  = COALESCE($3, address),
-                 emergency_contact_name   = COALESCE($4, emergency_contact_name),
-                 emergency_contact_phone  = COALESCE($5, emergency_contact_phone),
-                 medical_conditions       = COALESCE($6, medical_conditions),
-                 allergies                = COALESCE($7, allergies),
-                 blood_type               = COALESCE($8, blood_type),
-                 gender                   = COALESCE($9, gender)
-             WHERE user_id = $10
-             RETURNING *`,
-            [
-                full_name, phone, address,
-                emergency_contact_name, emergency_contact_phone,
-                medical_conditions, allergies, blood_type, gender,
-                req.user.id
-            ]
-        );
+        let profilePhotoUrl = null;
+        const shouldRemoveProfilePhoto = String(remove_profile_photo || '').toLowerCase() === 'true';
+        if (req.file) {
+            const photosDir = path.join(UPLOADS_ROOT, 'photos');
+            if (!fs.existsSync(photosDir)) fs.mkdirSync(photosDir, { recursive: true });
+            const destPath = path.join(photosDir, req.file.filename);
+            if (req.file.path !== destPath) fs.renameSync(req.file.path, destPath);
+            profilePhotoUrl = '/uploads/photos/' + req.file.filename;
+        } else if (shouldRemoveProfilePhoto) {
+            profilePhotoUrl = '';
+        }
+
+        let result;
+        try {
+            result = await query(
+                `UPDATE patients
+                 SET full_name                = COALESCE($1, full_name),
+                     phone                    = COALESCE($2, phone),
+                     address                  = COALESCE($3, address),
+                     emergency_contact_name   = COALESCE($4, emergency_contact_name),
+                     emergency_contact_phone  = COALESCE($5, emergency_contact_phone),
+                     medical_conditions       = COALESCE($6, medical_conditions),
+                     allergies                = COALESCE($7, allergies),
+                     blood_type               = COALESCE($8, blood_type),
+                     gender                   = COALESCE($9, gender),
+                     profile_photo_url        = CASE 
+                           WHEN $10 = '' THEN NULL
+                           ELSE COALESCE($10, profile_photo_url)
+                     END
+                 WHERE user_id = $11
+                 RETURNING *`,
+                [
+                    full_name, phone, address,
+                    emergency_contact_name, emergency_contact_phone,
+                    parseMaybeJsonArray(medical_conditions), parseMaybeJsonArray(allergies), blood_type, gender,
+                    profilePhotoUrl, req.user.id
+                ]
+            );
+        } catch (updateErr) {
+            if (updateErr && updateErr.code === '42703') {
+                result = await query(
+                    `UPDATE patients
+                     SET full_name                = COALESCE($1, full_name),
+                         phone                    = COALESCE($2, phone),
+                         address                  = COALESCE($3, address),
+                         emergency_contact_name   = COALESCE($4, emergency_contact_name),
+                         emergency_contact_phone  = COALESCE($5, emergency_contact_phone),
+                         medical_conditions       = COALESCE($6, medical_conditions),
+                         allergies                = COALESCE($7, allergies),
+                         blood_type               = COALESCE($8, blood_type),
+                         gender                   = COALESCE($9, gender)
+                     WHERE user_id = $10
+                     RETURNING *`,
+                    [
+                        full_name, phone, address,
+                        emergency_contact_name, emergency_contact_phone,
+                        parseMaybeJsonArray(medical_conditions), parseMaybeJsonArray(allergies), blood_type, gender,
+                        req.user.id
+                    ]
+                );
+            } else {
+                throw updateErr;
+            }
+        }
 
         if (!result.rows[0]) {
             return res.status(404).json({ error: 'Patient not found' });
@@ -3194,16 +3284,21 @@ app.get('/api/hospital/data', authenticate, async (req, res) => {
     
     const hospital = hospitalResult.rows[0];
     let logoUrl = null;
+    let mainPhotoUrl = null;
     
     // ✅ Generate logo URL if file exists
     if (hospital?.logo_filename) {
       logoUrl = `/uploads/hospitals/logos/${hospital.logo_filename}`;
+    }
+    if (hospital?.main_photo_filename) {
+      mainPhotoUrl = `/uploads/hospitals/photos/${hospital.main_photo_filename}`;
     }
     
     res.json({
       hospitalName: hospital?.name || 'City General Hospital',
       hospitalId: hospital?.hospital_uuid || 'HOS-12345',
       logoUrl: logoUrl,
+      mainPhotoUrl: mainPhotoUrl,
       doctors: doctorsResult.rows,
       medicines: medicinesResult.rows,
       labs: labsResult.rows,
@@ -3238,9 +3333,33 @@ app.get('/uploads/photos/:file', (req, res) => {
 
 // Serve hospital logos
 app.get('/uploads/hospitals/logos/:filename', (req, res) => {
-    const filePath = path.join(UPLOADS_ROOT, 'hospitals', 'logos', req.params.filename);
-    if (fs.existsSync(filePath)) res.sendFile(filePath);
+    const candidates = [
+      path.join(UPLOADS_ROOT, 'hospitals', 'logos', req.params.filename),
+      path.join(__dirname, 'uploads', 'hospitals', 'logos', req.params.filename)
+    ];
+    const filePath = candidates.find(p => fs.existsSync(p));
+    if (filePath) res.sendFile(filePath);
     else res.status(404).json({ error: 'Logo not found' });
+});
+
+app.get('/uploads/hospitals/photos/:filename', (req, res) => {
+    const candidates = [
+      path.join(UPLOADS_ROOT, 'hospitals', 'photos', req.params.filename),
+      path.join(__dirname, 'uploads', 'hospitals', 'photos', req.params.filename)
+    ];
+    const filePath = candidates.find(p => fs.existsSync(p));
+    if (filePath) res.sendFile(filePath);
+    else res.status(404).json({ error: 'Hospital photo not found' });
+});
+
+app.get('/uploads/admins/photos/:filename', (req, res) => {
+    const candidates = [
+      path.join(UPLOADS_ROOT, 'admins', 'photos', req.params.filename),
+      path.join(__dirname, 'uploads', 'admins', 'photos', req.params.filename)
+    ];
+    const filePath = candidates.find(p => fs.existsSync(p));
+    if (filePath) res.sendFile(filePath);
+    else res.status(404).json({ error: 'Admin photo not found' });
 });
 
 

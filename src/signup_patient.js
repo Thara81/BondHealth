@@ -271,6 +271,12 @@ function generateSignUpHTML() {
         <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
         <textarea id="address" name="address" rows="2" required class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200 resize-none" placeholder="Enter your full address"></textarea>
        </div>
+
+       <!-- Profile Photo -->
+       <div>
+        <label for="profile_photo" class="block text-sm font-medium text-gray-700 mb-2">Profile Photo (optional)</label>
+        <input type="file" id="profile_photo" name="profile_photo" accept="image/*" class="form-input w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 transition-all duration-200">
+       </div>
        
        <!-- Password -->
        <div>
@@ -384,26 +390,24 @@ function generateSignUpHTML() {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Creating Account...';
       
-      // Prepare form data
-      const formData = {
-        name: document.getElementById('name').value,
-        dob: document.getElementById('dob').value,
-        gender: document.querySelector('input[name="gender"]:checked')?.value || '',
-        blood_type: document.getElementById('blood_type').value, // ADDED
-        email: document.getElementById('email').value,
-        phone: document.getElementById('phone').value,
-        address: document.getElementById('address').value,
-        password: document.getElementById('password').value,
-        confirmPassword: document.getElementById('confirm-password').value
-      };
-      
+      // Prepare multipart form data
+      const formData = new FormData();
+      formData.append('name', document.getElementById('name').value);
+      formData.append('dob', document.getElementById('dob').value);
+      formData.append('gender', document.querySelector('input[name="gender"]:checked')?.value || '');
+      formData.append('blood_type', document.getElementById('blood_type').value);
+      formData.append('email', document.getElementById('email').value);
+      formData.append('phone', document.getElementById('phone').value);
+      formData.append('address', document.getElementById('address').value);
+      formData.append('password', document.getElementById('password').value);
+      formData.append('confirmPassword', document.getElementById('confirm-password').value);
+      const profilePhotoFile = document.getElementById('profile_photo').files[0];
+      if (profilePhotoFile) formData.append('profile_photo', profilePhotoFile);
+
       // Submit via AJAX
-      fetch('http://localhost:3005/api/auth/register', {
+      fetch('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+        body: formData
       })
       .then(response => response.json())
       .then(data => {

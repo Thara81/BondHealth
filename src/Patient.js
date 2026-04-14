@@ -80,6 +80,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         gender: patientData.gender || 'Gender not provided',
         bloodType: patientData.blood_type || 'Blood Group not provided',
         email: patientData.email ||'Email not provided',
+        photoUrl: patientData.profile_photo_url || patientData.photo_url || null,
         contact: patientData.phone || 'Phone not provided',
         address: patientData.address || 'Address not provided',
         emergencyContact: (() => {
@@ -578,8 +579,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         <div class="white-card rounded-2xl p-6 mb-6 fade-in">
           <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="flex items-center space-x-4 mb-4 md:mb-0">
-              <div class="w-16 h-16 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white">
-                ${patient.name ? patient.name.charAt(0) : 'P'}
+              <div class="w-16 h-16 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
+                ${patient.photoUrl
+                  ? `<img src="${patient.photoUrl}" alt="Patient Profile" class="w-full h-full object-cover">`
+                  : (patient.name ? patient.name.charAt(0) : 'P')}
               </div>
               <div>
                 <h1 class="text-3xl font-bold cyan-text">Welcome back, <span class="text-gray-800">${patient.name || 'Patient'}</span></h1>
@@ -618,8 +621,10 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             <div class="white-card rounded-2xl p-6 mb-6 slide-in">
               <button id="profileBtn" class="w-full cyan-light rounded-xl p-4 mb-6 flex items-center justify-between space-x-3 hover-lift">
                 <div class="flex items-center space-x-3">
-                  <div class="w-12 h-12 cyan-dark rounded-full flex items-center justify-center">
-                    <i class="fas fa-user text-xl text-white"></i>
+                  <div class="w-12 h-12 cyan-dark rounded-full flex items-center justify-center overflow-hidden">
+                    ${patient.photoUrl
+                      ? `<img src="${patient.photoUrl}" alt="Patient Profile" class="w-full h-full object-cover">`
+                      : `<i class="fas fa-user text-xl text-white"></i>`}
                   </div>
                   <div class="text-left">
                     <p class="font-semibold cyan-text">View Profile</p>
@@ -853,6 +858,24 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             </div>
             
             <form id="editProfileForm">
+              <div class="mb-5">
+                <label class="block text-sm font-medium cyan-text mb-2">Profile Photo</label>
+                <div class="flex items-center gap-4">
+                  <div class="w-16 h-16 cyan-light rounded-full overflow-hidden flex items-center justify-center border border-cyan-200">
+                    ${patient.photoUrl
+                      ? `<img id="editPhotoPreview" src="${patient.photoUrl}" alt="Profile Preview" class="w-full h-full object-cover">`
+                      : `<i id="editPhotoFallbackIcon" class="fas fa-user text-cyan-600"></i>`}
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" id="editProfilePhoto" accept="image/*" class="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <p class="text-xs text-gray-500 mt-1">Upload a new image to replace current photo.</p>
+                    <button type="button" id="removeProfilePhotoBtn" class="mt-2 px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg border border-red-200 hover:bg-red-100 transition">
+                      Remove Photo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label class="block text-sm font-medium cyan-text mb-2">Full Name</label>
@@ -1374,30 +1397,67 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
               editProfileModal.classList.add('hidden');
             }
           });
+
+          const editProfilePhotoInput = document.getElementById('editProfilePhoto');
+          const removeProfilePhotoBtn = document.getElementById('removeProfilePhotoBtn');
+          let removeProfilePhoto = false;
+          editProfilePhotoInput?.addEventListener('change', () => {
+            const file = editProfilePhotoInput.files?.[0];
+            if (!file) return;
+            removeProfilePhoto = false;
+            const previewImg = document.getElementById('editPhotoPreview');
+            const fallbackIcon = document.getElementById('editPhotoFallbackIcon');
+            const objectUrl = URL.createObjectURL(file);
+
+            if (previewImg) {
+              previewImg.src = objectUrl;
+            } else {
+              const wrap = fallbackIcon?.parentElement;
+              if (wrap) {
+                wrap.innerHTML = '<img id="editPhotoPreview" src="' + objectUrl + '" alt="Profile Preview" class="w-full h-full object-cover">';
+              }
+            }
+          });
+
+          removeProfilePhotoBtn?.addEventListener('click', () => {
+            removeProfilePhoto = true;
+            if (editProfilePhotoInput) editProfilePhotoInput.value = '';
+            const previewWrap = document.getElementById('editPhotoPreview')?.parentElement
+              || document.getElementById('editPhotoFallbackIcon')?.parentElement;
+            if (previewWrap) {
+              previewWrap.innerHTML = '<i id="editPhotoFallbackIcon" class="fas fa-user text-cyan-600"></i>';
+            }
+          });
           
           document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const formData = {
-              full_name: document.getElementById('editName').value,
-              email: document.getElementById('editEmail').value,
-              phone: document.getElementById('editPhone').value,
-              gender: document.getElementById('editGender').value,
-              blood_type: document.getElementById('editBloodType').value,
-              date_of_birth: document.getElementById('editDob').value,
-              address: document.getElementById('editAddress').value,
-              emergency_contact_name: document.getElementById('editEmergencyName').value,
-              emergency_contact_phone: document.getElementById('editEmergencyPhone').value,
-              emergency_relation: document.getElementById('editEmergencyRelation').value,
-              medical_conditions: document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c),
-              allergies: document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a)
-            };
+            const payload = new FormData();
+            payload.append('full_name', document.getElementById('editName').value);
+            payload.append('email', document.getElementById('editEmail').value);
+            payload.append('phone', document.getElementById('editPhone').value);
+            payload.append('gender', document.getElementById('editGender').value);
+            payload.append('blood_type', document.getElementById('editBloodType').value);
+            payload.append('date_of_birth', document.getElementById('editDob').value);
+            payload.append('address', document.getElementById('editAddress').value);
+            payload.append('emergency_contact_name', document.getElementById('editEmergencyName').value);
+            payload.append('emergency_contact_phone', document.getElementById('editEmergencyPhone').value);
+            payload.append('emergency_relation', document.getElementById('editEmergencyRelation').value);
+            payload.append('medical_conditions', JSON.stringify(document.getElementById('editConditions').value.split(',').map(c => c.trim()).filter(c => c)));
+            payload.append('allergies', JSON.stringify(document.getElementById('editAllergies').value.split(',').map(a => a.trim()).filter(a => a)));
+
+            const newPhoto = document.getElementById('editProfilePhoto').files?.[0];
+            if (newPhoto) {
+              payload.append('profile_photo', newPhoto);
+            }
+            if (removeProfilePhoto && !newPhoto) {
+              payload.append('remove_profile_photo', 'true');
+            }
             
             try {
               const response = await fetch('/api/patient', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: payload
               });
               
               if (response.ok) {
