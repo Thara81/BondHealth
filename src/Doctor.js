@@ -165,7 +165,7 @@ function buildPatientCardHTML(p) {
       <div class="space-y-2 mb-3 text-sm">
         <div class="flex justify-between">
           <span class="cyan-text opacity-75">Blood Group:</span>
-          <span class="font-medium cyan-text">${esc(p.blood_group || 'N/A')}</span>
+          <span class="font-medium cyan-text">${esc(p.blood_group || p.blood_type || 'N/A')}</span>
         </div>
         <div class="flex justify-between">
           <span class="cyan-text opacity-75">Last Visit:</span>
@@ -1834,6 +1834,12 @@ module.exports = async function renderDoctorDashboard(userId) {
       // Patients — uses subquery with MAX() to safely get most recent visit
       query(
         `SELECT p.*,
+          p.blood_type AS blood_group,
+          CASE
+            WHEN p.date_of_birth IS NOT NULL
+            THEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.date_of_birth))::int
+            ELSE NULL
+          END AS age,
            sub.last_visit
          FROM patients p
          JOIN (

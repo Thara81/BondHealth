@@ -2310,7 +2310,14 @@ app.get('/api/lab-reports', authenticate, authorize('doctor'), async (req, res) 
 app.get('/api/patients', authenticate, authorize('doctor'), async (req, res) => {
     try {
         const result = await query(
-            `SELECT DISTINCT ON (p.patient_id) p.*, a.appointment_date AS last_visit
+            `SELECT DISTINCT ON (p.patient_id) p.*,
+                    p.blood_type AS blood_group,
+                    CASE
+                        WHEN p.date_of_birth IS NOT NULL
+                        THEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.date_of_birth))::int
+                        ELSE NULL
+                    END AS age,
+                    a.appointment_date AS last_visit
              FROM patients p
              JOIN appointments a ON p.patient_id = a.patient_id
              JOIN doctors d ON a.doctor_id = d.doctor_id
@@ -2367,7 +2374,15 @@ app.post('/api/doctor/patient/add', authenticate, authorize('doctor'), async (re
 app.get('/api/doctor/patient/:patientId', authenticate, async (req, res) => {
     try {
         const result = await query(
-            'SELECT * FROM patients WHERE patient_id = $1',
+            `SELECT p.*,
+                    p.blood_type AS blood_group,
+                    CASE
+                        WHEN p.date_of_birth IS NOT NULL
+                        THEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, p.date_of_birth))::int
+                        ELSE NULL
+                    END AS age
+             FROM patients p
+             WHERE p.patient_id = $1`,
             [req.params.patientId]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Patient not found' });
