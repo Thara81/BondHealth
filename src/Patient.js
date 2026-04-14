@@ -1525,7 +1525,8 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             date: report?.date || report?.test_date || report?.created_at || new Date().toISOString(),
             results: report?.results || 'Results pending',
             findings: report?.findings || report?.notes || 'No findings recorded',
-            file_url: report?.file_url || null
+            file_url: report?.file_url || null,
+            file_view_url: report?.file_view_url || null
           };
         }
 
@@ -1536,7 +1537,12 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         function getReportDownloadUrl(report) {
           if (!report) return null;
           if (report.id) return '/api/reports/' + encodeURIComponent(report.id) + '/download';
-          return report.file_url || null;
+          return report.file_view_url || report.file_url || null;
+        }
+
+        function getReportViewUrl(report) {
+          if (!report) return null;
+          return report.file_view_url || report.file_url || getReportDownloadUrl(report);
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -2846,6 +2852,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             return;
           }
           const downloadUrl = getReportDownloadUrl(report);
+          const viewUrl = getReportViewUrl(report);
           
           document.getElementById('reportModalTitle').textContent = report.name;
           document.getElementById('reportModalContent').innerHTML = \`
@@ -2868,8 +2875,8 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 <p class="text-xs cyan-text mb-1">Findings</p>
                 <p class="text-sm">\${report.findings}</p>
               </div>
-              \${downloadUrl ? \`
-                <a href="\${downloadUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 cyan-dark text-white px-4 py-2 rounded-lg text-sm">
+              \${viewUrl ? \`
+                <a href="\${viewUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 cyan-dark text-white px-4 py-2 rounded-lg text-sm">
                   <i class="fas fa-file-medical"></i>Open Attached Report
                 </a>
               \` : ''}

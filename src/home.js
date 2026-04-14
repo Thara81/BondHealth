@@ -699,6 +699,33 @@ const result = await client.query(
   }
 });
 
+function resolveExistingReportFile(fileUrl) {
+  if (!fileUrl) return null;
+  const normalizedUrl = String(fileUrl).replace(/\\/g, '/');
+  const fileName = normalizedUrl.split('/').pop();
+  const candidates = [
+    fileName ? path.join(UPLOADS_ROOT, 'reports', fileName) : null,
+    fileName ? path.join(__dirname, 'uploads', 'reports', fileName) : null,
+    fileName ? path.join(UPLOADS_ROOT, 'temp', fileName) : null,
+    fileName ? path.join(__dirname, 'uploads', 'temp', fileName) : null,
+    fileName ? path.join(UPLOADS_ROOT, fileName) : null,
+    fileName ? path.join(__dirname, 'uploads', fileName) : null,
+    path.join(process.cwd(), normalizedUrl.replace(/^\//, '')),
+    path.join(__dirname, normalizedUrl.replace(/^\//, '')),
+    path.join(UPLOADS_ROOT, normalizedUrl.replace(/^\/?uploads\//, ''))
+  ].filter(Boolean);
+  return candidates.find(p => fs.existsSync(p)) || null;
+}
+
+function resolveReportViewUrl(filePath) {
+  if (!filePath) return null;
+  const parent = path.basename(path.dirname(filePath)).toLowerCase();
+  const fileName = path.basename(filePath);
+  if (parent === 'reports') return '/uploads/reports/' + fileName;
+  if (parent === 'temp') return '/uploads/reports/' + fileName;
+  return '/uploads/' + fileName;
+}
+
 // Get reports for a patient
 app.get('/api/reports', authenticate, async (req, res) => {
   try {
@@ -742,7 +769,14 @@ app.get('/api/reports', authenticate, async (req, res) => {
       );
     }
     
-    res.json(result.rows);
+    const rowsWithResolvedFile = result.rows.map(row => {
+      const existingFilePath = resolveExistingReportFile(row.file_url);
+      return {
+        ...row,
+        file_view_url: resolveReportViewUrl(existingFilePath)
+      };
+    });
+    res.json(rowsWithResolvedFile);
   } catch (error) {
     console.error('Error fetching reports:', error);
     res.status(500).json({ error: error.message });
@@ -1955,12 +1989,7 @@ app.get('/api/reports/:reportId/download', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'No file attached to this report' });
         }
 
-        const fileName = report.file_url.split('/').pop();
-        const possiblePaths = [
-            path.join(UPLOADS_ROOT, 'reports', fileName),
-            path.join(__dirname, 'uploads', 'reports', fileName)
-        ];
-        const filePath = possiblePaths.find(p => fs.existsSync(p));
+        const filePath = resolveExistingReportFile(report.file_url);
         if (!filePath) return res.status(404).json({ error: 'File not found on server' });
 
         const extension = path.extname(filePath) || '.pdf';
