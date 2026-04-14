@@ -8,6 +8,15 @@ function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function patientDisplayId(row) {
+  if (row?.patient_uuid && String(row.patient_uuid).trim()) return String(row.patient_uuid);
+  if (row?.patient_id) {
+    const compact = String(row.patient_id).replace(/-/g, '').toUpperCase();
+    if (compact) return `PT-${compact.slice(0, 8)}`;
+  }
+  return 'N/A';
+}
+
 // ============================================
 // Normalize doctor row (DB snake_case + camelCase fallbacks)
 // Call once at the boundary — never scatter this logic in templates
@@ -42,7 +51,7 @@ function buildAptCardHTML(apt) {
           </div>
           <div>
             <h3 class="text-lg font-bold cyan-text">${esc(apt.patient_name)}</h3>
-            <p class="text-gray-500 text-sm">ID: ${esc(apt.patient_uuid || 'N/A')}</p>
+            <p class="text-gray-500 text-sm">ID: ${esc(patientDisplayId(apt))}</p>
             <p class="text-gray-700 text-sm mt-1"><i class="fas fa-stethoscope mr-1 cyan-text"></i>${esc(apt.reason || 'General Consultation')}</p>
           </div>
         </div>
@@ -102,7 +111,7 @@ function buildReportCardHTML(r) {
           </div>
           <div>
             <h3 class="text-lg font-bold cyan-text">${esc(r.patient_name)}</h3>
-            <p class="text-gray-500 text-sm">ID: ${esc(r.patient_uuid || 'N/A')}</p>
+            <p class="text-gray-500 text-sm">ID: ${esc(patientDisplayId(r))}</p>
             <p class="text-gray-700 text-sm mt-1"><i class="fas fa-flask mr-1 cyan-text"></i>${esc(r.test_type)}</p>
           </div>
         </div>
@@ -161,7 +170,7 @@ function buildPatientCardHTML(p) {
         </div>
         <div>
           <h3 class="text-base font-bold cyan-text patient-name">${esc(p.full_name)}</h3>
-          <p class="text-gray-500 text-xs">ID: ${esc(p.patient_uuid || 'N/A')}</p>
+          <p class="text-gray-500 text-xs">ID: ${esc(patientDisplayId(p))}</p>
           <p class="text-xs cyan-text">${esc(p.age || 'N/A')} yrs • ${esc(p.gender || 'N/A')}</p>
         </div>
       </div>
@@ -728,7 +737,7 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
       <div><label class="block text-sm font-medium cyan-text mb-2">Select Patient *</label>
         <select id="uploadPatientId" required class="form-select">
           <option value="">Choose a patient…</option>
-          ${patients.map(p => `<option value="${esc(p.patient_id)}">${esc(p.full_name)} (${esc(p.patient_uuid || 'N/A')})</option>`).join('')}
+          ${patients.map(p => `<option value="${esc(p.patient_id)}">${esc(p.full_name)} (${esc(patientDisplayId(p))})</option>`).join('')}
         </select>
       </div>
       <div><label class="block text-sm font-medium cyan-text mb-2">Test / Document Type *</label><input type="text" id="uploadTestType" required class="form-input" placeholder="e.g. Blood Test, X-Ray, ECG, MRI"></div>
@@ -922,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildAptCardHTML(apt) {
     const id   = escHTML(apt.appointment_id);
     const pn   = escHTML(apt.patient_name);
-    const uuid = escHTML(apt.patient_uuid || 'N/A');
+    const uuid = escHTML(apt.patient_uuid || (apt.patient_id ? ('PT-' + String(apt.patient_id).replace(/-/g, '').toUpperCase().slice(0, 8)) : 'N/A'));
     const pid  = escHTML(apt.patient_id);
     const reason = escHTML(apt.reason || 'General Consultation');
     const status = escHTML(apt.status || 'pending');
@@ -965,7 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function buildReportCardHTML(r) {
     const id       = escHTML(r.report_id);
     const pn       = escHTML(r.patient_name);
-    const uuid     = escHTML(r.patient_uuid || 'N/A');
+    const uuid     = escHTML(r.patient_uuid || (r.patient_id ? ('PT-' + String(r.patient_id).replace(/-/g, '').toUpperCase().slice(0, 8)) : 'N/A'));
     const testType = escHTML(r.test_type);
     const status   = escHTML(r.status);
     const findings = escHTML(r.findings || '');
@@ -1093,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const r = await res.json();
           const rId   = escHTML(r.report_id);
           const rPn   = escHTML(r.patient_name);
-          const rUuid = escHTML(r.patient_uuid || 'N/A');
+          const rUuid = escHTML(r.patient_uuid || (r.patient_id ? ('PT-' + String(r.patient_id).replace(/-/g, '').toUpperCase().slice(0, 8)) : 'N/A'));
           const rType = escHTML(r.test_type);
           const rStat = escHTML(r.status);
           const rFind = escHTML(r.findings || '');
@@ -1377,7 +1386,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="w-20 h-20 cyan-bg rounded-full flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">\${escHTML(init)}</div>
           <div>
             <h3 class="text-xl font-bold cyan-text">\${pfn}</h3>
-            <p class="text-gray-500 text-sm">ID: \${escHTML(p.patient_uuid||'N/A')}</p>
+            <p class="text-gray-500 text-sm">ID: \${escHTML(p.patient_uuid || (p.patient_id ? ('PT-' + String(p.patient_id).replace(/-/g, '').toUpperCase().slice(0, 8)) : 'N/A'))}</p>
             <span class="status-badge status-active">Active Patient</span>
           </div>
         </div>

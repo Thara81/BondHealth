@@ -74,7 +74,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
     });
     
     let patient = patientData ? {
-        id: patientData.patient_uuid || 'Unknown ID',
+        id: patientData.patient_uuid || (patientData.patient_id ? `PT-${String(patientData.patient_id).replace(/-/g, '').toUpperCase().slice(0, 8)}` : 'Unknown ID'),
         name: patientData.full_name || 'Name not provided',
         age: patientData.date_of_birth ? calculateAge(patientData.date_of_birth) : 'Date of Birth not provided',
         gender: patientData.gender || 'Gender not provided',

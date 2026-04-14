@@ -98,7 +98,7 @@ async function getPatientHistory(labTechId) {
                 lr.report_id,
                 lr.report_uuid as id,
                 p.full_name as name,
-                p.patient_uuid as patient_id,
+                COALESCE(p.patient_uuid, 'PT-' || UPPER(SUBSTRING(REPLACE(p.patient_id::text, '-', ''), 1, 8))) as patient_id,
                 lr.test_type,
                 lr.test_date as date,
                 lr.status,
@@ -121,7 +121,7 @@ async function getPatientHistory(labTechId) {
 async function getRecentPatients(labTechId) {
     try {
         const result = await query(
-            `SELECT DISTINCT p.patient_uuid, lr.created_at
+            `SELECT DISTINCT COALESCE(p.patient_uuid, p.patient_id::text) AS patient_uuid, lr.created_at
              FROM lab_reports lr
              JOIN patients p ON lr.patient_id = p.patient_id
              WHERE lr.lab_tech_id = $1
@@ -143,7 +143,10 @@ async function saveLabReport(reportData, labTechId) {
         
         // Get patient_id from patient_uuid
         const patientResult = await client.query(
-            'SELECT patient_id FROM patients WHERE patient_uuid = $1',
+            `SELECT patient_id FROM patients
+             WHERE patient_uuid = $1
+                OR patient_id::text = $1
+                OR upper(substr(replace(patient_id::text, '-', ''), 1, 8)) = upper(replace($1, 'PT-', ''))`,
             [reportData.pid]
         );
         
@@ -198,7 +201,10 @@ async function saveLabReportWithFile(reportData, labTechId, fileUrl) {
         
         // Get patient_id from patient_uuid
         const patientResult = await client.query(
-            'SELECT patient_id FROM patients WHERE patient_uuid = $1',
+            `SELECT patient_id FROM patients
+             WHERE patient_uuid = $1
+                OR patient_id::text = $1
+                OR upper(substr(replace(patient_id::text, '-', ''), 1, 8)) = upper(replace($1, 'PT-', ''))`,
             [reportData.pid]
         );
         

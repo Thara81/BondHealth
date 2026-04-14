@@ -1645,7 +1645,11 @@ app.post('/api/lab/upload-report', authenticate, authorize('lab'), upload.single
         const labTechId = labTechResult.rows[0].lab_tech_id;
 
         const patientResult = await client.query(
-            'SELECT patient_id FROM patients WHERE patient_uuid = $1', [patientId]
+            `SELECT patient_id FROM patients
+             WHERE patient_uuid = $1
+                OR patient_id::text = $1
+                OR upper(substr(replace(patient_id::text, '-', ''), 1, 8)) = upper(replace($1, 'PT-', ''))`,
+            [patientId]
         );
         if (patientResult.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Patient not found with ID: ' + patientId });
@@ -1738,7 +1742,10 @@ app.get('/api/lab/check-patient-hospital', authenticate, authorize('lab'), async
         
         // First get the actual patient_id from patient_uuid
         const patientResult = await query(
-            'SELECT patient_id FROM patients WHERE patient_uuid = $1',
+            `SELECT patient_id FROM patients
+             WHERE patient_uuid = $1
+                OR patient_id::text = $1
+                OR upper(substr(replace(patient_id::text, '-', ''), 1, 8)) = upper(replace($1, 'PT-', ''))`,
             [patientId]
         );
         
@@ -1856,7 +1863,7 @@ app.get('/api/patient-history', authenticate, authorize('lab'), async (req, res)
         if (labTechResult.rows.length === 0) return res.status(404).json({ success: false, message: 'Lab technician not found' });
 
         const result = await query(
-            `SELECT lr.report_id, lr.report_uuid as id, p.full_name as name, p.patient_uuid as patient_id,
+            `SELECT lr.report_id, lr.report_uuid as id, p.full_name as name, COALESCE(p.patient_uuid, p.patient_id::text) as patient_id,
                     lr.test_type, lr.test_date as date, lr.status, lr.priority, lr.created_at,
                     d.doctor_uuid as doctor_id, d.full_name as doctor_name
              FROM lab_reports lr
