@@ -551,11 +551,11 @@ function initSocket() {
     toast('📞 Incoming call from ' + fromName);
   });
 
-  socket.on('call-accepted', ({ roomId: rid }) => {
-    // Just notify the room that call was accepted
-    socket.to(rid).emit('call-accepted', { fromUserId: ME.id });
+  socket.on('call-accepted', () => {
+    callWaiting.classList.add('hidden');
     appendSys('Call accepted - connecting...');
-});
+    toast('Call accepted');
+  });
 
   socket.on('call-rejected', () => {
     callWaiting.classList.add('hidden');

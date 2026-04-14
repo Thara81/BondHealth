@@ -3568,11 +3568,28 @@ app.delete('/api/doctor/profile/photo', authenticate, authorize('doctor'), async
 // Initiate video call — notify patient (stub: store room URL, send notification)
 app.post('/api/doctor/video/initiate', authenticate, authorize('doctor'), async (req, res) => {
     try {
-        const { patient_id, room_url, patient_name } = req.body;
-        // TODO: push notification or SMS to patient with room_url
-        // For now just acknowledge — extend with your notification service
-        console.log(`Video call initiated for patient ${patient_id}: ${room_url}`);
-        res.json({ success: true, room_url });
+        await ensureChatMessagesTable();
+        const { patient_id } = req.body;
+        if (!patient_id) return res.status(400).json({ error: 'patient_id is required' });
+
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+        const doctorId = doctorRes.rows[0].doctor_id;
+
+        const patientRes = await query('SELECT patient_id, full_name FROM patients WHERE patient_id = $1', [patient_id]);
+        if (!patientRes.rows[0]) return res.status(404).json({ error: 'Patient not found' });
+
+        const roomUrl = `/chat-room?doctorId=${encodeURIComponent(doctorId)}&patientId=${encodeURIComponent(patient_id)}`;
+        const roomId = [doctorId, patient_id].sort().join('_');
+        const notice = `Doctor started an online consultation. Join here: ${roomUrl}`;
+        await query(
+            `INSERT INTO chat_messages (room_id, sender_id, message, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [roomId, req.user.id, notice]
+        );
+
+        console.log(`Video call initiated for patient ${patient_id}: ${roomUrl}`);
+        res.json({ success: true, room_url: roomUrl });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -3581,10 +3598,28 @@ app.post('/api/doctor/video/initiate', authenticate, authorize('doctor'), async 
 // Schedule video call — send link to patient later
 app.post('/api/doctor/video/schedule', authenticate, authorize('doctor'), async (req, res) => {
     try {
-        const { patient_id } = req.body;
-        // TODO: schedule notification job
+        await ensureChatMessagesTable();
+        const { patient_id, scheduled_time } = req.body;
+        if (!patient_id || !scheduled_time) {
+            return res.status(400).json({ error: 'patient_id and scheduled_time are required' });
+        }
+
+        const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
+        const doctorId = doctorRes.rows[0].doctor_id;
+
+        const roomUrl = `/chat-room?doctorId=${encodeURIComponent(doctorId)}&patientId=${encodeURIComponent(patient_id)}`;
+        const roomId = [doctorId, patient_id].sort().join('_');
+        const scheduleLabel = new Date(scheduled_time).toLocaleString();
+        const notice = `Online consultation scheduled for ${scheduleLabel}. Join room: ${roomUrl}`;
+        await query(
+            `INSERT INTO chat_messages (room_id, sender_id, message, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [roomId, req.user.id, notice]
+        );
+
         console.log(`Video call scheduled for patient ${patient_id}`);
-        res.json({ success: true });
+        res.json({ success: true, room_url: roomUrl });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

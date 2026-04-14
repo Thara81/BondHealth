@@ -1493,7 +1493,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
       const msgs = await res.json();
       const el = document.getElementById('chatMessages');
-      el.innerHTML = msgs.map(m => \`<div class="\${m.sender==='doctor'?'chat-msg-dr':'chat-msg-pt'}"><span>\${escHTML(m.message)}</span></div>\`).join('');
+      const linkifyMessage = (txt) => {
+        const safe = escHTML(txt);
+        return safe.replace(/(\/chat-room\?[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="underline text-cyan-700">$1</a>');
+      };
+      el.innerHTML = msgs.map(m => \`<div class="\${m.sender==='doctor'?'chat-msg-dr':'chat-msg-pt'}"><span>\${linkifyMessage(m.message)}</span></div>\`).join('');
       el.scrollTop = el.scrollHeight;
       refreshUnreadChatDots();
     } catch(e) { console.error('loadChatHistory error:', e); }
@@ -1544,16 +1548,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('startVideoCallBtn')?.addEventListener('click', function () {
     const patientId   = this.dataset.patientId;
-    const patientName = document.getElementById('onlineConsultPatientName').textContent;
-    const roomName    = 'bondhealth-' + (SERVER.doctorId || 'dr') + '-' + patientId + '-' + Date.now();
-    const jitsiUrl    = 'https://meet.jit.si/' + roomName;
-    window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
     fetch('/api/doctor/video/initiate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ patient_id: patientId, room_url: jitsiUrl, patient_name: patientName })
-    }).catch(e => console.error('video initiate error:', e));
-    showToast('Video Call', 'Call room opened. Patient will be notified.', 'success');
-    closeModal('onlineConsultModal');
+      body: JSON.stringify({ patient_id: patientId })
+    })
+    .then(async res => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.room_url) throw new Error(data.error || 'Could not start consultation');
+      window.open(data.room_url, '_blank', 'noopener,noreferrer');
+      showToast('Video Call', 'Consultation room opened and patient notified in chat.', 'success');
+      closeModal('onlineConsultModal');
+    })
+    .catch(e => {
+      console.error('video initiate error:', e);
+      showToast('Error', e.message || 'Failed to start video consultation', 'error');
+    });
   });
 
   document.getElementById('scheduleVideoCallBtn')?.addEventListener('click', function () {
@@ -1565,15 +1574,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('confirmScheduleBtn').dataset.patientId = this.dataset.patientId;
   });
 
-  document.getElementById('confirmScheduleBtn')?.addEventListener('click', function () {
+  document.getElementById('confirmScheduleBtn')?.addEventListener('click', async function () {
     const patientId    = this.dataset.patientId;
     const scheduleTime = document.getElementById('scheduleDateTime').value;
     if (!scheduleTime) { showToast('Error', 'Please pick a date and time', 'error'); return; }
-    fetch('/api/doctor/video/schedule', {
+    try {
+      const res = await fetch('/api/doctor/video/schedule', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ patient_id: patientId, scheduled_time: scheduleTime })
-    }).catch(e => console.error('video schedule error:', e));
-    showToast('Scheduled', 'Video call scheduled. Patient will be notified.', 'success');
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule consultation');
+      showToast('Scheduled', 'Video call scheduled and room link sent to patient chat.', 'success');
+    } catch (e) {
+      console.error('video schedule error:', e);
+      showToast('Error', e.message || 'Failed to schedule consultation', 'error');
+      return;
+    }
     document.getElementById('scheduleTimeRow').classList.add('hidden');
     document.getElementById('confirmScheduleBtn').classList.add('hidden');
     document.getElementById('scheduleVideoCallBtn').classList.remove('hidden');

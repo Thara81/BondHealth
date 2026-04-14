@@ -2744,6 +2744,13 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             .replace(/'/g, '&#39;');
         }
 
+        function linkifyChatText(value) {
+          const safe = escapeHtmlText(value);
+          return safe.replace(/(\/chat-room\?[^\s<]+)/g, function(url) {
+            return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="underline text-cyan-700 font-medium">Join consultation room</a>';
+          });
+        }
+
         function renderPatientChatMessages(messages) {
           const chatMessages = document.getElementById('patientChatMessages');
           if (!chatMessages) return;
@@ -2757,7 +2764,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
             const isPatient = m.sender === 'patient';
             const alignClass = isPatient ? 'flex justify-end' : 'flex justify-start';
             const bubbleClass = isPatient ? 'cyan-dark text-white' : 'white-card cyan-text';
-            return '<div class="' + alignClass + '"><div class="' + bubbleClass + ' rounded-xl px-3 py-2 max-w-[80%] text-sm">' + escapeHtmlText(m.message) + '</div></div>';
+            return '<div class="' + alignClass + '"><div class="' + bubbleClass + ' rounded-xl px-3 py-2 max-w-[80%] text-sm">' + linkifyChatText(m.message) + '</div></div>';
           }).join('');
 
           chatMessages.scrollTop = chatMessages.scrollHeight;
