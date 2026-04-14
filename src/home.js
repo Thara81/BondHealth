@@ -2322,9 +2322,39 @@ app.get('/api/appointments/slots', authenticate, async (req, res) => {
     }
 });
 
+function parseAppointmentDateTime(appointmentDate, appointmentTime) {
+    if (!appointmentDate || !appointmentTime) return null;
+    const datePart = String(appointmentDate).slice(0, 10);
+    const rawTime = String(appointmentTime).trim();
+    const amPmMatch = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    let hours;
+    let minutes;
+    if (amPmMatch) {
+        hours = parseInt(amPmMatch[1], 10);
+        minutes = parseInt(amPmMatch[2], 10);
+        const meridiem = amPmMatch[3].toUpperCase();
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+    } else {
+        const hmMatch = rawTime.match(/^(\d{1,2}):(\d{2})/);
+        if (!hmMatch) return null;
+        hours = parseInt(hmMatch[1], 10);
+        minutes = parseInt(hmMatch[2], 10);
+    }
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    return new Date(`${datePart}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+}
+
 app.post('/api/appointments', authenticate, authorize('patient'), async (req, res) => {
     try {
         const { doctor_id, appointment_date, appointment_time, reason, type, location } = req.body;
+        const bookingDateTime = parseAppointmentDateTime(appointment_date, appointment_time);
+        if (!bookingDateTime || bookingDateTime.getTime() < Date.now()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Appointments cannot be booked for past date/time.'
+            });
+        }
 
         // --- ADD: double-booking guard ---
         const conflict = await query(
@@ -2363,6 +2393,11 @@ app.put('/api/appointments/:id/reschedule', authenticate, async (req, res) => {
         await client.query('BEGIN');
         const { id } = req.params;
         const { new_date, new_time, reason } = req.body;
+        const rescheduleDateTime = parseAppointmentDateTime(new_date, new_time);
+        if (!rescheduleDateTime || rescheduleDateTime.getTime() < Date.now()) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Cannot reschedule to a past date/time' });
+        }
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
         const appointment = await client.query(

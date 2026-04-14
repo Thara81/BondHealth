@@ -999,11 +999,23 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 <label class="block text-sm font-medium cyan-text mb-2">Select Time Slot</label>
                 <div id="timeSlots" class="grid grid-cols-3 gap-2">
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:30 AM">09:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:30 AM">10:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:30 AM">11:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="12:00 PM">12:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="12:30 PM">12:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="01:00 PM">01:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="01:30 PM">01:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:30 PM">02:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:30 PM">03:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:30 PM">04:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="05:00 PM">05:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="05:30 PM">05:30</button>
                 </div>
               </div>
               
@@ -1047,11 +1059,23 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
                 <label class="block text-sm font-medium cyan-text mb-2">Select New Time</label>
                 <div id="rescheduleTimeSlots" class="grid grid-cols-3 gap-2">
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:00 AM">09:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="09:30 AM">09:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:00 AM">10:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="10:30 AM">10:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:00 AM">11:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="11:30 AM">11:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="12:00 PM">12:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="12:30 PM">12:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="01:00 PM">01:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="01:30 PM">01:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:00 PM">02:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="02:30 PM">02:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:00 PM">03:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="03:30 PM">03:30</button>
                   <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:00 PM">04:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="04:30 PM">04:30</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="05:00 PM">05:00</button>
+                  <button type="button" class="time-slot px-3 py-2 text-sm border border-gray-200 rounded-xl hover:border-cyan-500 hover:bg-cyan-50 transition" data-time="05:30 PM">05:30</button>
                 </div>
               </div>
               
@@ -2045,18 +2069,36 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         
         // Resets all time-slot buttons; greys out any that are in bookedSlots.
         // bookedSlots: string[] like ["09:00", "14:00"]
+        function to24HourMinutes(timeString) {
+          const match = String(timeString || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+          if (!match) return null;
+          let h = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          const meridiem = match[3].toUpperCase();
+          if (meridiem === 'PM' && h !== 12) h += 12;
+          if (meridiem === 'AM' && h === 12) h = 0;
+          return (h * 60) + m;
+        }
+
         function resetTimeSlots(bookedSlots) {
+          const today = new Date();
+          const todayStr = today.toISOString().split('T')[0];
+          const isTodaySelection = selectedDate === todayStr;
+          const nowMinutes = (today.getHours() * 60) + today.getMinutes();
+
           document.querySelectorAll('#timeSlots .time-slot').forEach(slot => {
             slot.classList.remove('selected');
 
             // Each slot's data-time is like "09:00 AM"; normalise to "HH:MM" for comparison
             const slotTime = slot.dataset.time.substring(0, 5);
             const isBooked = bookedSlots.includes(slotTime);
+            const slotMinutes = to24HourMinutes(slot.dataset.time);
+            const isPastToday = isTodaySelection && slotMinutes !== null && slotMinutes <= nowMinutes;
 
-            if (isBooked) {
+            if (isBooked || isPastToday) {
               slot.disabled = true;
               slot.classList.add('opacity-40', 'cursor-not-allowed', 'line-through');
-              slot.title = 'This slot is already booked';
+              slot.title = isPastToday ? 'Past time slot cannot be booked' : 'This slot is already booked';
             } else {
               slot.disabled = false;
               slot.classList.remove('opacity-40', 'cursor-not-allowed', 'line-through');
