@@ -2378,7 +2378,7 @@ app.post('/api/appointments', authenticate, authorize('patient'), async (req, re
         const patientResult = await query('SELECT patient_id FROM patients WHERE user_id = $1', [req.user.id]);
         const result = await query(
             `INSERT INTO appointments (patient_id, doctor_id, hospital_id, appointment_date, appointment_time, reason, type, location, status)
-             VALUES ($1, $2, (SELECT hospital_id FROM doctors WHERE doctor_id = $2), $3, $4, $5, $6, $7, 'pending') RETURNING *`,
+             VALUES ($1, $2, (SELECT hospital_id FROM doctors WHERE doctor_id = $2), $3, $4, $5, $6, $7, 'confirmed') RETURNING *`,
             [patientResult.rows[0].patient_id, doctor_id, appointment_date, appointment_time, reason, type, location]
         );
         res.status(201).json(result.rows[0]);

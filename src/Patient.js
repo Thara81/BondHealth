@@ -49,7 +49,7 @@ app.post('/api/appointments', (req, res) => {
   const newAppointment = {
     id: `APT-${Date.now()}`,
     ...req.body,
-    status: 'pending',
+    status: 'confirmed',
     createdAt: new Date().toISOString()
   };
   appointments.push(newAppointment);
@@ -150,6 +150,194 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         location: apt.location || 'Room 304, Cardiology Wing',
         notes: apt.notes || ''
     }));
+
+    function parseAppointmentDateTime(dateValue, timeValue) {
+        let datePart = '';
+        if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+            const y = dateValue.getFullYear();
+            const m = String(dateValue.getMonth() + 1).padStart(2, '0');
+            const d = String(dateValue.getDate()).padStart(2, '0');
+            datePart = `${y}-${m}-${d}`;
+        } else {
+            const parsedDate = new Date(dateValue);
+            if (!Number.isNaN(parsedDate.getTime())) {
+                const y = parsedDate.getFullYear();
+                const m = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                const d = String(parsedDate.getDate()).padStart(2, '0');
+                datePart = `${y}-${m}-${d}`;
+            } else {
+                const rawDate = String(dateValue || '').trim();
+                const isoMatch = rawDate.match(/^(\d{4}-\d{2}-\d{2})/);
+                datePart = isoMatch ? isoMatch[1] : '';
+            }
+        }
+        if (!datePart) return new Date(NaN);
+        const rawTime = String(timeValue || '').trim();
+        const amPmMatch = rawTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (amPmMatch) {
+            let h = parseInt(amPmMatch[1], 10);
+            const m = parseInt(amPmMatch[2], 10);
+            const meridiem = amPmMatch[3].toUpperCase();
+            if (meridiem === 'PM' && h !== 12) h += 12;
+            if (meridiem === 'AM' && h === 12) h = 0;
+            return new Date(`${datePart}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+        }
+        const hmMatch = rawTime.match(/^(\d{1,2}):(\d{2})/);
+        if (!hmMatch) return new Date(`${datePart}T00:00:00`);
+        return new Date(`${datePart}T${String(hmMatch[1]).padStart(2, '0')}:${hmMatch[2]}:00`);
+    }
+
+    function normalizeStatus(statusValue) {
+        const normalized = String(statusValue || 'confirmed').trim().toLowerCase();
+        return normalized === 'pending' ? 'confirmed' : normalized;
+    }
+
+    function getStatusPillClass(statusValue) {
+        const status = normalizeStatus(statusValue);
+        if (status === 'pending') return 'bg-amber-100 text-amber-700';
+        if (status === 'confirmed' || status === 'approved' || status === 'rescheduled') return 'bg-emerald-100 text-emerald-700';
+        if (status === 'cancelled' || status === 'deleted') return 'bg-rose-100 text-rose-700';
+        if (status === 'completed') return 'bg-slate-100 text-slate-700';
+        return 'bg-cyan-100 text-cyan-700';
+    }
+
+    function renderAppointmentCard(apt, options = {}) {
+        const showActions = Boolean(options.showActions);
+        const statusPillClass = getStatusPillClass(apt.status);
+        return `
+          <div class="appointment-card cyan-light rounded-2xl p-6 hover-lift border border-white/80">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+              <div>
+                <div class="flex items-center space-x-3 mb-2">
+                  <div class="w-12 h-12 cyan-dark rounded-xl flex items-center justify-center shadow-sm">
+                    <i class="fas fa-user-md text-white"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold cyan-text">${apt.doctor}</h3>
+                    <p class="text-gray-700"><i class="fas fa-stethoscope mr-2 cyan-text"></i>${apt.specialization}</p>
+                  </div>
+                </div>
+                <p class="text-gray-700 mt-2"><i class="fas fa-notes-medical mr-2 cyan-text"></i>${apt.reason}</p>
+              </div>
+              <div class="flex items-center space-x-3 mt-4 md:mt-0">
+                <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusPillClass}">
+                  ${apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
+                </span>
+                ${showActions ? `
+                  <button class="px-4 py-2 btn-cyan rounded-lg reschedule-btn" data-id="${apt.id}" data-doctor="${apt.doctor_id}" data-date="${apt.date}" data-time="${apt.time}">
+                    Reschedule
+                  </button>
+                  <button class="px-4 py-2 btn-white rounded-lg cancel-btn" data-id="${apt.id}">
+                    Cancel
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+              <div class="text-center">
+                <p class="text-sm cyan-text">Date</p>
+                <p class="font-semibold">${new Date(apt.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-sm cyan-text">Time</p>
+                <p class="font-semibold">${apt.time}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-sm cyan-text">Location</p>
+                <p class="font-semibold">${apt.location}</p>
+              </div>
+            </div>
+            ${apt.notes ? `
+              <div class="mt-4 p-3 cyan-light rounded-lg border cyan-border">
+                <p class="text-sm cyan-text"><i class="fas fa-info-circle mr-2"></i>Note: ${apt.notes}</p>
+              </div>
+            ` : ''}
+          </div>
+        `;
+    }
+
+    const now = new Date();
+    const enrichedAppointments = appointments.map(apt => {
+        const status = normalizeStatus(apt.status);
+        const appointmentDateTime = parseAppointmentDateTime(apt.date, apt.time);
+        return { ...apt, status, appointmentDateTime };
+    });
+
+    const upcomingAppointments = enrichedAppointments
+        .filter(apt =>
+            apt.status !== 'cancelled' &&
+            apt.status !== 'deleted' &&
+            apt.status !== 'completed' &&
+            apt.appointmentDateTime.getTime() >= now.getTime()
+        )
+        .sort((a, b) => a.appointmentDateTime - b.appointmentDateTime);
+
+    const archivedAppointments = enrichedAppointments
+        .filter(apt =>
+            apt.status === 'cancelled' ||
+            apt.status === 'deleted' ||
+            apt.status === 'completed' ||
+            apt.appointmentDateTime.getTime() < now.getTime()
+        )
+        .sort((a, b) => b.appointmentDateTime - a.appointmentDateTime);
+
+    const completedCount = enrichedAppointments.filter(apt => apt.status === 'completed').length;
+    const archivedCount = archivedAppointments.length;
+
+    const appointmentsMainHtml = `
+      <div class="appointments-hero rounded-2xl p-5 mb-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 class="text-2xl font-bold cyan-text mb-1">Appointments</h2>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-white/90 rounded-xl px-3 py-2">
+              <p class="text-xs text-gray-500">Upcoming</p>
+              <p class="text-lg font-bold cyan-text">${upcomingAppointments.length}</p>
+            </div>
+            <div class="bg-white/90 rounded-xl px-3 py-2">
+              <p class="text-xs text-gray-500">Past/Closed</p>
+              <p class="text-lg font-bold text-slate-600">${archivedCount}</p>
+            </div>
+            <div class="bg-white/90 rounded-xl px-3 py-2">
+              <p class="text-xs text-gray-500">Completed</p>
+              <p class="text-lg font-bold text-slate-600">${completedCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold cyan-text">Upcoming</h3>
+            <span class="text-xs px-2 py-1 rounded-full cyan-light cyan-text font-semibold">${upcomingAppointments.length}</span>
+          </div>
+          ${upcomingAppointments.length > 0
+            ? `<div class="grid gap-6">${upcomingAppointments.map(apt => renderAppointmentCard(apt, { showActions: true })).join('')}</div>`
+            : `<div class="p-4 rounded-xl border cyan-border bg-white text-sm text-gray-600">No upcoming appointments right now.</div>`
+          }
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Past appointments and closed records</span>
+          <span class="text-xs px-2 py-1 rounded-full bg-white text-slate-600 font-semibold">${archivedAppointments.length}</span>
+        </div>
+
+        <details class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <summary class="cursor-pointer list-none p-4 flex items-center justify-between">
+            <span class="font-semibold text-gray-700">Past / Cancelled / Deleted</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">${archivedAppointments.length}</span>
+          </summary>
+          <div class="px-4 pb-4">
+            ${archivedAppointments.length > 0
+              ? `<div class="grid gap-4">${archivedAppointments.map(apt => renderAppointmentCard(apt, { showActions: false })).join('')}</div>`
+              : `<div class="text-sm text-gray-600">No past or cancelled appointments.</div>`
+            }
+          </div>
+        </details>
+      </div>
+    `;
 
     const chatDoctors = Array.from(
       new Map(
@@ -354,6 +542,27 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
         .hover-lift:hover {
           transform: translateY(-5px);
           box-shadow: 0 20px 40px rgba(0, 255, 255, 0.15);
+        }
+
+        .appointments-hero {
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(34, 211, 238, 0.08));
+          border: 1px solid rgba(14, 165, 233, 0.22);
+        }
+
+        .appointment-card {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .appointment-card::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: linear-gradient(180deg, #06b6d4, #0ea5e9);
+          opacity: 0.65;
         }
         
         .menu-item {
@@ -728,57 +937,7 @@ function generatePatientHTML(patientData = null, appointmentsData = [], reportsD
           <div class="lg:w-3/4">
             <div id="contentArea" class="white-card rounded-2xl p-6 min-h-[600px] fade-in">
               <div id="appointmentsContent">
-                <h2 class="text-2xl font-bold mb-6 cyan-text">Current Appointments</h2>
-                <div class="grid gap-6">
-                  ${appointments.map(apt => `
-                    <div class="cyan-light rounded-xl p-6 hover-lift">
-                      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-                        <div>
-                          <div class="flex items-center space-x-3 mb-2">
-                            <div class="w-12 h-12 cyan-dark rounded-full flex items-center justify-center">
-                              <i class="fas fa-user-md text-white"></i>
-                            </div>
-                            <div>
-                              <h3 class="text-xl font-bold cyan-text">${apt.doctor}</h3>
-                              <p class="text-gray-700"><i class="fas fa-stethoscope mr-2 cyan-text"></i>${apt.specialization}</p>
-                            </div>
-                          </div>
-                          <p class="text-gray-700 mt-2"><i class="fas fa-notes-medical mr-2 cyan-text"></i>${apt.reason}</p>
-                        </div>
-                        <div class="flex items-center space-x-3 mt-4 md:mt-0">
-                          <span class="px-3 py-1 bg-cyan-500 text-white rounded-full text-sm font-semibold">
-                            ${apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
-                          </span>
-                          <button class="px-4 py-2 btn-cyan rounded-lg reschedule-btn" data-id="${apt.id}" data-doctor="${apt.doctor_id}" data-date="${apt.date}" data-time="${apt.time}">
-                            Reschedule
-                          </button>
-                          <button class="px-4 py-2 btn-white rounded-lg cancel-btn" data-id="${apt.id}">
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                        <div class="text-center">
-                          <p class="text-sm cyan-text">Date</p>
-                          <p class="font-semibold">${new Date(apt.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        </div>
-                        <div class="text-center">
-                          <p class="text-sm cyan-text">Time</p>
-                          <p class="font-semibold">${apt.time}</p>
-                        </div>
-                        <div class="text-center">
-                          <p class="text-sm cyan-text">Location</p>
-                          <p class="font-semibold">${apt.location}</p>
-                        </div>
-                      </div>
-                      ${apt.notes ? `
-                        <div class="mt-4 p-3 cyan-light rounded-lg border cyan-border">
-                          <p class="text-sm cyan-text"><i class="fas fa-info-circle mr-2"></i>Note: ${apt.notes}</p>
-                        </div>
-                      ` : ''}
-                    </div>
-                  `).join('')}
-                </div>
+                ${appointmentsMainHtml}
               </div>
               
               <div id="bookContent" class="hidden"></div>
