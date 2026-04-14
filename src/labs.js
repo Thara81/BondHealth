@@ -957,9 +957,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     <div class="form-title">
                         <span>📋</span> Patient History
                     </div>
-                    <div class="search-box">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" class="search-input" id="searchPatients" placeholder="Search patients...">
+                    <div style="display: flex; gap: 10px;">
+                        <button id="refreshHistoryBtn" class="action-btn" style="background: #0066cc; color: white;">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <div class="search-box">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="search-input" id="searchPatients" placeholder="Search patients...">
+                        </div>
                     </div>
                 </div>
                 
@@ -1053,9 +1058,9 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     docIdField.placeholder = "Enter Doctor ID (Required)";
                     
                     // Disable patient-only radio and select doctor-only by default
-                    patientOnlyRadio.disabled = true;
-                    patientOnlyRadio.parentElement.style.opacity = '0.5';
-                    patientOnlyRadio.parentElement.style.cursor = 'not-allowed';
+                    //patientOnlyRadio.disabled = true;
+                    //patientOnlyRadio.parentElement.style.opacity = '0.5';
+                    //patientOnlyRadio.parentElement.style.cursor = 'not-allowed';
                     
                     // If patient-only was checked, switch to doctor-only
                     if (patientOnlyRadio.checked) {
@@ -1291,25 +1296,25 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                     '<td>' + (patient.test_date || patient.date || 'N/A') + '</td>' +
                     '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
                     '<td>' +
-                        '<button class="action-btn view-btn" data-id="' + (patient.patient_id || patient.id) + '">View</button>' +
-                        '<button class="action-btn download-btn" data-id="' + (patient.patient_id || patient.id) + '">Download</button>' +
+                        '<button class="action-btn view-btn" data-id="' + (patient.report_id || patient.id) + '">View</button>' +
+                        '<button class="action-btn download-btn" data-id="' + (patient.report_id || patient.id) + '">Download</button>' +
                     '</td>';
                 
                 tableBody.appendChild(row);
             });
             
-            // Add event listeners to action buttons
+            // Add event listeners to action buttons - FIXED to actually open reports
             document.querySelectorAll('.view-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    const patientId = this.getAttribute('data-id');
-                    alert('Viewing details for ' + patientId);
+                    const reportId = this.getAttribute('data-id');
+                    window.open('/api/reports/' + reportId + '/download', '_blank');
                 });
             });
             
             document.querySelectorAll('.download-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    const patientId = this.getAttribute('data-id');
-                    alert('Downloading report for ' + patientId);
+                    const reportId = this.getAttribute('data-id');
+                    window.open('/api/reports/' + reportId + '/download', '_blank');
                 });
             });
         }
@@ -1353,6 +1358,15 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
                 // In real app, this would be an API call
                 console.log('Searching for doctor with ID:', value);
             }
+        });
+
+        // Refresh button listener
+        document.getElementById('refreshHistoryBtn')?.addEventListener('click', function() {
+            fetchPatientHistory();
+            const successMessage = document.getElementById('successMessage');
+            successMessage.querySelector('.success-text').textContent = 'Patient history refreshed!';
+            successMessage.classList.add('show');
+            setTimeout(() => successMessage.classList.remove('show'), 2000);
         });
 
         // Logout function
