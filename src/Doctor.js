@@ -768,6 +768,8 @@ function generateDoctorHTML(doctor = null, appointments = [], reports = [], pati
         <div><label class="block text-sm font-medium cyan-text mb-1">Email *</label><input type="email" id="newPatientEmail" required class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Phone *</label><input type="tel" id="newPatientPhone" required class="form-input"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Date of Birth *</label><input type="date" id="newPatientDob" required class="form-input"></div>
+        <div><label class="block text-sm font-medium cyan-text mb-1">Password *</label><input type="password" id="newPatientPassword" minlength="8" required class="form-input" placeholder="Min 8 characters"></div>
+        <div><label class="block text-sm font-medium cyan-text mb-1">Confirm Password *</label><input type="password" id="newPatientPasswordConfirm" minlength="8" required class="form-input" placeholder="Re-enter password"></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Gender</label><select id="newPatientGender" class="form-select"><option>Male</option><option>Female</option><option>Other</option></select></div>
         <div><label class="block text-sm font-medium cyan-text mb-1">Blood Group</label><select id="newPatientBloodGroup" class="form-select"><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
       </div>
@@ -1632,12 +1634,17 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const email = document.getElementById('newPatientEmail').value.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Error', 'Valid email is required', 'error'); return; }
+    const password = document.getElementById('newPatientPassword').value;
+    const confirmPassword = document.getElementById('newPatientPasswordConfirm').value;
+    if (!password || password.length < 8) { showToast('Error', 'Password must be at least 8 characters', 'error'); return; }
+    if (password !== confirmPassword) { showToast('Error', 'Passwords do not match', 'error'); return; }
     try {
       const res = await fetch('/api/doctor/patient/add', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           full_name:       document.getElementById('newPatientName').value.trim(),
           email,
+          password,
           phone:           document.getElementById('newPatientPhone').value.trim(),
           dob:             document.getElementById('newPatientDob').value,
           gender:          document.getElementById('newPatientGender').value,
@@ -1648,10 +1655,11 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
       if (res.ok) {
-        showToast('Added', 'Patient added!', 'success'); closeModal('addPatientModal'); e.target.reset();
-        const cur = parseInt(document.getElementById('sidebarPatientCount').textContent) || 0;
-        document.getElementById('sidebarPatientCount').textContent = cur + 1;
-        document.getElementById('statPatients').textContent = cur + 1;
+        const data = await res.json().catch(() => ({}));
+        showToast('Added', 'Patient added. Login email: ' + email, 'success');
+        closeModal('addPatientModal');
+        e.target.reset();
+        setTimeout(() => window.location.reload(), 1200);
       } else { const err = await res.json().catch(()=>({})); showToast('Error', err.message||'Failed', 'error'); }
     } catch(err) {
       console.error('add patient error:', err);
@@ -1880,6 +1888,16 @@ module.exports = async function renderDoctorDashboard(userId) {
     const doctorId = doctor.doctor_id;
     console.log('🆔 Doctor:', doctor.full_name, '| ID:', doctorId);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS doctor_patient_links (
+        link_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        doctor_id UUID NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+        patient_id UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(doctor_id, patient_id)
+      )
+    `);
+
     const [appointmentsResult, reportsResult, patientsResult] = await Promise.all([
       // Today's appointments with patient info
       query(
@@ -1901,7 +1919,7 @@ module.exports = async function renderDoctorDashboard(userId) {
          LIMIT $2`,
         [doctorId, 50] // matches client-side REPORTS_PAGE_SIZE
       ),
-      // Patients — uses subquery with MAX() to safely get most recent visit
+      // Patients — includes both appointment-based and manually linked patients
       query(
         `SELECT p.*,
           p.blood_type AS blood_group,
@@ -1913,7 +1931,7 @@ module.exports = async function renderDoctorDashboard(userId) {
            sub.last_visit,
            sub.next_visit
          FROM patients p
-         JOIN (
+         LEFT JOIN (
           SELECT patient_id,
                  MAX(CASE WHEN appointment_date <= CURRENT_DATE THEN appointment_date END) AS last_visit,
                  MIN(CASE WHEN appointment_date > CURRENT_DATE THEN appointment_date END) AS next_visit
@@ -1921,7 +1939,12 @@ module.exports = async function renderDoctorDashboard(userId) {
            WHERE doctor_id = $1
            GROUP BY patient_id
          ) sub ON p.patient_id = sub.patient_id
-         ORDER BY sub.last_visit DESC`,
+         WHERE p.patient_id IN (
+           SELECT patient_id FROM appointments WHERE doctor_id = $1
+           UNION
+           SELECT patient_id FROM doctor_patient_links WHERE doctor_id = $1
+         )
+         ORDER BY COALESCE(sub.last_visit, p.created_at) DESC`,
         [doctorId]
       )
     ]);

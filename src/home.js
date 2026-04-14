@@ -1458,10 +1458,17 @@ app.get('/add-lab', requireAuth('admin'), async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, email, password, role } = req.body;
-        const result = await query(
-            'SELECT * FROM users WHERE username = $1 OR email = $2',
-            [username || '', email || '']
+        const loginId = String(username || email || '').trim();
+        let result = await query(
+            'SELECT * FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)',
+            [loginId]
         );
+        if (!result.rows[0] && loginId && !loginId.includes('@')) {
+            result = await query(
+                "SELECT * FROM users WHERE LOWER(username) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1",
+                [loginId + "\\_%"]
+            );
+        }
         const user = result.rows[0];
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -1483,10 +1490,17 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/signin', async (req, res) => {
     try {
         const { username, password, role } = req.body;
-        const result = await query(
-            'SELECT * FROM users WHERE username = $1 OR email = $1',
-            [username]
+        const loginId = String(username || '').trim();
+        let result = await query(
+            'SELECT * FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1)',
+            [loginId]
         );
+        if (!result.rows[0] && loginId && !loginId.includes('@')) {
+            result = await query(
+                "SELECT * FROM users WHERE LOWER(username) LIKE LOWER($1) ORDER BY created_at DESC LIMIT 1",
+                [loginId + "\\_%"]
+            );
+        }
         const user = result.rows[0];
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -2651,6 +2665,16 @@ app.get('/api/lab-reports', authenticate, authorize('doctor'), async (req, res) 
 // Doctor's patients list
 app.get('/api/patients', authenticate, authorize('doctor'), async (req, res) => {
     try {
+        await query(`
+          CREATE TABLE IF NOT EXISTS doctor_patient_links (
+            link_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            doctor_id UUID NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+            patient_id UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(doctor_id, patient_id)
+          )
+        `);
+
         const result = await query(
             `SELECT DISTINCT ON (p.patient_id) p.*,
                     p.blood_type AS blood_group,
@@ -2677,6 +2701,12 @@ app.get('/api/patients', authenticate, authorize('doctor'), async (req, res) => 
                 GROUP BY patient_id, doctor_id
              ) next_upcoming ON next_upcoming.patient_id = p.patient_id AND next_upcoming.doctor_id = d.doctor_id
              WHERE d.user_id = $1
+                OR p.patient_id IN (
+                   SELECT l.patient_id
+                   FROM doctor_patient_links l
+                   JOIN doctors d2 ON d2.doctor_id = l.doctor_id
+                   WHERE d2.user_id = $1
+                )
              ORDER BY p.patient_id, a.appointment_date DESC`,
             [req.user.id]
         );
@@ -2692,16 +2722,27 @@ app.post('/api/doctor/patient/add', authenticate, authorize('doctor'), async (re
     try {
         await client.query('BEGIN');
         const { full_name, email, phone, dob, date_of_birth, gender,
-                blood_group, blood_type, address, emergency_name, emergency_phone } = req.body;
+                blood_group, blood_type, address, emergency_name, emergency_phone, password } = req.body;
+        const normalizedEmail = String(email || '').trim().toLowerCase();
 
         const dobVal       = dob || date_of_birth || null;
         const bloodVal     = blood_group || blood_type || null;
 
-        const username     = (email || `patient_${Date.now()}`).split('@')[0];
-        const tempPassword = await bcrypt.hash('Welcome@123', await bcrypt.genSalt(10));
+        const rawPassword  = (password || '').trim();
+        if (!rawPassword || rawPassword.length < 8) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Patient password must be at least 8 characters' });
+        }
+        const usernameBase = (normalizedEmail || `patient_${Date.now()}`).split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+        let username = usernameBase || `patient_${Date.now()}`;
+        const usernameExists = await client.query('SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1', [username]);
+        if (usernameExists.rows.length > 0) {
+            username = `${usernameBase}_${Date.now()}`;
+        }
+        const hashedPassword = await bcrypt.hash(rawPassword, await bcrypt.genSalt(10));
         const userResult   = await client.query(
             'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING user_id',
-            [username, email || `${username}@bondhealth.com`, tempPassword, 'patient']
+            [username, normalizedEmail || `${username}@bondhealth.com`, hashedPassword, 'patient']
         );
         const userId = userResult.rows[0].user_id;
 
@@ -2712,11 +2753,29 @@ app.post('/api/doctor/patient/add', authenticate, authorize('doctor'), async (re
             `INSERT INTO patients (user_id, patient_uuid, full_name, email, phone, address,
                                    date_of_birth, gender, blood_type, emergency_contact_name, emergency_contact_phone)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-            [userId, patient_uuid, full_name, email, phone, address,
+            [userId, patient_uuid, full_name, normalizedEmail || `${username}@bondhealth.com`, phone, address,
              dobVal, gender, bloodVal, emergency_name || null, emergency_phone || null]
         );
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS doctor_patient_links (
+            link_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            doctor_id UUID NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+            patient_id UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(doctor_id, patient_id)
+          )
+        `);
+        const doctorResult = await client.query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
+        if (doctorResult.rows[0]?.doctor_id) {
+            await client.query(
+              `INSERT INTO doctor_patient_links (doctor_id, patient_id)
+               VALUES ($1, $2)
+               ON CONFLICT (doctor_id, patient_id) DO NOTHING`,
+              [doctorResult.rows[0].doctor_id, patientResult.rows[0].patient_id]
+            );
+        }
         await client.query('COMMIT');
-        res.json({ success: true, data: patientResult.rows[0] });
+        res.json({ success: true, data: patientResult.rows[0], credentials: { email: normalizedEmail || `${username}@bondhealth.com`, username } });
     } catch (error) {
         await client.query('ROLLBACK');
         res.status(500).json({ success: false, error: error.message });
@@ -3128,6 +3187,15 @@ app.post('/api/doctor/slot/add', authenticate, authorize('doctor'), async (req, 
 // Dashboard stats (auto-refreshed every 60s)
 app.get('/api/doctor/stats', authenticate, authorize('doctor'), async (req, res) => {
     try {
+        await query(`
+          CREATE TABLE IF NOT EXISTS doctor_patient_links (
+            link_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            doctor_id UUID NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+            patient_id UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(doctor_id, patient_id)
+          )
+        `);
         const doctorRes = await query('SELECT doctor_id FROM doctors WHERE user_id = $1', [req.user.id]);
         if (!doctorRes.rows[0]) return res.status(404).json({ error: 'Doctor not found' });
         const doctorId = doctorRes.rows[0].doctor_id;
@@ -3137,7 +3205,11 @@ app.get('/api/doctor/stats', authenticate, authorize('doctor'), async (req, res)
                 (SELECT COUNT(*) FROM appointments WHERE doctor_id = $1 AND appointment_date = CURRENT_DATE) AS appointments,
                 (SELECT COUNT(*) FROM lab_reports     WHERE doctor_id = $1 AND status = 'pending')           AS pending_reports,
                 (SELECT COUNT(*) FROM lab_reports     WHERE doctor_id = $1)                                   AS reports,
-                (SELECT COUNT(DISTINCT patient_id) FROM appointments WHERE doctor_id = $1)                    AS patients`,
+                (SELECT COUNT(*) FROM (
+                    SELECT DISTINCT patient_id FROM appointments WHERE doctor_id = $1
+                    UNION
+                    SELECT DISTINCT patient_id FROM doctor_patient_links WHERE doctor_id = $1
+                 ) px)                                                                                         AS patients`,
             [doctorId]
         );
         res.json(result.rows[0]);
